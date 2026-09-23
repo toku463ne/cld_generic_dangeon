@@ -3,14 +3,12 @@ package engine
 import (
 	"encoding/binary"
 	"hash/fnv"
+	"math"
 	"math/rand"
 )
 
 // World is the whole simulation. It knows nothing about drawing, networking,
 // map files, or who is playing.
-//
-// Stage 1-0 is the container only: a clock, a map and the random source. No
-// rule acts on it yet, so a tick changes nothing but the clock.
 type World struct {
 	cfg Config
 	m   Map
@@ -21,22 +19,57 @@ type World struct {
 	draws *countingSource
 
 	tick int64
+
+	food   foodState
+	bodies []Body
+	nextID int64
+	stats  Stats
+
+	// options is scratch space for possibleActions.
+	options []Action
 }
 
-// NewWorld builds a world on the given map. The map is copied, so the caller
-// may reuse it.
+// NewWorld builds a world on the given map: the food cap laid out by region
+// share, then the bodies. The map is copied, so the caller may reuse it.
 func NewWorld(cfg Config, m Map) (*World, error) {
 	if err := m.Validate(); err != nil {
 		return nil, err
 	}
 	w := &World{cfg: cfg, m: m.Clone()}
 	w.rng, w.draws = newCountingRand(cfg.Seed)
+	w.initFood()
+	w.fillFood()
+	w.placeBodies()
 	return w, nil
 }
 
-// Step advances the world by one tick.
+// Step advances the world by one tick: vacant food comes back, then every
+// body in turn acts and spends its energy, then the dead are removed.
 func (w *World) Step() {
 	w.tick++
+	w.returnFood()
+	for i := range w.bodies {
+		b := &w.bodies[i]
+		w.options = w.possibleActions(w.options[:0], b)
+		w.act(b, w.decide(w.options))
+		b.Energy -= w.cfg.EnergyBurn
+		w.stats.EnergyBurned += w.cfg.EnergyBurn
+	}
+	w.removeDead()
+}
+
+// removeDead drops the bodies that have run out of energy, keeping the order
+// of the rest.
+func (w *World) removeDead() {
+	alive := w.bodies[:0]
+	for _, b := range w.bodies {
+		if b.Energy <= 0 {
+			w.stats.Deaths[CauseStarved]++
+			continue
+		}
+		alive = append(alive, b)
+	}
+	w.bodies = alive
 }
 
 // Tick returns how many ticks the world has run.
@@ -62,6 +95,7 @@ func (w *World) Fingerprint() uint64 {
 		binary.LittleEndian.PutUint64(buf[:], v)
 		h.Write(buf[:])
 	}
+	putF := func(v float64) { put(math.Float64bits(v)) }
 	put(uint64(w.cfg.Seed))
 	put(uint64(w.tick))
 	put(w.draws.draws)
@@ -73,6 +107,26 @@ func (w *World) Fingerprint() uint64 {
 	for _, r := range w.m.Region {
 		binary.LittleEndian.PutUint16(buf[:2], uint16(r))
 		h.Write(buf[:2])
+	}
+	for _, f := range w.food.foods {
+		put(uint64(f.X))
+		put(uint64(f.Y))
+	}
+	for _, o := range w.food.owed {
+		putF(o)
+	}
+	put(uint64(w.food.appeared))
+	put(uint64(w.food.eaten))
+	for _, b := range w.bodies {
+		put(uint64(b.ID))
+		putF(b.X)
+		putF(b.Y)
+		putF(b.Energy)
+		put(uint64(b.Born))
+	}
+	put(uint64(w.nextID))
+	for _, d := range w.stats.Deaths {
+		put(uint64(d))
 	}
 	return h.Sum64()
 }

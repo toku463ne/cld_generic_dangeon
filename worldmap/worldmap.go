@@ -30,10 +30,14 @@ func Flat(width, height int) engine.Map {
 	return engine.NewMap(width, height)
 }
 
+// ConstrainedFood is each quadrant's share of the food on the constrained
+// map, in region ID order. Provisional; PARAMETERS.md records it.
+var ConstrainedFood = []float64{0.5, 0.1, 0.3, 0.1}
+
 // Constrained is the map where food is meant to bind the population. It has
-// four regions (the quadrants, IDs 0 to 3 in reading order), which stage 1-1
-// gives different food rates, and a two-tile strip of water running the full
-// height that cuts the land in two.
+// four regions (the quadrants, IDs 0 to 3 in reading order) that take unequal
+// shares of the food (ConstrainedFood), and a two-tile strip of water running
+// the full height that cuts the land in two.
 //
 // The water sits at five eighths of the width, not on the region boundary at
 // one half, so that terrain and region cut across each other: the two are
@@ -41,6 +45,7 @@ func Flat(width, height int) engine.Map {
 // confusing one for the other.
 func Constrained(width, height int) engine.Map {
 	m := engine.NewMap(width, height)
+	m.RegionFood = append([]float64(nil), ConstrainedFood...)
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			r := 0

@@ -21,21 +21,30 @@ const (
 // food appears, and so on) is attached to the ID by later stages.
 type RegionID uint16
 
-// Map is the terrain layer and the region layer of a world.
+// Map is the terrain layer and the region layer of a world, and what each
+// region gives.
 type Map struct {
 	Width, Height int
 	Terrain       []Terrain
 	Region        []RegionID
+
+	// RegionFood is each region's share of the food that appears, indexed by
+	// RegionID. It is a share of one map-wide total, not an amount of its
+	// own: a richer region takes more of the same food, it does not make more.
+	// Only the ratios matter.
+	RegionFood []float64
 }
 
-// NewMap returns a map that is all land and all region 0.
+// NewMap returns a map that is all land and all region 0, which takes all of
+// the food.
 func NewMap(width, height int) Map {
 	n := width * height
 	return Map{
-		Width:   width,
-		Height:  height,
-		Terrain: make([]Terrain, n),
-		Region:  make([]RegionID, n),
+		Width:      width,
+		Height:     height,
+		Terrain:    make([]Terrain, n),
+		Region:     make([]RegionID, n),
+		RegionFood: []float64{1},
 	}
 }
 
@@ -55,6 +64,21 @@ func (m Map) Validate() error {
 		if t > TerrainWater {
 			return fmt.Errorf("tile %d has unknown terrain %d", i, t)
 		}
+	}
+	for i, r := range m.Region {
+		if int(r) >= len(m.RegionFood) {
+			return fmt.Errorf("tile %d is in region %d, which has no food share", i, r)
+		}
+	}
+	sum := 0.0
+	for r, f := range m.RegionFood {
+		if !(f >= 0) {
+			return fmt.Errorf("region %d has food share %v", r, f)
+		}
+		sum += f
+	}
+	if !(sum > 0) {
+		return fmt.Errorf("no region has a food share")
 	}
 	return nil
 }
@@ -83,5 +107,6 @@ func (m Map) Clone() Map {
 	c := m
 	c.Terrain = append([]Terrain(nil), m.Terrain...)
 	c.Region = append([]RegionID(nil), m.Region...)
+	c.RegionFood = append([]float64(nil), m.RegionFood...)
 	return c
 }

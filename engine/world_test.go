@@ -9,6 +9,7 @@ import (
 // each other, so a save that dropped or mixed up a layer would show.
 func testMap() Map {
 	m := NewMap(12, 9)
+	m.RegionFood = []float64{4, 1, 2, 1}
 	for y := 0; y < m.Height; y++ {
 		for x := 0; x < m.Width; x++ {
 			m.SetRegion(x, y, RegionID(x/6+2*(y/5)))
@@ -18,9 +19,18 @@ func testMap() Map {
 	return m
 }
 
+// testConfig is the default rules scaled to the small test map.
+func testConfig(seed int64) Config {
+	cfg := DefaultConfig()
+	cfg.Seed = seed
+	cfg.FoodCap = 30
+	cfg.Bodies = 20
+	return cfg
+}
+
 func newTestWorld(t testing.TB, seed int64) *World {
 	t.Helper()
-	w, err := NewWorld(Config{Seed: seed}, testMap())
+	w, err := NewWorld(testConfig(seed), testMap())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +85,7 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0x29a89240a7037963)
+	const want = uint64(0xa43263b50e366b1e)
 	w := newTestWorld(t, 1)
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
