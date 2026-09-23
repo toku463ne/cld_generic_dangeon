@@ -8,6 +8,10 @@
 //	underfoot (stage 1-2) in the stage 1-1 world, how often a body comes to
 //	       stand on a tile with food. A body that always ate then would eat
 //	       that often; it is set against the rate that keeps energy level.
+//
+//	split  (stage 1-2) in the stage 1-1 world, the share of decisions in
+//	       which the truth table's valuation (engine.World.Value) puts the
+//	       best option strictly above the second, per window and energy band.
 package main
 
 import (
@@ -17,22 +21,25 @@ import (
 	"math"
 	"os"
 	"sort"
+	"strings"
+	"time"
 
 	"github.com/toku463ne/cld_generic_dangeon/engine"
 	"github.com/toku463ne/cld_generic_dangeon/worldmap"
 )
 
 func main() {
-	what := flag.String("what", "reach", "count to run: reach | underfoot")
+	what := flag.String("what", "reach", "count to run: reach | underfoot | split")
 	mapName := flag.String("map", "", "map (required)")
 	width := flag.Int("w", 0, "map width in tiles (required)")
 	height := flag.Int("h", 0, "map height in tiles (required)")
 	seeds := flag.Int("seeds", 0, "number of seeds (required)")
 	seed0 := flag.Int64("seed0", 1, "first seed")
-	ticks := flag.Int("ticks", 0, "ticks per run (underfoot only, required there)")
+	ticks := flag.Int("ticks", 0, "ticks per run (underfoot and split, required there)")
+	every := flag.Int("every", 50, "split: read the world every this many ticks")
 	flag.Parse()
 
-	if *what != "reach" && *what != "underfoot" {
+	if *what != "reach" && *what != "underfoot" && *what != "split" {
 		fail(fmt.Errorf("unknown count %q", *what))
 	}
 	if *seeds <= 0 || *width <= 0 || *height <= 0 || *mapName == "" {
@@ -42,9 +49,13 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	if *what == "underfoot" {
+	if *what == "underfoot" || *what == "split" {
 		if *ticks <= 0 {
-			fail(fmt.Errorf("-ticks is required for underfoot"))
+			fail(fmt.Errorf("-ticks is required for %s", *what))
+		}
+		if *what == "split" {
+			split(m, *mapName, *seeds, *seed0, *ticks, *every)
+			return
 		}
 		underfoot(m, *mapName, *seeds, *seed0, *ticks)
 		return
@@ -245,4 +256,157 @@ func meanSE(xs []float64) (float64, float64) {
 		ss += (x - mean) * (x - mean)
 	}
 	return mean, math.Sqrt(ss/(n-1)) / math.Sqrt(n)
+}
+
+// splitWindows are the windows the split is counted over, in ticks. They run
+// from well inside one meal (300 ticks of energy) to twice the time a full
+// body takes to starve.
+var splitWindows = []int{50, 100, 200, 300, 500, 1000, 2000}
+
+// bands is how many energy bands the split is broken into, each a fifth of a
+// full body.
+const bands = 5
+
+// tally counts decisions, and those in which the options differ.
+type tally struct{ n, split float64 }
+
+func (t tally) share() string {
+	if t.n == 0 {
+		return "—"
+	}
+	return fmt.Sprintf("%.1f%%", 100*t.split/t.n)
+}
+
+// splitCount is one run's tallies: over every decision, and over the
+// decisions with food underfoot, where the split asked is whether eating is
+// strictly best. Each is per window, overall and per energy band.
+type splitCount struct {
+	all, underfoot       [][bands + 1]tally // [window][band]; the last band is all of them
+	values               float64
+	valueTime, tableTime time.Duration
+}
+
+func countSplit(cfg engine.Config, m engine.Map, ticks, every int) (splitCount, error) {
+	w, err := engine.NewWorld(cfg, m)
+	if err != nil {
+		return splitCount{}, err
+	}
+	c := splitCount{
+		all:       make([][bands + 1]tally, len(splitWindows)),
+		underfoot: make([][bands + 1]tally, len(splitWindows)),
+	}
+	const eps = 1e-12
+	for t := 0; t < ticks && len(w.Bodies()) > 0; t++ {
+		if t%every == 0 {
+			start := time.Now()
+			tab := w.TruthTable()
+			surv := make([]engine.Survival, len(tab.Meet))
+			for r, q := range tab.Meet {
+				surv[r] = tab.NewSurvival(q, splitWindows)
+			}
+			c.tableTime += time.Since(start)
+			for _, b := range w.Bodies() {
+				start := time.Now()
+				v := w.Value(tab, surv, b)
+				c.valueTime += time.Since(start)
+				c.values++
+				band := min(int(b.Energy/cfg.EnergyMax*bands), bands-1)
+				eat := -1
+				for j, a := range v.Options {
+					if a.Kind == engine.ActEat {
+						eat = j
+					}
+				}
+				for i := range splitWindows {
+					best, second := math.Inf(-1), math.Inf(-1)
+					for _, x := range v.Worth[i] {
+						if x > best {
+							best, second = x, best
+						} else if x > second {
+							second = x
+						}
+					}
+					split := 0.0
+					if best-second > eps {
+						split = 1
+					}
+					for _, k := range []int{band, bands} {
+						c.all[i][k].n++
+						c.all[i][k].split += split
+					}
+					if eat < 0 {
+						continue
+					}
+					eatBest := 1.0
+					for j, x := range v.Worth[i] {
+						if j != eat && x >= v.Worth[i][eat]-eps {
+							eatBest = 0
+						}
+					}
+					for _, k := range []int{band, bands} {
+						c.underfoot[i][k].n++
+						c.underfoot[i][k].split += eatBest
+					}
+				}
+			}
+		}
+		w.Step()
+	}
+	return c, nil
+}
+
+func split(m engine.Map, name string, seeds int, seed0 int64, ticks, every int) {
+	cfg := engine.DefaultConfig()
+	all := make([][bands + 1]tally, len(splitWindows))
+	under := make([][bands + 1]tally, len(splitWindows))
+	var values float64
+	var valueTime, tableTime time.Duration
+	for s := 0; s < seeds; s++ {
+		cfg.Seed = seed0 + int64(s)
+		c, err := countSplit(cfg, m, ticks, every)
+		if err != nil {
+			fail(err)
+		}
+		for i := range splitWindows {
+			for k := range all[i] {
+				all[i][k].n += c.all[i][k].n
+				all[i][k].split += c.all[i][k].split
+				under[i][k].n += c.underfoot[i][k].n
+				under[i][k].split += c.underfoot[i][k].split
+			}
+		}
+		values += c.values
+		valueTime += c.valueTime
+		tableTime += c.tableTime
+	}
+	header := func(title string) {
+		fmt.Printf("\n%s（%s %dx%d、%d シード、%d tick ごと）\n\n", title, name, m.Width, m.Height, seeds, every)
+		cols := []string{"窓（tick）", "全体"}
+		for k := 0; k < bands; k++ {
+			cols = append(cols, fmt.Sprintf("体力 %d〜%d", 100*k/bands, 100*(k+1)/bands))
+		}
+		fmt.Printf("| %s |\n|%s\n", strings.Join(cols, " | "), strings.Repeat(" --- |", len(cols)))
+	}
+	row := func(t [bands + 1]tally, w int) {
+		cells := []string{fmt.Sprint(w), t[bands].share()}
+		for k := 0; k < bands; k++ {
+			cells = append(cells, t[k].share())
+		}
+		fmt.Printf("| %s |\n", strings.Join(cells, " | "))
+	}
+	header("最善の手と2番目の手の差がゼロでない決定の割合")
+	for i, w := range splitWindows {
+		row(all[i], w)
+	}
+	header("足元に食料がある決定のうち、食べるが単独で最善の割合")
+	for i, w := range splitWindows {
+		row(under[i], w)
+	}
+	counts := []string{}
+	for k := 0; k < bands; k++ {
+		counts = append(counts, fmt.Sprintf("%.0f", all[0][k].n))
+	}
+	fmt.Printf("\n決定の数: %.0f（体力の帯ごと %s）、足元に食料: %.0f\n", all[0][bands].n, strings.Join(counts, " / "), under[0][bands].n)
+	fmt.Printf("値付け1回（%d 窓）: %v、表の作成（全地域・全窓）1回: %v\n",
+		len(splitWindows), valueTime/time.Duration(max(values, 1)), tableTime/time.Duration(max(float64(ticks/every*seeds), 1)))
 }
