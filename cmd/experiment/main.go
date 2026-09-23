@@ -36,6 +36,7 @@ type options struct {
 	ticks         int
 	mapName       string
 	width, height int
+	floor         int
 }
 
 func main() {
@@ -50,6 +51,9 @@ func main() {
 	flag.StringVar(&o.mapName, "map", "", "map: "+strings.Join(worldmap.Names, " | ")+" (required)")
 	flag.IntVar(&o.width, "w", 0, "map width in tiles (required)")
 	flag.IntVar(&o.height, "h", 0, "map height in tiles (required)")
+	// The collapse floor is decided in stage 1-3 (PLAN.md). Until then it is
+	// zero: a seed has collapsed when nobody is left.
+	flag.IntVar(&o.floor, "floor", 0, "collapse floor: a seed whose population falls to this or below stops")
 	flag.Parse()
 	o.variants = strings.Split(names, ",")
 
@@ -63,13 +67,20 @@ func main() {
 }
 
 // result is what one run of one seed leaves behind.
+//
+// A seed stops early once its population falls to the collapse floor
+// (MEASURE.md). The checkpoints after that are recorded as not surviving,
+// and every per-tick figure is averaged over the seeds still surviving.
 type result struct {
-	pop      []float64 // bodies at tick 0 and at each checkpoint
-	food     []float64 // food on the ground at the same ticks
-	starved  float64
-	burned   float64
-	actions  [engine.NumActionKinds]float64
-	regionOf []float64 // share of the bodies in each region, averaged over the second half of the run
+	pop       []float64 // bodies at tick 0 and at each checkpoint
+	food      []float64 // food on the ground at the same ticks
+	surviving []bool    // whether the seed was above the floor at the same ticks
+	fellAt    int       // first tick at or below the floor, -1 if never
+	starved   float64
+	burned    float64
+	actions   [engine.NumActionKinds]float64
+	regionOf  []float64 // share of the bodies in each region, averaged over the second half of the run
+	regionOK  bool      // whether regionOf has any tick behind it
 }
 
 func run(out, log io.Writer, o options, command string) error {
@@ -93,7 +104,7 @@ func run(out, log io.Writer, o options, command string) error {
 			cfg.Seed = o.seed0 + int64(s)
 			variants[v](&cfg)
 			start := time.Now()
-			r, err := runOne(cfg, m, o.ticks)
+			r, err := runOne(cfg, m, o.ticks, o.floor)
 			if err != nil {
 				return fmt.Errorf("%s seed %d: %w", v, cfg.Seed, err)
 			}
@@ -108,14 +119,19 @@ func run(out, log io.Writer, o options, command string) error {
 	return nil
 }
 
-func runOne(cfg engine.Config, m engine.Map, ticks int) (result, error) {
+func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	w, err := engine.NewWorld(cfg, m)
 	if err != nil {
 		return result{}, err
 	}
-	r := result{regionOf: make([]float64, len(m.RegionFood))}
-	r.pop = append(r.pop, float64(len(w.Bodies())))
-	r.food = append(r.food, float64(w.FoodLedger().OnGround))
+	r := result{regionOf: make([]float64, len(m.RegionFood)), fellAt: -1}
+	record := func() {
+		n := len(w.Bodies())
+		r.pop = append(r.pop, float64(n))
+		r.food = append(r.food, float64(w.FoodLedger().OnGround))
+		r.surviving = append(r.surviving, n > floor)
+	}
+	record()
 	every := max(ticks/checkpoints, 1)
 	half := ticks / 2
 	sampled := 0.0
@@ -125,8 +141,18 @@ func runOne(cfg engine.Config, m engine.Map, ticks int) (result, error) {
 			return result{}, fmt.Errorf("tick %d: food ledger does not close: %+v", t, l)
 		}
 		if t%every == 0 {
-			r.pop = append(r.pop, float64(len(w.Bodies())))
-			r.food = append(r.food, float64(w.FoodLedger().OnGround))
+			record()
+		}
+		if len(w.Bodies()) <= floor {
+			// Early termination: this seed stops, the run goes on for
+			// the others. The remaining checkpoints are not surviving.
+			r.fellAt = t
+			for len(r.pop) < ticks/every+1 {
+				r.pop = append(r.pop, float64(len(w.Bodies())))
+				r.food = append(r.food, math.NaN())
+				r.surviving = append(r.surviving, false)
+			}
+			break
 		}
 		if t > half {
 			bodies := w.Bodies()
@@ -139,6 +165,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks int) (result, error) {
 		}
 	}
 	if sampled > 0 {
+		r.regionOK = true
 		for i := range r.regionOf {
 			r.regionOf[i] /= sampled
 		}
@@ -204,9 +231,25 @@ func meanSE(xs []float64) (float64, float64) {
 	return mean, math.Sqrt(ss/(n-1)) / math.Sqrt(n)
 }
 
+// fmtMeanSE prints "mean ± SE"; with fewer than two values there is no
+// standard error to print.
 func fmtMeanSE(xs []float64, prec int) string {
 	m, se := meanSE(xs)
+	if math.IsNaN(se) {
+		return fmt.Sprintf("%.*f ± —", prec, m)
+	}
 	return fmt.Sprintf("%.*f ± %.*f", prec, m, prec, se)
+}
+
+// collectWhere is collect over the results for which keep is true.
+func collectWhere(rs []result, keep func(result) bool, f func(result) float64) []float64 {
+	var xs []float64
+	for _, r := range rs {
+		if keep(r) {
+			xs = append(xs, f(r))
+		}
+	}
+	return xs
 }
 
 func collect(rs []result, f func(result) float64) []float64 {
@@ -263,13 +306,35 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	p("**再現方法**:\n\n```\n%s\n```\n\n", command)
 
 	every := max(o.ticks/checkpoints, 1)
-	p("### 3. 人口推移（%s）\n\n", base)
-	p("| tick | 人口（全体） | 人間 | 獣 | 鳥 | 魚 |\n| --- | --- | --- | --- | --- | --- |\n")
+	// rows is how many checkpoints have any surviving seed; the rows after
+	// every seed has fallen are left out.
+	rows := 0
 	for i := range rs[0].pop {
-		pop := fmtMeanSE(collect(rs, func(r result) float64 { return r.pop[i] }), 1)
-		p("| %d | %s | %s | | | |\n", i*every, pop, pop)
+		for _, r := range rs {
+			if r.surviving[i] {
+				rows = i + 1
+				break
+			}
+		}
 	}
-	p("\n")
+	aliveAt := func(i int) func(result) bool { return func(r result) bool { return r.surviving[i] } }
+	p("### 3. 人口推移（%s・生存しているシードの平均）\n\n", base)
+	p("| tick | 人口（全体） | 人間 | 獣 | 鳥 | 魚 | 生存シード数 |\n| --- | --- | --- | --- | --- | --- | --- |\n")
+	for i := 0; i < rows; i++ {
+		xs := collectWhere(rs, aliveAt(i), func(r result) float64 { return r.pop[i] })
+		pop := fmtMeanSE(xs, 1)
+		p("| %d | %s | %s | | | | %d / %d |\n", i*every, pop, pop, len(xs), len(rs))
+	}
+	if rows < len(rs[0].pop) {
+		p("\n%d tick 以降は全シードが崩壊の下限（%d）を割ったので省略。\n", rows*every, o.floor)
+	}
+	fell := collectWhere(rs, func(r result) bool { return r.fellAt >= 0 }, func(r result) float64 { return float64(r.fellAt) })
+	p("\n崩壊したシード: %d / %d（下限 %d）。", len(fell), len(rs), o.floor)
+	if len(fell) > 0 {
+		p("初めて下限を割った tick: %s\n\n", fmtMeanSE(fell, 0))
+	} else {
+		p("\n\n")
+	}
 
 	starved := collect(rs, func(r result) float64 { return r.starved })
 	p("### 4. 出来事の回数（%s）\n\n", base)
@@ -303,23 +368,28 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	}
 
 	p("### 補助の表: 地面の食料（%s）\n\n", base)
-	p("| tick | 地面の食料 | 上限に対する割合 |\n| --- | --- | --- |\n")
+	p("| tick | 地面の食料 | 上限に対する割合 | 生存シード数 |\n| --- | --- | --- | --- |\n")
 	baseCfg := engine.DefaultConfig()
 	variants[base](&baseCfg)
 	foodCap := float64(baseCfg.FoodCap)
-	for i := range rs[0].food {
-		xs := collect(rs, func(r result) float64 { return r.food[i] })
+	for i := 0; i < rows; i++ {
+		xs := collectWhere(rs, aliveAt(i), func(r result) float64 { return r.food[i] })
 		mean, _ := meanSE(xs)
-		p("| %d | %s | %.2f |\n", i*every, fmtMeanSE(xs, 1), mean/foodCap)
+		p("| %d | %s | %.2f | %d / %d |\n", i*every, fmtMeanSE(xs, 1), mean/foodCap, len(xs), len(rs))
 	}
 	p("\n")
 
 	area, food := regionShares(m)
 	p("### 補助の表: 地域別人口比（%s・後半の平均）\n\n", base)
-	p("| 地域 | 面積比 | 食料比 | 人口比 |\n| --- | --- | --- | --- |\n")
+	p("| 地域 | 面積比 | 食料比 | 人口比 | シード数 |\n| --- | --- | --- | --- | --- |\n")
+	regionOK := func(r result) bool { return r.regionOK }
 	for reg := range area {
-		pop := fmtMeanSE(collect(rs, func(r result) float64 { return r.regionOf[reg] }), 3)
-		p("| %d | %.3f | %.3f | %s |\n", reg, area[reg], food[reg], pop)
+		xs := collectWhere(rs, regionOK, func(r result) float64 { return r.regionOf[reg] })
+		pop := "—"
+		if len(xs) > 0 {
+			pop = fmtMeanSE(xs, 3)
+		}
+		p("| %d | %.3f | %.3f | %s | %d / %d |\n", reg, area[reg], food[reg], pop, len(xs), len(rs))
 	}
 	p("\n")
 

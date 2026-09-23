@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/toku463ne/cld_generic_dangeon/engine"
+	"github.com/toku463ne/cld_generic_dangeon/worldmap"
 )
 
 func TestRunRequiresSizes(t *testing.T) {
@@ -47,5 +50,36 @@ func TestReportHasEverySection(t *testing.T) {
 		if !strings.Contains(report, want) {
 			t.Fatalf("report lacks %q", want)
 		}
+	}
+}
+
+// A seed that falls to the floor stops, and every checkpoint after it is
+// recorded as not surviving, so the per-tick tables average over the seeds
+// still alive.
+func TestRunOneStopsAtFloor(t *testing.T) {
+	cfg := engine.DefaultConfig()
+	cfg.FoodCap = 0 // everybody starves at the same tick
+	m := worldmap.Flat(16, 12)
+	const ticks = 2000
+	r, err := runOne(cfg, m, ticks, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	every := ticks / checkpoints
+	want := ticks/every + 1
+	if len(r.pop) != want || len(r.surviving) != want || len(r.food) != want {
+		t.Fatalf("got %d/%d/%d checkpoints, want %d", len(r.pop), len(r.surviving), len(r.food), want)
+	}
+	starve := int(cfg.EnergyMax / cfg.EnergyBurn)
+	if r.fellAt < starve || r.fellAt > starve+1 {
+		t.Fatalf("fell at tick %d, want about %d", r.fellAt, starve)
+	}
+	for i, s := range r.surviving {
+		if alive := i*every < r.fellAt; s != alive {
+			t.Fatalf("checkpoint %d (tick %d): surviving %v, want %v", i, i*every, s, alive)
+		}
+	}
+	if r.regionOK {
+		t.Fatal("region shares recorded although nobody reached the second half")
 	}
 }
