@@ -1,8 +1,9 @@
 // Command experiment runs variants of the world over a range of seeds and
 // prints the report in the form MEASURE.md fixes.
 //
-// Every variant is a rewrite of engine.Config, never a branch in the code, so
-// that all of them are in the same binary and can be paired seed by seed.
+// Every variant is a rewrite of engine.Config (package variant), never a
+// branch in the code, so that all of them are in the same binary and can be
+// paired seed by seed.
 package main
 
 import (
@@ -12,19 +13,13 @@ import (
 	"math"
 	"os"
 	"os/exec"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/toku463ne/cld_generic_dangeon/engine"
+	"github.com/toku463ne/cld_generic_dangeon/variant"
 	"github.com/toku463ne/cld_generic_dangeon/worldmap"
 )
-
-// variants maps a variant name to the rewrite of the default config it
-// stands for.
-var variants = map[string]func(*engine.Config){
-	"base": func(*engine.Config) {},
-}
 
 // checkpoints is how many rows the population table has after tick 0.
 const checkpoints = 20
@@ -42,7 +37,7 @@ type options struct {
 func main() {
 	var o options
 	var names string
-	flag.StringVar(&names, "variants", "base", "comma-separated variants; the first is the base")
+	flag.StringVar(&names, "variants", variant.Base, "comma-separated variants; the first is the base")
 	// Seeds, ticks and map size have no defaults yet: PLAN.md decides them
 	// from measurements, and a made-up default would be quietly used.
 	flag.IntVar(&o.seeds, "seeds", 0, "number of seeds (required)")
@@ -73,6 +68,7 @@ func main() {
 // and every per-tick figure is averaged over the seeds still surviving.
 type result struct {
 	pop       []float64 // bodies at tick 0 and at each checkpoint
+	series    []int32   // bodies at every tick from 0, up to the tick the seed stopped
 	food      []float64 // food on the ground at the same ticks
 	surviving []bool    // whether the seed was above the floor at the same ticks
 	fellAt    int       // first tick at or below the floor, -1 if never
@@ -88,8 +84,8 @@ func run(out, log io.Writer, o options, command string) error {
 		return fmt.Errorf("-seeds, -ticks, -map, -w and -h are required")
 	}
 	for _, v := range o.variants {
-		if _, ok := variants[v]; !ok {
-			return fmt.Errorf("unknown variant %q (known: %s)", v, strings.Join(knownVariants(), ", "))
+		if _, err := variant.Config(v, 0); err != nil {
+			return err
 		}
 	}
 	m, err := worldmap.Build(o.mapName, o.width, o.height)
@@ -100,9 +96,7 @@ func run(out, log io.Writer, o options, command string) error {
 	results := map[string][]result{}
 	for _, v := range o.variants {
 		for s := 0; s < o.seeds; s++ {
-			cfg := engine.DefaultConfig()
-			cfg.Seed = o.seed0 + int64(s)
-			variants[v](&cfg)
+			cfg, _ := variant.Config(v, o.seed0+int64(s))
 			start := time.Now()
 			r, err := runOne(cfg, m, o.ticks, o.floor)
 			if err != nil {
@@ -132,6 +126,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		r.surviving = append(r.surviving, n > floor)
 	}
 	record()
+	r.series = append(r.series, int32(len(w.Bodies())))
 	every := max(ticks/checkpoints, 1)
 	half := ticks / 2
 	sampled := 0.0
@@ -140,6 +135,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		if l := w.FoodLedger(); !l.Balanced() {
 			return result{}, fmt.Errorf("tick %d: food ledger does not close: %+v", t, l)
 		}
+		r.series = append(r.series, int32(len(w.Bodies())))
 		if t%every == 0 {
 			record()
 		}
@@ -185,13 +181,73 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	return r, nil
 }
 
-func knownVariants() []string {
-	names := make([]string, 0, len(variants))
-	for n := range variants {
-		names = append(names, n)
+// replayPoint is the run of one variant that the client replays, and the
+// tick it starts drawing from (MEASURE.md "UI での再生").
+type replayPoint struct {
+	ok     bool  // false when every seed collapsed
+	seed   int64 // the representative seed
+	steady int   // the steady-state tick
+}
+
+// chooseReplay picks the representative seed and its steady-state tick.
+//
+// Only seeds that never collapsed are candidates: a collapsed seed has no
+// average over the experiment to be close to. The experiment's average and
+// standard deviation are those of the population over every tick of every
+// candidate. The representative seed is the one whose own average over the
+// run is closest to it (the lower seed on a tie); its steady-state tick is
+// the first tick its population is within one standard deviation of it.
+func chooseReplay(rs []result, seed0 int64) replayPoint {
+	var sum, sumSq, n float64
+	for _, r := range rs {
+		if r.fellAt >= 0 {
+			continue
+		}
+		for _, x := range r.series {
+			sum += float64(x)
+			sumSq += float64(x) * float64(x)
+			n++
+		}
 	}
-	sort.Strings(names)
-	return names
+	if n == 0 {
+		return replayPoint{}
+	}
+	mean := sum / n
+	sd := math.Sqrt(math.Max(sumSq/n-mean*mean, 0))
+
+	best, bestGap := -1, math.Inf(1)
+	for i, r := range rs {
+		if r.fellAt >= 0 {
+			continue
+		}
+		own := 0.0
+		for _, x := range r.series {
+			own += float64(x)
+		}
+		own /= float64(len(r.series))
+		if gap := math.Abs(own - mean); gap < bestGap {
+			best, bestGap = i, gap
+		}
+	}
+	p := replayPoint{ok: true, seed: seed0 + int64(best)}
+	for t, x := range rs[best].series {
+		if math.Abs(float64(x)-mean) <= sd {
+			p.steady = t
+			break
+		}
+	}
+	return p
+}
+
+// replayCommand is the line that opens the replay in the client. The
+// variant is named only when it is not the base, which is the client's
+// default.
+func replayCommand(o options, v string, p replayPoint) string {
+	c := fmt.Sprintf("go run ./cmd/client -map %s -w %d -h %d -seed %d -from-tick %d", o.mapName, o.width, o.height, p.seed, p.steady)
+	if v != variant.Base {
+		c += " -variant " + v
+	}
+	return c
 }
 
 // commit names the binary's source: the short hash, with -dirty when tracked
@@ -302,8 +358,34 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	p("| tick 数 | %d |\n", o.ticks)
 	p("| シード数 | %d（最初のシード %d） |\n", o.seeds, o.seed0)
 	p("| 比較対象（base） | %s |\n", base)
+	replays := make([]replayPoint, len(o.variants))
+	var cells []string
+	for i, v := range o.variants {
+		replays[i] = chooseReplay(results[v], o.seed0)
+		cell := "なし（全シードが崩壊）"
+		if replays[i].ok {
+			cell = fmt.Sprintf("シード %d・tick %d", replays[i].seed, replays[i].steady)
+		}
+		if len(o.variants) > 1 {
+			cell = v + ": " + cell
+		}
+		cells = append(cells, cell)
+	}
+	p("| 代表シード・定常化 tick | %s |\n", strings.Join(cells, " / "))
 	p("| 詳細レポート | |\n\n")
 	p("**再現方法**:\n\n```\n%s\n```\n\n", command)
+	p("**UI での再生**:\n\n")
+	var lines []string
+	for i, v := range o.variants {
+		if replays[i].ok {
+			lines = append(lines, replayCommand(o, v, replays[i]))
+		}
+	}
+	if len(lines) > 0 {
+		p("```\n%s\n```\n\n", strings.Join(lines, "\n"))
+	} else {
+		p("再生できるシードが無い（崩壊したシードは代表シードの候補から外す）。\n\n")
+	}
 
 	every := max(o.ticks/checkpoints, 1)
 	// rows is how many checkpoints have any surviving seed; the rows after
@@ -369,8 +451,7 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 
 	p("### 補助の表: 地面の食料（%s）\n\n", base)
 	p("| tick | 地面の食料 | 上限に対する割合 | 生存シード数 |\n| --- | --- | --- | --- |\n")
-	baseCfg := engine.DefaultConfig()
-	variants[base](&baseCfg)
+	baseCfg, _ := variant.Config(base, o.seed0)
 	foodCap := float64(baseCfg.FoodCap)
 	for i := 0; i < rows; i++ {
 		xs := collectWhere(rs, aliveAt(i), func(r result) float64 { return r.food[i] })
