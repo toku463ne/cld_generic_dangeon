@@ -4,6 +4,10 @@
 //	reach  (stage 1-1) how far the nearest food is from each land tile, in a
 //	       world with food and no bodies, against how far a full body can
 //	       walk before it starves.
+//
+//	underfoot (stage 1-2) in the stage 1-1 world, how often a body comes to
+//	       stand on a tile with food. A body that always ate then would eat
+//	       that often; it is set against the rate that keeps energy level.
 package main
 
 import (
@@ -19,15 +23,16 @@ import (
 )
 
 func main() {
-	what := flag.String("what", "reach", "count to run: reach")
+	what := flag.String("what", "reach", "count to run: reach | underfoot")
 	mapName := flag.String("map", "", "map (required)")
 	width := flag.Int("w", 0, "map width in tiles (required)")
 	height := flag.Int("h", 0, "map height in tiles (required)")
 	seeds := flag.Int("seeds", 0, "number of seeds (required)")
 	seed0 := flag.Int64("seed0", 1, "first seed")
+	ticks := flag.Int("ticks", 0, "ticks per run (underfoot only, required there)")
 	flag.Parse()
 
-	if *what != "reach" {
+	if *what != "reach" && *what != "underfoot" {
 		fail(fmt.Errorf("unknown count %q", *what))
 	}
 	if *seeds <= 0 || *width <= 0 || *height <= 0 || *mapName == "" {
@@ -36,6 +41,13 @@ func main() {
 	m, err := worldmap.Build(*mapName, *width, *height)
 	if err != nil {
 		fail(err)
+	}
+	if *what == "underfoot" {
+		if *ticks <= 0 {
+			fail(fmt.Errorf("-ticks is required for underfoot"))
+		}
+		underfoot(m, *mapName, *seeds, *seed0, *ticks)
+		return
 	}
 	reach(m, *mapName, *seeds, *seed0)
 }
@@ -139,3 +151,98 @@ func (q queue) Less(a, b int) bool { return q[a].d < q[b].d }
 func (q queue) Swap(a, b int)      { q[a], q[b] = q[b], q[a] }
 func (q *queue) Push(x any)        { *q = append(*q, x.(item)) }
 func (q *queue) Pop() any          { old := *q; x := old[len(old)-1]; *q = old[:len(old)-1]; return x }
+
+// footing is what a count remembers about one body between ticks.
+type footing struct {
+	tile    int
+	hadFood bool
+}
+
+// meetings counts, over one run of the stage 1-1 world, the body-ticks and
+// the times a body came to stand on food: it is on a tile with food now, and
+// last tick it was on another tile or the tile had none. Standing on the same
+// unit for several ticks is one meeting, since a body that always ate would
+// have eaten it at the first. The world is read between ticks, the state the
+// next decisions start from, except for the food that comes back at the start
+// of the next tick.
+type meetings struct {
+	bodyTicks, met float64
+	eaten          float64 // meals the random decider actually took
+}
+
+func countMeetings(cfg engine.Config, m engine.Map, from, to int) (meetings, error) {
+	w, err := engine.NewWorld(cfg, m)
+	if err != nil {
+		return meetings{}, err
+	}
+	var r meetings
+	last := map[int64]footing{}
+	food := make([]bool, m.Width*m.Height)
+	eatenAtFrom := int64(0)
+	for t := 0; t < to; t++ {
+		if t == from {
+			eatenAtFrom = w.FoodLedger().Eaten
+		}
+		if t >= from {
+			clear(food)
+			for _, f := range w.Foods() {
+				food[f.Y*m.Width+f.X] = true
+			}
+			for _, b := range w.Bodies() {
+				tile := int(b.Y)*m.Width + int(b.X)
+				prev, seen := last[b.ID]
+				if food[tile] && (!seen || prev.tile != tile || !prev.hadFood) {
+					r.met++
+				}
+				last[b.ID] = footing{tile, food[tile]}
+				r.bodyTicks++
+			}
+		}
+		w.Step()
+	}
+	r.eaten = float64(w.FoodLedger().Eaten - eatenAtFrom)
+	return r, nil
+}
+
+func underfoot(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
+	cfg := engine.DefaultConfig()
+	balance := cfg.EnergyBurn / cfg.FoodEnergy
+	full := int(cfg.EnergyMax / cfg.EnergyBurn)
+	fmt.Printf("| 地図 | 区間（tick） | 足元に食料が来た頻度 | 実際に食べた頻度（無作為） | 釣り合いの頻度 | 足元 ÷ 釣り合い |\n")
+	fmt.Printf("| --- | --- | --- | --- | --- | --- |\n")
+	// The first window is before anyone can have starved: every body is
+	// alive and the food has only begun to fall. The second is the whole run.
+	for _, span := range [][2]int{{0, min(full, ticks)}, {0, ticks}} {
+		var met, eaten []float64
+		for s := 0; s < seeds; s++ {
+			cfg.Seed = seed0 + int64(s)
+			r, err := countMeetings(cfg, m, span[0], span[1])
+			if err != nil {
+				fail(err)
+			}
+			met = append(met, r.met/r.bodyTicks)
+			eaten = append(eaten, r.eaten/r.bodyTicks)
+		}
+		mm, ms := meanSE(met)
+		em, es := meanSE(eaten)
+		fmt.Printf("| %s (%dx%d, %d シード) | %d〜%d | %.3f ± %.3f%% | %.3f ± %.3f%% | %.3f%% | %.2f |\n",
+			name, m.Width, m.Height, seeds, span[0], span[1], 100*mm, 100*ms, 100*em, 100*es, 100*balance, mm/balance)
+	}
+}
+
+func meanSE(xs []float64) (float64, float64) {
+	n := float64(len(xs))
+	sum := 0.0
+	for _, x := range xs {
+		sum += x
+	}
+	mean := sum / n
+	if n < 2 {
+		return mean, math.NaN()
+	}
+	ss := 0.0
+	for _, x := range xs {
+		ss += (x - mean) * (x - mean)
+	}
+	return mean, math.Sqrt(ss/(n-1)) / math.Sqrt(n)
+}

@@ -59,3 +59,4 @@ go run ./cmd/count -what reach -map flat -w 64 -h 48 -seeds 12
 | `-what` | 数えるもの |
 | --- | --- |
 | `reach` | 食料だけの世界での、最寄りの食料までの距離と到達比 |
+| `underfoot` | 1-1 の世界で、足元に食料が来た頻度（必ず食べたら食べられた頻度）と釣り合いの頻度の比。`-ticks` が必須 |
