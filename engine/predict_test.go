@@ -220,33 +220,68 @@ func TestKeepsHeading(t *testing.T) {
 	}
 }
 
-// A heading bounces off the axis that stops it: a diagonal meeting a wall
-// keeps its run along the wall and turns back from it, and one meeting a
-// corner turns back on both.
+// A heading bounces off the axis that makes it worse: a diagonal meeting a
+// wall keeps its run along the wall and turns back from it, one meeting a
+// corner turns back on both, and a straight one turns back.
 func TestBounce(t *testing.T) {
+	// best allows every direction except those in out.
+	best := func(out ...int) func(int) bool {
+		return func(d int) bool {
+			for _, o := range out {
+				if d == o {
+					return false
+				}
+			}
+			return true
+		}
+	}
+	for _, c := range []struct {
+		heading int
+		out     []int
+		want    int
+	}{
+		{1, nil, 1},                  // nothing in the way: unchanged
+		{-1, []int{0}, -1},           // no heading yet
+		{7, []int{5, 6, 7}, 1},       // north-east into a wall above: south-east
+		{3, []int{3, 4, 5}, 1},       // south-west into a wall on the left: south-east
+		{5, []int{3, 4, 5, 6, 7}, 1}, // north-west into the corner: south-east
+		{0, []int{7, 0, 1}, 4},       // east into a wall: west
+		{7, []int{7, 0, 1}, 5},       // north-east into a wall on the right: north-west
+		{7, []int{7}, 3},             // only the diagonal is out: back
+	} {
+		if got := bounce(c.heading, best(c.out...)); got != c.want {
+			t.Fatalf("heading %d with %v out: bounced to %d, want %d", c.heading, c.out, got, c.want)
+		}
+	}
+}
+
+// A body in rich ground meeting the edge of a poorer region bounces off it
+// rather than running along it: moves into the poorer region carry more
+// risk, so they are not among the best.
+func TestBouncesOffPoorerRegion(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.Bodies, cfg.FoodCap = 0, 0
-	w, err := NewWorld(cfg, testMap())
+	m := NewMap(12, 9)
+	m.RegionFood = []float64{1, 1}
+	for y := 0; y < m.Height; y++ {
+		for x := 6; x < m.Width; x++ {
+			m.SetRegion(x, y, 1)
+		}
+	}
+	w, err := NewWorld(cfg, m)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, c := range []struct {
-		x, y    float64
-		heading int
-		want    int
-	}{
-		{3.5, 4.5, 1, 1}, // open ground: unchanged
-		{3.5, 0.1, 7, 1}, // north-east into the top edge: south-east
-		{0.1, 4.5, 3, 1}, // south-west into the left edge: south-east
-		{0.1, 0.1, 5, 1}, // north-west into the corner: south-east
-		{6.9, 4.5, 0, 4}, // east into the water: west
-		{6.9, 4.5, 7, 5}, // north-east into the water: north-west
-		{3.5, 8.9, 2, 6}, // south into the bottom edge: north
-	} {
-		b := Body{X: c.x, Y: c.y, Heading: c.heading}
-		if got := w.bounce(&b); got != c.want {
-			t.Fatalf("heading %d at (%v,%v): bounced to %d, want %d", c.heading, c.x, c.y, got, c.want)
-		}
+	// Food on the left only, away from the body's sight.
+	for _, p := range [][2]int{{0, 0}, {0, 8}, {2, 8}} {
+		w.food.foods = append(w.food.foods, Food{X: p[0], Y: p[1]})
+		w.food.foodAt[m.index(p[0], p[1])] = int32(len(w.food.foods))
+		w.food.onGround[0]++
+	}
+	w.refreshRegion(0)
+	b := Body{X: 5.9, Y: 4.5, Energy: 50, Heading: 7} // north-east, at the edge of region 1
+	if a := w.decide(&b); a != (Action{Kind: ActMove, Dir: 5}) {
+		t.Fatalf("took %v, want north-west", a)
 	}
 }
 

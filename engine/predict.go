@@ -342,9 +342,9 @@ func (w *World) survival(r RegionID) Survival {
 }
 
 // decide values body b's options and takes the one of least risk. Among
-// options of equal risk it keeps the body's heading, reflected where land
-// ends (bounce), if KeepHeading is set and moving that way is one of them,
-// and draws at random otherwise. With no window every option carries
+// options of equal risk it keeps the body's heading, reflected off whatever
+// makes that way worse (bounce), if KeepHeading is set and moving that way
+// is one of them, and draws at random otherwise. With no window every option carries
 // the same risk, so the draw is over all of them: the stage 1-1 control.
 func (w *World) decide(b *Body) Action {
 	v := &w.valuation
@@ -373,7 +373,7 @@ func (w *World) decide(b *Body) Action {
 			w.ties = append(w.ties, j)
 		}
 	}
-	a := Action{Kind: ActMove, Dir: w.bounce(b)}
+	a := Action{Kind: ActMove, Dir: bounce(b.Heading, func(d int) bool { return w.tied(Action{Kind: ActMove, Dir: d}) })}
 	if !w.cfg.KeepHeading || b.Heading < 0 || !w.tied(a) {
 		a = v.Options[w.ties[w.rng.Intn(len(w.ties))]]
 	}
@@ -383,20 +383,21 @@ func (w *World) decide(b *Body) Action {
 	return a
 }
 
-// bounce returns the body's heading, reflected off whatever stops a move
-// that way: the axis whose step alone would leave the land is turned back,
-// and both are where only the diagonal is stopped. It is the heading a body
-// keeps when it meets the edge of the map or water, as a ball does, rather
-// than a new one drawn at random, which would leave bodies running along
-// edges they have eaten bare.
-func (w *World) bounce(b *Body) int {
-	h := b.Heading
-	if h < 0 || w.canMove(b.X, b.Y, moveDirs[h][0], moveDirs[h][1]) {
+// bounce returns heading h reflected off whatever makes moving that way
+// worse than the best: an axis whose step alone is not among the options
+// of least risk is turned back, and both are where only the diagonal is out.
+// best says whether the move in a direction is one of those options. A move
+// off the land is never an option, so the edge of the map and water are met
+// the same way as the edge of a poorer region: as a ball meets a wall. A
+// heading drawn afresh at such an edge would too often run along it, and
+// bodies would circle edges they had eaten bare.
+func bounce(h int, best func(dir int) bool) int {
+	if h < 0 || best(h) {
 		return h
 	}
 	d := moveDirs[h]
-	flipX := d[0] != 0 && !w.canMove(b.X, b.Y, d[0], 0)
-	flipY := d[1] != 0 && !w.canMove(b.X, b.Y, 0, d[1])
+	flipX := d[0] != 0 && !best(axisDir(d[0], 0, 4))
+	flipY := d[1] != 0 && !best(axisDir(d[1], 2, 6))
 	switch {
 	case flipX && flipY, !flipX && !flipY:
 		return (h + 4) % 8
@@ -407,11 +408,13 @@ func (w *World) bounce(b *Body) int {
 	}
 }
 
-// canMove reports whether a move of Speed along (dx, dy) from (x, y) ends
-// on land.
-func (w *World) canMove(x, y, dx, dy float64) bool {
-	t := w.tileOf(x+dx*w.cfg.Speed, y+dy*w.cfg.Speed)
-	return t >= 0 && w.m.Terrain[t] == TerrainLand
+// axisDir is the straight move along one axis in the sign of c: pos when c
+// is positive, neg when negative.
+func axisDir(c float64, pos, neg int) int {
+	if c > 0 {
+		return pos
+	}
+	return neg
 }
 
 // tied reports whether a is one of the options of least risk of the
