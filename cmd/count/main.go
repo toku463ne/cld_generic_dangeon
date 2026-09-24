@@ -1219,12 +1219,27 @@ type hazard struct {
 	died, lived [3][]float64 // untrodden rate, sighting rate, energy
 }
 
+// byID lists the tracks in the order of the bodies' IDs, so that what is
+// read from them does not depend on the order of a map.
+func byID(tracks map[int64]*bodyTrack) []*bodyTrack {
+	ids := make([]int64, 0, len(tracks))
+	for id := range tracks {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(a, b int) bool { return ids[a] < ids[b] })
+	out := make([]*bodyTrack, len(ids))
+	for i, id := range ids {
+		out[i] = tracks[id]
+	}
+	return out
+}
+
 func hazardOf(tracks map[int64]*bodyTrack, ticks int) hazard {
 	var h hazard
 	span := float64(exploreSlide)
 	for k := 0; (k+2)*exploreSlide <= ticks; k++ {
 		start, end := k*exploreSlide, (k+1)*exploreSlide
-		for _, t := range tracks {
+		for _, t := range byID(tracks) {
 			// Alive through the window: it has a track, so it was alive
 			// at the start of the run, and it died after the window's end.
 			if t.died >= 0 && t.died <= end {
@@ -1275,7 +1290,7 @@ func explore(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
 				span := float64(wd[1] - wd[0])
 				var u, sg, e, life []float64
 				censored := 0.0
-				for _, t := range tracks {
+				for _, t := range byID(tracks) {
 					if !t.inWindow[i] {
 						continue
 					}
@@ -1311,7 +1326,7 @@ func explore(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
 				for k := range order {
 					order[k] = k
 				}
-				sort.Slice(order, func(a, b int) bool { return sg[order[a]] < sg[order[b]] })
+				sort.SliceStable(order, func(a, b int) bool { return sg[order[a]] < sg[order[b]] })
 				for q := 0; q < 5; q++ {
 					lo, hi := q*len(order)/5, (q+1)*len(order)/5
 					for _, k := range order[lo:hi] {
