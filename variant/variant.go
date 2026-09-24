@@ -15,6 +15,10 @@ import (
 // Base is the name of the variant that leaves the default config as it is.
 const Base = "base"
 
+// Blind is stage 1-2 as first run: valuation with no sight, so the body
+// knows only the region rows.
+const Blind = "blind"
+
 // Random is the stage 1-1 control: no window, so every possible action is
 // equally likely.
 const Random = "random"
@@ -24,6 +28,7 @@ const Random = "random"
 var rewrites = map[string]func(*engine.Config){
 	Base:   func(*engine.Config) {},
 	Random: func(c *engine.Config) { c.Window = 0 },
+	Blind:  func(c *engine.Config) { c.Sight = -1 },
 }
 
 // Config returns the default config rewritten by the named variant, with the

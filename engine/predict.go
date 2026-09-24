@@ -12,15 +12,21 @@ import "math"
 //
 // The table holds outcomes only, never worth (NODE.md "記憶は結果だけを持つ"):
 //
-//	(tile with food, eat)      -> energy +FoodEnergy, up to EnergyMax
-//	(land, wait or move)       -> energy -EnergyBurn, position moved by Speed
-//	(this region, keep moving) -> stands on a tile with food, chance p per tile entered
+//	(tile with food, eat)                -> energy +FoodEnergy, up to EnergyMax
+//	(land, wait or move)                 -> energy -EnergyBurn, position moved by Speed
+//	(this region, keep moving)           -> stands on a tile with food, chance p per tile entered
+//	(tile with food in sight, walk to it) -> stands on it after d/Speed ticks
 //
-// The third row's outcome is the first row's subject, so the two chain into
-// "keep moving -> energy back, chance p per tile". The worth of an option is
-// computed from these each time: the chance of being alive at the end of the
-// window if the body takes the option now and then keeps moving through the
-// region it is in, eating whenever it stands on food.
+// The third and fourth rows' outcome is the first row's subject, so they
+// chain into "keep moving -> energy back, chance p per tile" and "walk to
+// the food in sight -> energy back after d/Speed ticks". The risk of an
+// option is computed from these each time: the chance of being dead at the
+// end of the window if the body takes the option now and then follows the
+// better of two continuations - keep moving through the region it is in,
+// eating whenever it stands on food, or walk to one of the units it saw
+// when it decided and eat it there, then keep moving through that unit's
+// region. That another body may eat the unit first is not in the row: the
+// table holds what the body's own actions lead to.
 
 // TruthTable is the table of stage 1-2, filled from the world's true rules.
 type TruthTable struct {
@@ -31,14 +37,18 @@ type TruthTable struct {
 	// move comes to stand on food: the food on the ground over the land
 	// tiles, times the tiles entered per tick (Speed).
 	Meet []float64
+	// Reach is the most ticks the fourth row can take to walk to a unit in
+	// sight; survival tables keep the shorter windows the walk leaves.
+	Reach int
 }
 
 // TruthTable reads the true rules and the food on the ground now.
 func (w *World) TruthTable() TruthTable {
 	t := TruthTable{
-		Meal: energyTicks(w.cfg.FoodEnergy, w.cfg.EnergyBurn),
-		Full: energyTicks(w.cfg.EnergyMax, w.cfg.EnergyBurn),
-		Meet: make([]float64, len(w.m.RegionFood)),
+		Meal:  energyTicks(w.cfg.FoodEnergy, w.cfg.EnergyBurn),
+		Full:  energyTicks(w.cfg.EnergyMax, w.cfg.EnergyBurn),
+		Meet:  make([]float64, len(w.m.RegionFood)),
+		Reach: w.reach(),
 	}
 	for r := range t.Meet {
 		t.Meet[r] = w.meet(RegionID(r))
@@ -54,6 +64,27 @@ func (w *World) meet(r RegionID) float64 {
 		return 0
 	}
 	return float64(w.food.onGround[r]) / float64(land) * math.Min(w.cfg.Speed, 1)
+}
+
+// reach bounds the ticks it takes to walk onto a unit in sight from where
+// any option can leave the body: the unit is up to Sight tiles from the
+// body's tile on either axis, and a move takes the body up to Speed out of
+// it, so each axis has at most Sight+Speed to cover.
+func (w *World) reach() int {
+	if w.cfg.Sight < 0 || w.cfg.Speed <= 0 {
+		return 0
+	}
+	gap := float64(w.cfg.Sight) + w.cfg.Speed
+	return walkTicks(gap, gap, w.cfg.Speed)
+}
+
+// walkTicks is the fewest ticks it takes to cover dx and dy with moves of
+// length speed in the eight directions. A diagonal move covers speed/sqrt2
+// of each axis, so the path is the octile distance.
+func walkTicks(dx, dy, speed float64) int {
+	lo, hi := math.Min(dx, dy), math.Max(dx, dy)
+	d := hi + (math.Sqrt2-1)*lo
+	return int(math.Ceil(d/speed - 1e-9))
 }
 
 // energyTicks is how many ticks of burning an amount of energy lasts. A body
@@ -77,8 +108,10 @@ func energyTicks(e, burn float64) int {
 // 1e-20 say, are kept. The quantity valued is the same.
 type Survival struct {
 	Windows []int
-	// dead[i][n] is the chance of being dead Windows[i]-1 ticks on from n
-	// ticks of energy: the first tick of a window is the option itself.
+	// dead[l][n] is the chance of being dead l-1 ticks on from n ticks of
+	// energy: the first tick of a window is the option itself. It is kept
+	// for each window and for the shorter ones a walk of up to Reach ticks
+	// leaves of it; nil for every other length.
 	dead [][]float64
 }
 
@@ -87,19 +120,23 @@ type Survival struct {
 // tick of energy. It is exact for the table's rows; its cost is the longest
 // window times Full.
 func (t TruthTable) NewSurvival(meet float64, windows []int) Survival {
-	s := Survival{Windows: windows, dead: make([][]float64, len(windows))}
 	longest := 0
 	for _, w := range windows {
 		longest = max(longest, w)
+	}
+	s := Survival{Windows: windows, dead: make([][]float64, longest+1)}
+	want := make([]bool, longest+1)
+	for _, w := range windows {
+		for l := max(w-1-t.Reach, 1); l <= w; l++ {
+			want[l] = true
+		}
 	}
 	cur := make([]float64, t.Full+1)
 	next := make([]float64, t.Full+1)
 	cur[0] = 1
 	keep := func(step int) {
-		for i, w := range windows {
-			if w-1 == step {
-				s.dead[i] = append([]float64(nil), cur...)
-			}
+		if want[step+1] {
+			s.dead[step+1] = append([]float64(nil), cur...)
 		}
 	}
 	keep(0)
@@ -117,11 +154,19 @@ func (t TruthTable) NewSurvival(meet float64, windows []int) Survival {
 
 // Dead returns the chance of being dead at the end of window i from n
 // ticks of energy after the option's own tick.
-func (s Survival) Dead(i, n int) float64 {
+func (s Survival) Dead(i, n int) float64 { return s.deadIn(s.Windows[i], n) }
+
+// deadIn is Dead for a window of length l, which must be one the table
+// keeps.
+func (s Survival) deadIn(l, n int) float64 {
 	if n <= 0 {
 		return 1
 	}
-	return s.dead[i][min(n, len(s.dead[i])-1)]
+	if l < 1 {
+		return 0
+	}
+	d := s.dead[l]
+	return d[min(n, len(d)-1)]
 }
 
 // Alive is 1 - Dead, for reading; it loses what Dead keeps near 1.
@@ -131,9 +176,17 @@ func (s Survival) Alive(i, n int) float64 { return 1 - s.Dead(i, n) }
 // window: the chance of being dead at the window's end. The lower the risk,
 // the better the option; the worth of an option in the survival currency is
 // the risk it takes away.
+//
+// Seen is the food the body saw when it decided, and Plan says, for each
+// option in the first window, which continuation its risk was read from:
+// the index into Seen of the unit it walks to, Arrive ticks after the
+// option's own tick, or -1 for keeping on the move through the region.
 type Valuation struct {
 	Options []Action
 	Risk    [][]float64 // Risk[window][option]
+	Seen    []Food
+	Plan    []int
+	Arrive  []int
 }
 
 // Value predicts and values every option body b has now. survival is the
@@ -141,37 +194,93 @@ type Valuation struct {
 // TruthTable.
 func (w *World) Value(t TruthTable, survival []Survival, b Body) Valuation {
 	var v Valuation
-	w.valueInto(&v, t.Meal, t.Full, len(survival[0].Windows), func(r RegionID) Survival { return survival[r] }, b)
+	w.valueInto(&v, t.Meal, t.Full, survival[0].Windows, func(r RegionID) Survival { return survival[r] }, b)
 	return v
 }
 
 // valueInto is Value writing into v's slices, so that deciding every tick
 // does not allocate. alive gives the survival table of a region.
-func (w *World) valueInto(v *Valuation, meal, full, windows int, alive func(RegionID) Survival, b Body) {
+func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive func(RegionID) Survival, b Body) {
 	v.Options = w.possibleActions(v.Options[:0], &b)
+	v.Seen = w.inSight(v.Seen[:0], &b)
+	v.Plan, v.Arrive = v.Plan[:0], v.Arrive[:0]
 	n := energyTicks(b.Energy, w.cfg.EnergyBurn)
-	here := w.m.RegionAt(int(math.Floor(b.X)), int(math.Floor(b.Y)))
-	for len(v.Risk) < windows {
+	for len(v.Risk) < len(windows) {
 		v.Risk = append(v.Risk, nil)
 	}
-	v.Risk = v.Risk[:windows]
+	v.Risk = v.Risk[:len(windows)]
 	for i := range v.Risk {
 		v.Risk[i] = v.Risk[i][:0]
 	}
 	for _, a := range v.Options {
-		region, after := here, n-1
+		// Where the option leaves the body, and with how much energy.
+		x, y, after := b.X, b.Y, n-1
+		eaten := -1
 		switch a.Kind {
 		case ActEat:
 			after = min(n+meal, full) - 1
+			eaten = w.m.index(int(math.Floor(b.X)), int(math.Floor(b.Y)))
 		case ActMove:
 			d := moveDirs[a.Dir]
-			region = w.m.RegionAt(int(math.Floor(b.X+d[0]*w.cfg.Speed)), int(math.Floor(b.Y+d[1]*w.cfg.Speed)))
+			x, y = b.X+d[0]*w.cfg.Speed, b.Y+d[1]*w.cfg.Speed
 		}
-		s := alive(region)
-		for i := range v.Risk {
-			v.Risk[i] = append(v.Risk[i], s.Dead(i, after))
+		region := w.m.RegionAt(int(math.Floor(x)), int(math.Floor(y)))
+		for i, win := range windows {
+			// Keep moving through the region.
+			risk, plan, arrive := alive(region).deadIn(win, after), -1, 0
+			// Or walk to a unit in sight: k ticks of walking, then a tick
+			// of eating, leave win-2-k ticks of the window, which is a
+			// window of win-1-k from the energy after the meal.
+			for f, food := range v.Seen {
+				if w.m.index(food.X, food.Y) == eaten {
+					continue
+				}
+				k := walkTicks(gapTo(x, food.X), gapTo(y, food.Y), w.cfg.Speed)
+				r := 1.0
+				if after-k > 0 {
+					r = alive(w.m.RegionAt(food.X, food.Y)).deadIn(win-1-k, min(after-k+meal, full)-1)
+				}
+				if r < risk {
+					risk, plan, arrive = r, f, k
+				}
+			}
+			v.Risk[i] = append(v.Risk[i], risk)
+			if i == 0 {
+				v.Plan = append(v.Plan, plan)
+				v.Arrive = append(v.Arrive, arrive)
+			}
 		}
 	}
+}
+
+// gapTo is how far p has to go along one axis to be on tile t.
+func gapTo(p float64, t int) float64 {
+	switch {
+	case p < float64(t):
+		return float64(t) - p
+	case p >= float64(t+1):
+		// Onto the tile means below t+1, not at it.
+		return p - float64(t+1) + 1e-9
+	}
+	return 0
+}
+
+// inSight appends the food on the tiles within Sight of the tile body b
+// stands on, row by row. A body sees the tile it stands on and the square
+// of tiles around it; the food is all a body perceives.
+func (w *World) inSight(dst []Food, b *Body) []Food {
+	if w.cfg.Sight < 0 {
+		return dst
+	}
+	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
+	for y := by - w.cfg.Sight; y <= by+w.cfg.Sight; y++ {
+		for x := bx - w.cfg.Sight; x <= bx+w.cfg.Sight; x++ {
+			if w.m.InBounds(x, y) && w.foodOn(w.m.index(x, y)) >= 0 {
+				dst = append(dst, Food{X: x, Y: y})
+			}
+		}
+	}
+	return dst
 }
 
 // predictor is what deciding needs to value options against the world's own
@@ -223,7 +332,7 @@ func (w *World) survival(r RegionID) Survival {
 		n := w.food.onGround[r]
 		s, ok := p.cache[r][n]
 		if !ok {
-			t := TruthTable{Meal: p.meal, Full: p.full}
+			t := TruthTable{Meal: p.meal, Full: p.full, Reach: w.reach()}
 			s = t.NewSurvival(w.meet(r), p.windows)
 			p.cache[r][n] = s
 		}
@@ -238,9 +347,10 @@ func (w *World) survival(r RegionID) Survival {
 func (w *World) decide(b *Body) Action {
 	v := &w.valuation
 	if w.cfg.Window > 0 {
-		w.valueInto(v, w.pred.meal, w.pred.full, 1, w.survival, *b)
+		w.valueInto(v, w.pred.meal, w.pred.full, w.pred.windows, w.survival, *b)
 	} else {
 		v.Options = w.possibleActions(v.Options[:0], b)
+		v.Seen, v.Plan, v.Arrive = v.Seen[:0], v.Plan[:0], v.Arrive[:0]
 		if cap(v.Risk) == 0 {
 			v.Risk = make([][]float64, 1)
 		}

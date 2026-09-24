@@ -36,6 +36,10 @@ type Config struct {
 	// Zero looks nowhere, so every possible option ties and the choice is
 	// the uniform draw of stage 1-1, the control later stages pair against.
 	Window int
+	// Sight is how far a body sees food, in tiles: the square of tiles
+	// within Sight of the one it stands on, which is 3x3 at 1. Zero sees
+	// the tile it stands on only; a negative Sight sees nothing.
+	Sight int
 }
 
 // DefaultConfig returns the rules the measurements run under unless a
@@ -52,5 +56,6 @@ func DefaultConfig() Config {
 		EnergyBurn: 0.1,
 		Speed:      0.25,
 		Window:     1000,
+		Sight:      1,
 	}
 }

@@ -99,10 +99,16 @@ func TestValueChangesNothing(t *testing.T) {
 	}
 }
 
-// Eating carries less risk than waiting whenever the window binds, and the
-// same once the energy outlasts the window.
+// Without sight, eating carries less risk than waiting whenever the window
+// binds, and the same once the energy outlasts the window. (With sight,
+// waiting on the unit and eating it next tick is a plan too.)
 func TestEatingAgainstTheWindow(t *testing.T) {
-	w := newTestWorld(t, 2)
+	cfg := testConfig(2)
+	cfg.Sight = -1
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	tab := w.TruthTable()
 	surv := make([]Survival, len(tab.Meet))
 	for r := range tab.Meet {
@@ -143,6 +149,102 @@ func TestPlentyKeepsEatingApart(t *testing.T) {
 	}
 }
 
+// A body that sees a unit a tile away and cannot last the window without
+// it walks towards it: the moves that bring it nearer carry the least risk,
+// and the plan the trace shows is that unit.
+func TestWalksToFoodInSight(t *testing.T) {
+	cfg := testConfig(1)
+	cfg.Bodies = 0
+	cfg.FoodCap = 0
+	m := NewMap(9, 9)
+	m.RegionFood = []float64{1}
+	w, err := NewWorld(cfg, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.food.foods = append(w.food.foods, Food{X: 5, Y: 4})
+	w.food.foodAt[m.index(5, 4)] = 1
+	w.food.onGround[0] = 1
+	w.refreshRegion(0)
+	b := Body{X: 4.5, Y: 4.5, Energy: 10}
+	tab := w.TruthTable()
+	surv := []Survival{tab.NewSurvival(tab.Meet[0], []int{cfg.Window})}
+	v := w.Value(tab, surv, b)
+	if len(v.Seen) != 1 || v.Seen[0] != (Food{X: 5, Y: 4}) {
+		t.Fatalf("seen %v, want the unit at (5,4)", v.Seen)
+	}
+	best := math.Inf(1)
+	for _, r := range v.Risk[0] {
+		best = math.Min(best, r)
+	}
+	for j, a := range v.Options {
+		east := a.Kind == ActMove && a.Dir == 0
+		if east != (v.Risk[0][j] == best) {
+			t.Fatalf("option %v: risk %v, best %v; want the move east alone to be best", a, v.Risk[0][j], best)
+		}
+		if a.Kind == ActMove && v.Plan[j] != 0 {
+			t.Fatalf("option %v plans %d, want the unit in sight", a, v.Plan[j])
+		}
+	}
+	for i := 0; i < 10; i++ {
+		if a := w.decide(&b); a.Kind != ActMove || a.Dir != 0 {
+			t.Fatalf("draw %d: took %v, want the move east", i, a)
+		}
+	}
+}
+
+// The walk is the octile distance: straight and diagonal moves both cover
+// Speed of it per tick.
+func TestWalkTicks(t *testing.T) {
+	for _, c := range []struct {
+		dx, dy, speed float64
+		want          int
+	}{
+		{0, 0, 0.25, 0},
+		{0.5, 0, 0.25, 2},
+		{0.3, 0, 0.25, 2},
+		{1, 1, 0.25, 6}, // sqrt2 / 0.25 = 5.66
+		{1, 0.5, 0.25, 5},
+	} {
+		if got := walkTicks(c.dx, c.dy, c.speed); got != c.want {
+			t.Fatalf("walkTicks(%v,%v,%v) = %d, want %d", c.dx, c.dy, c.speed, got, c.want)
+		}
+	}
+}
+
+// Sight sees the square around the body's tile and nothing past it.
+func TestInSight(t *testing.T) {
+	cfg := testConfig(1)
+	cfg.Bodies = 0
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sight := range []int{-1, 0, 1, 2} {
+		w.cfg.Sight = sight
+		for _, f := range w.Foods() {
+			b := Body{X: float64(f.X) + 0.5, Y: float64(f.Y) + 0.5}
+			for _, g := range w.Foods() {
+				want := sight >= 0 && max(abs(g.X-f.X), abs(g.Y-f.Y)) <= sight
+				got := false
+				for _, s := range w.inSight(nil, &b) {
+					got = got || s == g
+				}
+				if got != want {
+					t.Fatalf("sight %d from %v: sees %v %v, want %v", sight, f, g, got, want)
+				}
+			}
+		}
+	}
+}
+
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
 // The trace is handed the numbers the choice was made from: they are the
 // ones Value gives for the same body at the same moment, and the action taken
 // is one of the options of the least risk.
@@ -162,6 +264,14 @@ func TestTraceIsTheChoice(t *testing.T) {
 			surv[r] = built[q]
 		}
 		want := w.Value(tab, surv, b)
+		if len(want.Seen) != len(v.Seen) || len(want.Plan) != len(v.Plan) {
+			t.Fatalf("tick %d body %d: traced %v/%v, Value gives %v/%v", w.Tick(), b.ID, v.Seen, v.Plan, want.Seen, want.Plan)
+		}
+		for j := range v.Plan {
+			if v.Plan[j] != want.Plan[j] || v.Arrive[j] != want.Arrive[j] {
+				t.Fatalf("tick %d body %d option %d: traced plan %d/%d, Value gives %d/%d", w.Tick(), b.ID, j, v.Plan[j], v.Arrive[j], want.Plan[j], want.Arrive[j])
+			}
+		}
 		if len(want.Options) != len(v.Options) {
 			t.Fatalf("tick %d body %d: %d options traced, Value gives %d", w.Tick(), b.ID, len(v.Options), len(want.Options))
 		}
