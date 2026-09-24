@@ -50,6 +50,10 @@ type foodState struct {
 	// appear.
 	regionLand [][]int
 	shareSum   float64
+
+	// onGround is, per region, how many units are on the ground there. It
+	// is all the truth table reads of the food (predict.go).
+	onGround []int
 }
 
 func (w *World) initFood() {
@@ -57,6 +61,7 @@ func (w *World) initFood() {
 	f.foodAt = make([]int32, len(w.m.Terrain))
 	f.owed = make([]float64, len(w.m.RegionFood))
 	f.regionLand = make([][]int, len(w.m.RegionFood))
+	f.onGround = make([]int, len(w.m.RegionFood))
 	for i, t := range w.m.Terrain {
 		if t == TerrainLand {
 			r := w.m.Region[i]
@@ -117,6 +122,7 @@ func (w *World) placeFood(r RegionID) bool {
 		f.foods = append(f.foods, Food{X: t % w.m.Width, Y: t / w.m.Width})
 		f.foodAt[t] = int32(len(f.foods))
 		f.appeared++
+		w.foodMoved(r, +1)
 		return true
 	}
 	return false
@@ -166,6 +172,14 @@ func (w *World) eatFood(i int) {
 	}
 	f.foods = f.foods[:last]
 	f.eaten++
+	w.foodMoved(w.m.RegionAt(gone.X, gone.Y), -1)
+}
+
+// foodMoved keeps the count of region r's food on the ground, and the
+// prediction that reads it, up to date.
+func (w *World) foodMoved(r RegionID, d int) {
+	w.food.onGround[r] += d
+	w.refreshRegion(r)
 }
 
 // FoodLedger returns the food account.

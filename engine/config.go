@@ -29,6 +29,13 @@ type Config struct {
 	EnergyBurn float64
 	// Speed is how far a move takes a body, in tiles per tick.
 	Speed float64
+
+	// Window is how many ticks ahead a body looks when it values its
+	// options: each is valued by the chance of being dead at the end of the
+	// window, and the body takes the least, drawing at random among ties.
+	// Zero looks nowhere, so every possible option ties and the choice is
+	// the uniform draw of stage 1-1, the control later stages pair against.
+	Window int
 }
 
 // DefaultConfig returns the rules the measurements run under unless a
@@ -44,5 +51,6 @@ func DefaultConfig() Config {
 		EnergyMax:  100,
 		EnergyBurn: 0.1,
 		Speed:      0.25,
+		Window:     1000,
 	}
 }

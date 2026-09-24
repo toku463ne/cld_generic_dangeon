@@ -18,7 +18,7 @@ import (
 // holds which food, the land of each region) is rebuilt rather than saved.
 
 // snapshotVersion changes whenever the format does.
-const snapshotVersion = 2
+const snapshotVersion = 3
 
 type snapshot struct {
 	Version int    `json:"version"`
@@ -81,6 +81,8 @@ func Load(in io.Reader) (*World, error) {
 		}
 		w.food.foods = append(w.food.foods, f)
 		w.food.foodAt[w.m.index(f.X, f.Y)] = int32(len(w.food.foods))
+		w.food.onGround[w.m.RegionAt(f.X, f.Y)]++
 	}
+	w.initPredict()
 	return w, nil
 }

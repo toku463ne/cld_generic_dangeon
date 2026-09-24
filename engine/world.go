@@ -25,8 +25,15 @@ type World struct {
 	nextID int64
 	stats  Stats
 
-	// options is scratch space for possibleActions.
-	options []Action
+	// pred is what valuing options needs and can be rebuilt from the rest,
+	// so it is neither saved nor fingerprinted.
+	pred predictor
+	// valuation is scratch space for the decision of the body acting now.
+	valuation Valuation
+	ties      []int
+
+	// trace, when set, is shown every decision as it is made.
+	trace func(Body, Valuation, Action)
 }
 
 // NewWorld builds a world on the given map: the food cap laid out by region
@@ -38,6 +45,7 @@ func NewWorld(cfg Config, m Map) (*World, error) {
 	w := &World{cfg: cfg, m: m.Clone()}
 	w.rng, w.draws = newCountingRand(cfg.Seed)
 	w.initFood()
+	w.initPredict()
 	w.fillFood()
 	w.placeBodies()
 	return w, nil
@@ -50,8 +58,7 @@ func (w *World) Step() {
 	w.returnFood()
 	for i := range w.bodies {
 		b := &w.bodies[i]
-		w.options = w.possibleActions(w.options[:0], b)
-		w.act(b, w.decide(w.options))
+		w.act(b, w.decide(b))
 		b.Energy -= w.cfg.EnergyBurn
 		w.stats.EnergyBurned += w.cfg.EnergyBurn
 	}

@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/toku463ne/cld_generic_dangeon/engine"
+	"github.com/toku463ne/cld_generic_dangeon/variant"
 	"github.com/toku463ne/cld_generic_dangeon/worldmap"
 )
 
@@ -61,6 +62,16 @@ func main() {
 		return
 	}
 	reach(m, *mapName, *seeds, *seed0)
+}
+
+// stage11 is the config of the stage 1-1 world the 1-2 counts read: the
+// random control, before valuation chose anything.
+func stage11() engine.Config {
+	cfg, err := variant.Config(variant.Random, 1)
+	if err != nil {
+		fail(err)
+	}
+	return cfg
 }
 
 func fail(err error) {
@@ -216,7 +227,7 @@ func countMeetings(cfg engine.Config, m engine.Map, from, to int) (meetings, err
 }
 
 func underfoot(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
-	cfg := engine.DefaultConfig()
+	cfg := stage11()
 	balance := cfg.EnergyBurn / cfg.FoodEnergy
 	full := int(cfg.EnergyMax / cfg.EnergyBurn)
 	fmt.Printf("| 地図 | 区間（tick） | 足元に食料が来た頻度 | 実際に食べた頻度（無作為） | 釣り合いの頻度 | 足元 ÷ 釣り合い |\n")
@@ -295,7 +306,6 @@ func countSplit(cfg engine.Config, m engine.Map, ticks, every int) (splitCount, 
 		all:       make([][bands + 1]tally, len(splitWindows)),
 		underfoot: make([][bands + 1]tally, len(splitWindows)),
 	}
-	const eps = 1e-12
 	for t := 0; t < ticks && len(w.Bodies()) > 0; t++ {
 		if t%every == 0 {
 			start := time.Now()
@@ -318,16 +328,16 @@ func countSplit(cfg engine.Config, m engine.Map, ticks, every int) (splitCount, 
 					}
 				}
 				for i := range splitWindows {
-					best, second := math.Inf(-1), math.Inf(-1)
-					for _, x := range v.Worth[i] {
-						if x > best {
+					best, second := math.Inf(1), math.Inf(1)
+					for _, x := range v.Risk[i] {
+						if x < best {
 							best, second = x, best
-						} else if x > second {
+						} else if x < second {
 							second = x
 						}
 					}
 					split := 0.0
-					if best-second > eps {
+					if best < second {
 						split = 1
 					}
 					for _, k := range []int{band, bands} {
@@ -338,8 +348,8 @@ func countSplit(cfg engine.Config, m engine.Map, ticks, every int) (splitCount, 
 						continue
 					}
 					eatBest := 1.0
-					for j, x := range v.Worth[i] {
-						if j != eat && x >= v.Worth[i][eat]-eps {
+					for j, x := range v.Risk[i] {
+						if j != eat && x <= v.Risk[i][eat] {
 							eatBest = 0
 						}
 					}
@@ -356,7 +366,7 @@ func countSplit(cfg engine.Config, m engine.Map, ticks, every int) (splitCount, 
 }
 
 func split(m engine.Map, name string, seeds int, seed0 int64, ticks, every int) {
-	cfg := engine.DefaultConfig()
+	cfg := stage11()
 	all := make([][bands + 1]tally, len(splitWindows))
 	under := make([][bands + 1]tally, len(splitWindows))
 	var values float64

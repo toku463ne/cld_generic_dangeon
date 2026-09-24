@@ -116,13 +116,6 @@ func (w *World) possibleActions(dst []Action, b *Body) []Action {
 	return dst
 }
 
-// decide picks the action. In stage 1-1 there is no judgement yet: every
-// possible action is equally likely. This is the base every later stage is
-// compared with.
-func (w *World) decide(options []Action) Action {
-	return options[w.rng.Intn(len(options))]
-}
-
 func (w *World) act(b *Body, a Action) {
 	w.stats.Actions[a.Kind]++
 	switch a.Kind {

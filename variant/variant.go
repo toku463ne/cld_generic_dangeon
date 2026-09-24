@@ -15,10 +15,15 @@ import (
 // Base is the name of the variant that leaves the default config as it is.
 const Base = "base"
 
+// Random is the stage 1-1 control: no window, so every possible action is
+// equally likely.
+const Random = "random"
+
 // rewrites maps a variant name to the rewrite of the default config it
 // stands for.
 var rewrites = map[string]func(*engine.Config){
-	Base: func(*engine.Config) {},
+	Base:   func(*engine.Config) {},
+	Random: func(c *engine.Config) { c.Window = 0 },
 }
 
 // Config returns the default config rewritten by the named variant, with the

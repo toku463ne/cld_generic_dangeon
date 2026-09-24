@@ -85,8 +85,24 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0xa43263b50e366b1e)
+	const want = uint64(0x51de0e4034431e90)
 	w := newTestWorld(t, 1)
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// With no window the world is the stage 1-1 control, draw for draw: its
+// fingerprint is the one 1-1 pinned before valuation existed.
+func TestNoWindowIsStage11(t *testing.T) {
+	const want = uint64(0xa43263b50e366b1e)
+	cfg := testConfig(1)
+	cfg.Window = 0
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
 		t.Fatalf("fingerprint = %#x, want %#x", got, want)
