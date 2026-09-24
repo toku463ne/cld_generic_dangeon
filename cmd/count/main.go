@@ -30,6 +30,11 @@
 //	       world as it starts and for the same world with its starting
 //	       energies spread out.
 //
+//	explore (stage 1-2q) each body's exploration over a window - untrodden
+//	       tiles per tick and food units come into sight per tick - against
+//	       how long it lives after the window, by rank correlation, in the
+//	       blind, restless and base worlds.
+//
 //	meet   (stage 1-2) in the worlds of the random and base variants, the
 //	       share of tiles a body enters that hold food, against what the
 //	       truth table's third row reads: the food of the region over its land.
@@ -54,17 +59,17 @@ import (
 )
 
 func main() {
-	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage | cycle")
+	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage | cycle | explore")
 	mapName := flag.String("map", "", "map (required)")
 	width := flag.Int("w", 0, "map width in tiles (required)")
 	height := flag.Int("h", 0, "map height in tiles (required)")
 	seeds := flag.Int("seeds", 0, "number of seeds (required)")
 	seed0 := flag.Int64("seed0", 1, "first seed")
-	ticks := flag.Int("ticks", 0, "ticks per run (underfoot, split, meet, sight, forage and cycle, required there)")
+	ticks := flag.Int("ticks", 0, "ticks per run (underfoot, split, meet, sight, forage, cycle and explore, required there)")
 	every := flag.Int("every", 50, "split: read the world every this many ticks")
 	flag.Parse()
 
-	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" && *what != "cycle" {
+	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" && *what != "cycle" && *what != "explore" {
 		fail(fmt.Errorf("unknown count %q", *what))
 	}
 	if *seeds <= 0 || *width <= 0 || *height <= 0 || *mapName == "" {
@@ -74,9 +79,13 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" || *what == "cycle" {
+	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" || *what == "cycle" || *what == "explore" {
 		if *ticks <= 0 {
 			fail(fmt.Errorf("-ticks is required for %s", *what))
+		}
+		if *what == "explore" {
+			explore(m, *mapName, *seeds, *seed0, *ticks)
+			return
 		}
 		if *what == "cycle" {
 			cycle(m, *mapName, *seeds, *seed0, *ticks)
@@ -996,6 +1005,394 @@ func cycle(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
 			pm, _ := meanSE(per)
 			popM, popSE := meanSE(pop)
 			fmt.Printf("| %d〜%d | %.1f | %.1f | %.1f | %.1f ± %.1f |\n", lo, hi, spanOf(mean), pm, food, popM, popSE)
+		}
+		fmt.Println()
+	}
+}
+
+// exploreWindows are the windows exploration is read over: the first
+// thousand ticks, when every body is alive, and a thousand ticks once the
+// population has settled. The life counted is the life after the window.
+var exploreWindows = [][2]int{{0, 1000}, {9000, 10000}}
+
+// bodyTrack is what the explore count keeps of one body.
+type bodyTrack struct {
+	// slide* are per consecutive window of exploreSlide ticks from tick 0.
+	slideUntrod, slideSighted, slideEnergy []float64
+	visited                                map[int]bool
+	tile                                   int
+	seen                                   map[Food2]bool
+	untrod                                 []float64 // per window: tiles entered for the first time
+	sighted                                []float64 // per window: units come into sight
+	energy                                 []float64 // per window: energy at the window's end
+	died                                   int       // tick of death, -1 while alive
+	inWindow                               []bool    // alive through the whole window
+}
+
+// exploreSlide is the width of the consecutive windows the hazard reading
+// uses, and the horizon it asks about: does the body die within the next
+// exploreSlide ticks after a window it lived through.
+const exploreSlide = 1000
+
+// Food2 is a food position as a map key.
+type Food2 struct{ X, Y int }
+
+// exploreRun runs one world to the end and returns every body's track.
+// Tiles and sightings come from the trace, as the body decides: a tile is
+// untrodden when the body has never decided on it before, and a unit comes
+// into sight when it is in the valuation's Seen and was not in the body's
+// previous decision's. A body's first decision counts neither.
+func exploreRun(cfg engine.Config, m engine.Map, ticks int) (map[int64]*bodyTrack, error) {
+	w, err := engine.NewWorld(cfg, m)
+	if err != nil {
+		return nil, err
+	}
+	tracks := map[int64]*bodyTrack{}
+	nw := len(exploreWindows)
+	win := -1
+	w.SetTrace(func(b engine.Body, v engine.Valuation, _ engine.Action) {
+		t := tracks[b.ID]
+		tile := int(math.Floor(b.Y))*m.Width + int(math.Floor(b.X))
+		if t == nil {
+			ns := ticks / exploreSlide
+			t = &bodyTrack{slideUntrod: make([]float64, ns), slideSighted: make([]float64, ns), slideEnergy: make([]float64, ns),
+				visited: map[int]bool{tile: true}, tile: tile, seen: map[Food2]bool{},
+				untrod: make([]float64, nw), sighted: make([]float64, nw), energy: make([]float64, nw),
+				died: -1, inWindow: make([]bool, nw)}
+			for _, f := range v.Seen {
+				t.seen[Food2{f.X, f.Y}] = true
+			}
+			tracks[b.ID] = t
+			return
+		}
+		slide := int(w.Tick()-1) / exploreSlide
+		if tile != t.tile && !t.visited[tile] {
+			t.visited[tile] = true
+			if win >= 0 {
+				t.untrod[win]++
+			}
+			if slide < len(t.slideUntrod) {
+				t.slideUntrod[slide]++
+			}
+		}
+		t.tile = tile
+		now := map[Food2]bool{}
+		for _, f := range v.Seen {
+			k := Food2{f.X, f.Y}
+			now[k] = true
+			if !t.seen[k] {
+				if win >= 0 {
+					t.sighted[win]++
+				}
+				if slide < len(t.slideSighted) {
+					t.slideSighted[slide]++
+				}
+			}
+		}
+		t.seen = now
+	})
+	// startAlive[i] is the bodies alive when window i opens; a body counts
+	// in the window if it is among them and does not die before it closes.
+	startAlive := make([]map[int64]bool, nw)
+	alive := map[int64]bool{}
+	for _, b := range w.Bodies() {
+		alive[b.ID] = true
+	}
+	for tick := 0; tick < ticks && len(alive) > 0; tick++ {
+		win = -1
+		for i, wd := range exploreWindows {
+			if tick >= wd[0] && tick < wd[1] {
+				win = i
+			}
+			if tick == wd[0] {
+				startAlive[i] = map[int64]bool{}
+				for id := range alive {
+					startAlive[i][id] = true
+				}
+			}
+		}
+		w.Step()
+		now := map[int64]bool{}
+		for _, b := range w.Bodies() {
+			now[b.ID] = true
+			if (tick+1)%exploreSlide == 0 && (tick+1)/exploreSlide-1 < ticks/exploreSlide {
+				if t := tracks[b.ID]; t != nil {
+					t.slideEnergy[(tick+1)/exploreSlide-1] = b.Energy
+				}
+			}
+			for i, wd := range exploreWindows {
+				if tick+1 == wd[1] {
+					if t := tracks[b.ID]; t != nil {
+						t.energy[i] = b.Energy
+					}
+				}
+			}
+		}
+		for id := range alive {
+			if !now[id] {
+				if t := tracks[id]; t != nil {
+					t.died = tick + 1
+				}
+			}
+		}
+		alive = now
+	}
+	for id, t := range tracks {
+		for i, wd := range exploreWindows {
+			t.inWindow[i] = startAlive[i][id] && (t.died < 0 || t.died > wd[1])
+		}
+	}
+	return tracks, nil
+}
+
+// ranks returns the ranks of xs, ties sharing their average rank.
+func ranks(xs []float64) []float64 {
+	idx := make([]int, len(xs))
+	for i := range idx {
+		idx[i] = i
+	}
+	sort.Slice(idx, func(a, b int) bool { return xs[idx[a]] < xs[idx[b]] })
+	r := make([]float64, len(xs))
+	for i := 0; i < len(idx); {
+		j := i
+		for j+1 < len(idx) && xs[idx[j+1]] == xs[idx[i]] {
+			j++
+		}
+		for k := i; k <= j; k++ {
+			r[idx[k]] = float64(i+j)/2 + 1
+		}
+		i = j + 1
+	}
+	return r
+}
+
+// spearman is the rank correlation of xs and ys.
+func spearman(xs, ys []float64) float64 {
+	if len(xs) < 3 {
+		return math.NaN()
+	}
+	return pearson(ranks(xs), ranks(ys))
+}
+
+func pearson(xs, ys []float64) float64 {
+	n := float64(len(xs))
+	var mx, my float64
+	for i := range xs {
+		mx += xs[i] / n
+		my += ys[i] / n
+	}
+	var sxy, sxx, syy float64
+	for i := range xs {
+		sxy += (xs[i] - mx) * (ys[i] - my)
+		sxx += (xs[i] - mx) * (xs[i] - mx)
+		syy += (ys[i] - my) * (ys[i] - my)
+	}
+	if sxx == 0 || syy == 0 {
+		return math.NaN()
+	}
+	return sxy / math.Sqrt(sxx*syy)
+}
+
+// auc is the chance that a body that died has a lower x than one that
+// lived, ties counting half: 0.5 when x tells them apart no better than a
+// coin, 1 when every body that died had less of x than every one that lived.
+func auc(died, lived []float64) float64 {
+	if len(died) == 0 || len(lived) == 0 {
+		return math.NaN()
+	}
+	all := append(append([]float64(nil), died...), lived...)
+	r := ranks(all)
+	sum := 0.0
+	for i := range died {
+		sum += r[i]
+	}
+	nd, nl := float64(len(died)), float64(len(lived))
+	// Mann-Whitney: the rank sum of the died, less its least value, over
+	// the pairs; low x among the died pushes it towards 1.
+	return 1 - (sum-nd*(nd+1)/2)/(nd*nl)
+}
+
+// hazard is one seed's reading of the consecutive windows: for every body
+// alive through a window, its rates in the window and energy at its end,
+// split by whether it died within the next window.
+type hazard struct {
+	died, lived [3][]float64 // untrodden rate, sighting rate, energy
+}
+
+func hazardOf(tracks map[int64]*bodyTrack, ticks int) hazard {
+	var h hazard
+	span := float64(exploreSlide)
+	for k := 0; (k+2)*exploreSlide <= ticks; k++ {
+		start, end := k*exploreSlide, (k+1)*exploreSlide
+		for _, t := range tracks {
+			// Alive through the window: it has a track, so it was alive
+			// at the start of the run, and it died after the window's end.
+			if t.died >= 0 && t.died <= end {
+				continue
+			}
+			_ = start
+			xs := [3]float64{t.slideUntrod[k] / span, t.slideSighted[k] / span, t.slideEnergy[k]}
+			dies := t.died >= 0 && t.died <= end+exploreSlide
+			for j, x := range xs {
+				if dies {
+					h.died[j] = append(h.died[j], x)
+				} else {
+					h.lived[j] = append(h.lived[j], x)
+				}
+			}
+		}
+	}
+	return h
+}
+
+func explore(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
+	fmt.Printf("地図 %s (%dx%d)、%d シード、%d tick。窓のあとの寿命は %d tick で打ち切る（生き残りは打ち切りの値で順位をつける）。\n\n", name, m.Width, m.Height, seeds, ticks, ticks)
+	type perSeed struct {
+		untrod, sighted, life, lifeCensored []float64 // per window, means over bodies
+		n                                   []float64
+		rhoU, rhoS, rhoE, rhoUS             []float64 // per window
+		quint                               [][5][2]float64
+	}
+	variants := []string{variant.Blind, variant.Restless, variant.Base}
+	nw := len(exploreWindows)
+	for _, vn := range variants {
+		var ps []perSeed
+		var hz []hazard
+		for s := 0; s < seeds; s++ {
+			cfg, err := variant.Config(vn, seed0+int64(s))
+			if err != nil {
+				fail(err)
+			}
+			tracks, err := exploreRun(cfg, m, ticks)
+			if err != nil {
+				fail(err)
+			}
+			hz = append(hz, hazardOf(tracks, ticks))
+			p := perSeed{untrod: make([]float64, nw), sighted: make([]float64, nw), life: make([]float64, nw),
+				lifeCensored: make([]float64, nw), n: make([]float64, nw), rhoU: make([]float64, nw),
+				rhoS: make([]float64, nw), rhoE: make([]float64, nw), rhoUS: make([]float64, nw), quint: make([][5][2]float64, nw)}
+			for i, wd := range exploreWindows {
+				span := float64(wd[1] - wd[0])
+				var u, sg, e, life []float64
+				censored := 0.0
+				for _, t := range tracks {
+					if !t.inWindow[i] {
+						continue
+					}
+					l := float64(ticks - wd[1])
+					if t.died >= 0 {
+						l = float64(t.died - wd[1])
+					} else {
+						censored++
+					}
+					u = append(u, t.untrod[i]/span)
+					sg = append(sg, t.sighted[i]/span)
+					e = append(e, t.energy[i])
+					life = append(life, l)
+				}
+				p.n[i] = float64(len(u))
+				if len(u) == 0 {
+					for _, f := range []*[]float64{&p.untrod, &p.sighted, &p.life, &p.lifeCensored, &p.rhoU, &p.rhoS, &p.rhoE, &p.rhoUS} {
+						(*f)[i] = math.NaN()
+					}
+					continue
+				}
+				um, _ := meanSE(u)
+				sm, _ := meanSE(sg)
+				lm, _ := meanSE(life)
+				p.untrod[i], p.sighted[i], p.life[i] = um, sm, lm
+				p.lifeCensored[i] = censored / float64(len(u))
+				p.rhoU[i] = spearman(u, life)
+				p.rhoS[i] = spearman(sg, life)
+				p.rhoE[i] = spearman(e, life)
+				p.rhoUS[i] = spearman(u, sg)
+				// Quintiles of the sighting rate: mean life and share dying.
+				order := make([]int, len(sg))
+				for k := range order {
+					order[k] = k
+				}
+				sort.Slice(order, func(a, b int) bool { return sg[order[a]] < sg[order[b]] })
+				for q := 0; q < 5; q++ {
+					lo, hi := q*len(order)/5, (q+1)*len(order)/5
+					for _, k := range order[lo:hi] {
+						p.quint[i][q][0] += life[k] / float64(max(hi-lo, 1))
+						if life[k] < float64(ticks-wd[1]) {
+							p.quint[i][q][1] += 1 / float64(max(hi-lo, 1))
+						}
+					}
+				}
+			}
+			ps = append(ps, p)
+		}
+		col := func(i int, f func(perSeed) []float64) string {
+			var xs []float64
+			for _, p := range ps {
+				if x := f(p)[i]; !math.IsNaN(x) {
+					xs = append(xs, x)
+				}
+			}
+			if len(xs) == 0 {
+				return "—"
+			}
+			m, se := meanSE(xs)
+			if math.IsNaN(se) {
+				return fmt.Sprintf("%.3f", m)
+			}
+			return fmt.Sprintf("%.3f ± %.3f", m, se)
+		}
+		fmt.Printf("#### %s\n\n", vn)
+		fmt.Printf("| 窓（tick） | 窓を通して生きていた身体（1シードあたり） | 未踏タイル率（/tick） | 食料視認率（/tick） | 窓のあとの寿命（平均） | 打ち切り（生き残り）の割合 |\n| --- | --- | --- | --- | --- | --- |\n")
+		for i, wd := range exploreWindows {
+			fmt.Printf("| %d〜%d | %s | %s | %s | %s | %s |\n", wd[0], wd[1], col(i, func(p perSeed) []float64 { return p.n }),
+				col(i, func(p perSeed) []float64 { return p.untrod }), col(i, func(p perSeed) []float64 { return p.sighted }),
+				col(i, func(p perSeed) []float64 { return p.life }), col(i, func(p perSeed) []float64 { return p.lifeCensored }))
+		}
+		fmt.Printf("\n順位相関（シードごとに身体をまたいで取り、シードで平均 ± 標準誤差）\n\n| 窓（tick） | 未踏タイル率 × 寿命 | 食料視認率 × 寿命 | 窓の終わりの体力 × 寿命 | 未踏タイル率 × 食料視認率 |\n| --- | --- | --- | --- | --- |\n")
+		for i, wd := range exploreWindows {
+			fmt.Printf("| %d〜%d | %s | %s | %s | %s |\n", wd[0], wd[1], col(i, func(p perSeed) []float64 { return p.rhoU }),
+				col(i, func(p perSeed) []float64 { return p.rhoS }), col(i, func(p perSeed) []float64 { return p.rhoE }),
+				col(i, func(p perSeed) []float64 { return p.rhoUS }))
+		}
+		fmt.Printf("\n%d tick ごとの窓を通して生きていた身体が、次の %d tick で死ぬかどうか（全区間をシードごとにまとめ、シードで平均 ± 標準誤差）\n\n", exploreSlide, exploreSlide)
+		fmt.Printf("| 指標 | 死んだ（1シードあたり） | 生き残った（1シードあたり） | AUC: 未踏タイル率 | AUC: 食料視認率 | AUC: 窓の終わりの体力 |\n| --- | --- | --- | --- | --- | --- |\n")
+		var nd, nl []float64
+		var a [3][]float64
+		for _, h := range hz {
+			nd = append(nd, float64(len(h.died[0])))
+			nl = append(nl, float64(len(h.lived[0])))
+			for j := range a {
+				if x := auc(h.died[j], h.lived[j]); !math.IsNaN(x) {
+					a[j] = append(a[j], x)
+				}
+			}
+		}
+		cell := func(xs []float64) string {
+			if len(xs) == 0 {
+				return "—"
+			}
+			m, se := meanSE(xs)
+			return fmt.Sprintf("%.3f ± %.3f", m, se)
+		}
+		ndm, _ := meanSE(nd)
+		nlm, _ := meanSE(nl)
+		fmt.Printf("| 次の窓で死ぬか | %.1f | %.1f | %s | %s | %s |\n", ndm, nlm, cell(a[0]), cell(a[1]), cell(a[2]))
+		fmt.Printf("\n食料視認率の五分位ごとの、窓のあとの寿命と、打ち切りまでに死んだ割合（シード平均）\n\n| 窓（tick） | 五分位 | 寿命 | 死んだ割合 |\n| --- | --- | --- | --- |\n")
+		for i, wd := range exploreWindows {
+			for q := 0; q < 5; q++ {
+				var l, d []float64
+				for _, p := range ps {
+					if p.n[i] >= 5 {
+						l = append(l, p.quint[i][q][0])
+						d = append(d, p.quint[i][q][1])
+					}
+				}
+				if len(l) == 0 {
+					continue
+				}
+				lm, _ := meanSE(l)
+				dm, _ := meanSE(d)
+				fmt.Printf("| %d〜%d | %d（低→高） | %.0f | %.2f |\n", wd[0], wd[1], q+1, lm, dm)
+			}
 		}
 		fmt.Println()
 	}
