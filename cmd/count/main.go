@@ -13,6 +13,10 @@
 //	       which the truth table's valuation (engine.World.Value) puts the
 //	       best option strictly above the second, per window and energy band.
 //
+//	sight  (stage 1-2p) in the stage 1-2 world, for each sight radius, how
+//	       often a body has food in sight, how often food it had not seen
+//	       comes into sight, and how far the nearest food in sight is.
+//
 //	meet   (stage 1-2) in the worlds of the random and base variants, the
 //	       share of tiles a body enters that hold food, against what the
 //	       truth table's third row reads: the food of the region over its land.
@@ -34,17 +38,17 @@ import (
 )
 
 func main() {
-	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet")
+	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight")
 	mapName := flag.String("map", "", "map (required)")
 	width := flag.Int("w", 0, "map width in tiles (required)")
 	height := flag.Int("h", 0, "map height in tiles (required)")
 	seeds := flag.Int("seeds", 0, "number of seeds (required)")
 	seed0 := flag.Int64("seed0", 1, "first seed")
-	ticks := flag.Int("ticks", 0, "ticks per run (underfoot, split and meet, required there)")
+	ticks := flag.Int("ticks", 0, "ticks per run (underfoot, split, meet and sight, required there)")
 	every := flag.Int("every", 50, "split: read the world every this many ticks")
 	flag.Parse()
 
-	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" {
+	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" {
 		fail(fmt.Errorf("unknown count %q", *what))
 	}
 	if *seeds <= 0 || *width <= 0 || *height <= 0 || *mapName == "" {
@@ -54,9 +58,13 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	if *what == "underfoot" || *what == "split" || *what == "meet" {
+	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" {
 		if *ticks <= 0 {
 			fail(fmt.Errorf("-ticks is required for %s", *what))
+		}
+		if *what == "sight" {
+			sight(m, *mapName, *seeds, *seed0, *ticks)
+			return
 		}
 		if *what == "meet" {
 			meet(m, *mapName, *seeds, *seed0, *ticks)
@@ -497,3 +505,129 @@ func meet(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
 			name, m.Width, m.Height, seeds, ticks, v, em, es, 100*hm, 100*hs, 100*rm, 100*rs, qm, qs)
 	}
 }
+
+// sightRadii are the radii the sight count compares, in tiles around the
+// tile a body stands on: radius r sees the (2r+1) x (2r+1) block of tiles
+// centred on it. Radius 1 is the predecessor's "own cell and one ring".
+var sightRadii = []int{0, 1, 2, 3, 5, 8}
+
+// sightTally is one run's tally per radius over a span of ticks.
+type sightTally struct {
+	bodyTicks float64
+	inSight   []float64 // body-ticks with food in sight
+	newly     []float64 // units that came into sight, summed over bodies
+	nearest   []float64 // sum over body-ticks with food in sight of the distance to the nearest
+}
+
+// countSight runs the base world (stage 1-2) and reads it between ticks,
+// the state the next decisions start from. A unit comes into sight of a body
+// when it is within the radius now and was not the tick before (it was
+// farther, or not there). Food that comes back inside the radius counts too:
+// it is food the body had not seen. Distance is from the body to the centre
+// of the food's tile, in tiles, which is how far the body has to walk.
+func countSight(cfg engine.Config, m engine.Map, from, to int) (sightTally, error) {
+	w, err := engine.NewWorld(cfg, m)
+	if err != nil {
+		return sightTally{}, err
+	}
+	n := len(sightRadii)
+	t := sightTally{inSight: make([]float64, n), newly: make([]float64, n), nearest: make([]float64, n)}
+	far := sightRadii[n-1]
+	// last[body][tile] is the block distance of a unit on that tile the
+	// tick before, for units within the farthest radius.
+	last := map[int64]map[int]int{}
+	for tick := 0; tick < to && len(w.Bodies()) > 0; tick++ {
+		foods := w.Foods()
+		seen := map[int64]map[int]int{}
+		for _, b := range w.Bodies() {
+			bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
+			now := map[int]int{}
+			near := make([]float64, n)
+			for i := range near {
+				near[i] = math.Inf(1)
+			}
+			for _, f := range foods {
+				d := max(abs(f.X-bx), abs(f.Y-by))
+				if d > far {
+					continue
+				}
+				tile := f.Y*m.Width + f.X
+				now[tile] = d
+				dist := math.Hypot(float64(f.X)+0.5-b.X, float64(f.Y)+0.5-b.Y)
+				before, had := last[b.ID][tile]
+				for i, r := range sightRadii {
+					if d > r {
+						continue
+					}
+					near[i] = math.Min(near[i], dist)
+					if tick >= from && (!had || before > r) {
+						t.newly[i]++
+					}
+				}
+			}
+			seen[b.ID] = now
+			if tick < from {
+				continue
+			}
+			t.bodyTicks++
+			for i := range sightRadii {
+				if !math.IsInf(near[i], 1) {
+					t.inSight[i]++
+					t.nearest[i] += near[i]
+				}
+			}
+		}
+		last = seen
+		w.Step()
+	}
+	return t, nil
+}
+
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+func sight(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
+	cfg, err := variant.Config(variant.Base, 1)
+	if err != nil {
+		fail(err)
+	}
+	balance := cfg.EnergyBurn / cfg.FoodEnergy
+	full := energyTicks(cfg)
+	fmt.Printf("釣り合いの頻度（`EnergyBurn` ÷ `FoodEnergy`）: %.3f%%\n\n", 100*balance)
+	fmt.Printf("| 地図 | 区間（tick） | 半径 | 視界に食料がある割合 | 視界に食料が無い割合 | 新しく見えた頻度（/体・tick） | 新しく見えた ÷ 釣り合い | 一番近い食料までの距離（タイル） | 歩いて着くまで（tick） |\n")
+	fmt.Printf("| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n")
+	// As in underfoot: the first span is before anyone can have starved,
+	// the second the whole run.
+	for _, span := range [][2]int{{0, min(full, ticks)}, {0, ticks}} {
+		n := len(sightRadii)
+		in, newly, near := make([][]float64, n), make([][]float64, n), make([][]float64, n)
+		for s := 0; s < seeds; s++ {
+			cfg.Seed = seed0 + int64(s)
+			t, err := countSight(cfg, m, span[0], span[1])
+			if err != nil {
+				fail(err)
+			}
+			for i := range sightRadii {
+				in[i] = append(in[i], t.inSight[i]/t.bodyTicks)
+				newly[i] = append(newly[i], t.newly[i]/t.bodyTicks)
+				if t.inSight[i] > 0 {
+					near[i] = append(near[i], t.nearest[i]/t.inSight[i])
+				}
+			}
+		}
+		for i, r := range sightRadii {
+			im, is := meanSE(in[i])
+			nm, ns := meanSE(newly[i])
+			dm, ds := meanSE(near[i])
+			fmt.Printf("| %s (%dx%d, %d シード) | %d〜%d | %d | %.1f ± %.1f%% | %.1f%% | %.3f ± %.3f%% | %.2f | %.2f ± %.2f | %.1f |\n",
+				name, m.Width, m.Height, seeds, span[0], span[1], r, 100*im, 100*is, 100*(1-im), 100*nm, 100*ns, nm/balance, dm, ds, dm/cfg.Speed)
+		}
+	}
+}
+
+// energyTicks is how many ticks a full body lasts.
+func energyTicks(cfg engine.Config) int { return int(math.Ceil(cfg.EnergyMax/cfg.EnergyBurn - 1e-9)) }
