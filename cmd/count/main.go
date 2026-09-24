@@ -17,6 +17,10 @@
 //	       often a body has food in sight, how often food it had not seen
 //	       comes into sight, and how far the nearest food in sight is.
 //
+//	forage (stage 1-2p) in the base world, what bodies do on food, per
+//	       energy band; how often a hungry body has food in sight; and how
+//	       far a body gets from where it was a full body's life ago.
+//
 //	meet   (stage 1-2) in the worlds of the random and base variants, the
 //	       share of tiles a body enters that hold food, against what the
 //	       truth table's third row reads: the food of the region over its land.
@@ -38,17 +42,17 @@ import (
 )
 
 func main() {
-	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight")
+	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage")
 	mapName := flag.String("map", "", "map (required)")
 	width := flag.Int("w", 0, "map width in tiles (required)")
 	height := flag.Int("h", 0, "map height in tiles (required)")
 	seeds := flag.Int("seeds", 0, "number of seeds (required)")
 	seed0 := flag.Int64("seed0", 1, "first seed")
-	ticks := flag.Int("ticks", 0, "ticks per run (underfoot, split, meet and sight, required there)")
+	ticks := flag.Int("ticks", 0, "ticks per run (underfoot, split, meet, sight and forage, required there)")
 	every := flag.Int("every", 50, "split: read the world every this many ticks")
 	flag.Parse()
 
-	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" {
+	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" {
 		fail(fmt.Errorf("unknown count %q", *what))
 	}
 	if *seeds <= 0 || *width <= 0 || *height <= 0 || *mapName == "" {
@@ -58,9 +62,13 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" {
+	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" {
 		if *ticks <= 0 {
 			fail(fmt.Errorf("-ticks is required for %s", *what))
+		}
+		if *what == "forage" {
+			forage(m, *mapName, *seeds, *seed0, *ticks)
+			return
 		}
 		if *what == "sight" {
 			sight(m, *mapName, *seeds, *seed0, *ticks)
@@ -631,3 +639,108 @@ func sight(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
 
 // energyTicks is how many ticks a full body lasts.
 func energyTicks(cfg engine.Config) int { return int(math.Ceil(cfg.EnergyMax/cfg.EnergyBurn - 1e-9)) }
+
+// forageTally is one run's tally of the forage count.
+type forageTally struct {
+	onFood, ate, eatTied [bands]float64 // decisions on food, per energy band
+	hungry, hungrySees   float64        // decisions below a third of full, and those with food in sight
+	spread, spreadN      float64        // distance from where the body was a life ago
+}
+
+// countForage runs the base world and reads it through the trace. A
+// decision is on food when eating is offered; eating is tied when some other
+// option carries the same least risk. The spread is taken once per body per
+// tick, for bodies that were alive a full body's life ago.
+func countForage(cfg engine.Config, m engine.Map, ticks int) (forageTally, error) {
+	w, err := engine.NewWorld(cfg, m)
+	if err != nil {
+		return forageTally{}, err
+	}
+	var f forageTally
+	life := energyTicks(cfg)
+	w.SetTrace(func(b engine.Body, v engine.Valuation, a engine.Action) {
+		band := min(int(b.Energy/cfg.EnergyMax*bands), bands-1)
+		if b.Energy < cfg.EnergyMax/3 {
+			f.hungry++
+			if len(v.Seen) > 0 {
+				f.hungrySees++
+			}
+		}
+		for j, o := range v.Options {
+			if o.Kind != engine.ActEat {
+				continue
+			}
+			f.onFood[band]++
+			if a.Kind == engine.ActEat {
+				f.ate[band]++
+			}
+			least, same := true, 0
+			for _, r := range v.Risk[0] {
+				least = least && r >= v.Risk[0][j]
+				if r == v.Risk[0][j] {
+					same++
+				}
+			}
+			if least && same > 1 {
+				f.eatTied[band]++
+			}
+		}
+	})
+	past := map[int]map[int64][2]float64{}
+	for t := 0; t < ticks && len(w.Bodies()) > 0; t++ {
+		now := map[int64][2]float64{}
+		for _, b := range w.Bodies() {
+			now[b.ID] = [2]float64{b.X, b.Y}
+			if p, ok := past[t-life][b.ID]; ok {
+				f.spread += math.Hypot(b.X-p[0], b.Y-p[1])
+				f.spreadN++
+			}
+		}
+		past[t] = now
+		delete(past, t-life)
+		w.Step()
+	}
+	return f, nil
+}
+
+func forage(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
+	var ate, tied [bands][]float64
+	var onFood [bands]float64
+	var sees, spread []float64
+	for s := 0; s < seeds; s++ {
+		cfg, err := variant.Config(variant.Base, seed0+int64(s))
+		if err != nil {
+			fail(err)
+		}
+		f, err := countForage(cfg, m, ticks)
+		if err != nil {
+			fail(err)
+		}
+		for k := range f.onFood {
+			onFood[k] += f.onFood[k]
+			if f.onFood[k] > 0 {
+				ate[k] = append(ate[k], f.ate[k]/f.onFood[k])
+				tied[k] = append(tied[k], f.eatTied[k]/f.onFood[k])
+			}
+		}
+		if f.hungry > 0 {
+			sees = append(sees, f.hungrySees/f.hungry)
+		}
+		if f.spreadN > 0 {
+			spread = append(spread, f.spread/f.spreadN)
+		}
+	}
+	cfg, _ := variant.Config(variant.Base, seed0)
+	fmt.Printf("足元に食料がある決定（%s %dx%d、%d シード、%d tick）\n\n", name, m.Width, m.Height, seeds, ticks)
+	fmt.Printf("| 体力の帯 | 決定の数 | 食べた割合 | 食べるが最善で同点 |\n| --- | --- | --- | --- |\n")
+	for k := 0; k < bands; k++ {
+		am, as := meanSE(ate[k])
+		tm, ts := meanSE(tied[k])
+		lo := cfg.EnergyMax / bands * float64(k)
+		fmt.Printf("| %.0f〜%.0f | %.0f | %.1f ± %.1f%% | %.1f ± %.1f%% |\n", lo, lo+cfg.EnergyMax/bands, onFood[k], 100*am, 100*as, 100*tm, 100*ts)
+	}
+	sm, ss := meanSE(sees)
+	dm, ds := meanSE(spread)
+	fmt.Printf("\n体力が上限の 1/3 未満の決定で、視界に食料がある割合: %.1f ± %.1f%%\n", 100*sm, 100*ss)
+	fmt.Printf("%d tick 前（満腹から餓死まで）にいた位置からの距離: %.2f ± %.2f タイル\n", energyTicks(cfg), dm, ds)
+}
