@@ -12,6 +12,10 @@
 //	split  (stage 1-2) in the stage 1-1 world, the share of decisions in
 //	       which the truth table's valuation (engine.World.Value) puts the
 //	       best option strictly above the second, per window and energy band.
+//
+//	meet   (stage 1-2) in the worlds of the random and base variants, the
+//	       share of tiles a body enters that hold food, against what the
+//	       truth table's third row reads: the food of the region over its land.
 package main
 
 import (
@@ -30,17 +34,17 @@ import (
 )
 
 func main() {
-	what := flag.String("what", "reach", "count to run: reach | underfoot | split")
+	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet")
 	mapName := flag.String("map", "", "map (required)")
 	width := flag.Int("w", 0, "map width in tiles (required)")
 	height := flag.Int("h", 0, "map height in tiles (required)")
 	seeds := flag.Int("seeds", 0, "number of seeds (required)")
 	seed0 := flag.Int64("seed0", 1, "first seed")
-	ticks := flag.Int("ticks", 0, "ticks per run (underfoot and split, required there)")
+	ticks := flag.Int("ticks", 0, "ticks per run (underfoot, split and meet, required there)")
 	every := flag.Int("every", 50, "split: read the world every this many ticks")
 	flag.Parse()
 
-	if *what != "reach" && *what != "underfoot" && *what != "split" {
+	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" {
 		fail(fmt.Errorf("unknown count %q", *what))
 	}
 	if *seeds <= 0 || *width <= 0 || *height <= 0 || *mapName == "" {
@@ -50,9 +54,13 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	if *what == "underfoot" || *what == "split" {
+	if *what == "underfoot" || *what == "split" || *what == "meet" {
 		if *ticks <= 0 {
 			fail(fmt.Errorf("-ticks is required for %s", *what))
+		}
+		if *what == "meet" {
+			meet(m, *mapName, *seeds, *seed0, *ticks)
+			return
 		}
 		if *what == "split" {
 			split(m, *mapName, *seeds, *seed0, *ticks, *every)
@@ -419,4 +427,73 @@ func split(m engine.Map, name string, seeds int, seed0 int64, ticks, every int) 
 	fmt.Printf("\n決定の数: %.0f（体力の帯ごと %s）、足元に食料: %.0f\n", all[0][bands].n, strings.Join(counts, " / "), under[0][bands].n)
 	fmt.Printf("値付け1回（%d 窓）: %v、表の作成（全地域・全窓）1回: %v\n",
 		len(splitWindows), valueTime/time.Duration(max(values, 1)), tableTime/time.Duration(max(float64(ticks/every*seeds), 1)))
+}
+
+// entries is one run's tally of the tiles bodies entered: how many, how many
+// held food when entered, and the sum over them of the food density the
+// truth table's third row reads for the region entered.
+type entries struct {
+	entered, withFood, density float64
+}
+
+// countEntries runs one world to the given tick, or until nobody is left,
+// and tallies every decision made on a tile other than the one the same
+// body decided on last. The tile holds food exactly when eating is offered.
+// It reads the world through the trace, which changes nothing.
+func countEntries(cfg engine.Config, m engine.Map, ticks int) (entries, error) {
+	w, err := engine.NewWorld(cfg, m)
+	if err != nil {
+		return entries{}, err
+	}
+	var e entries
+	last := map[int64]int{}
+	speed := math.Min(cfg.Speed, 1)
+	w.SetTrace(func(b engine.Body, v engine.Valuation, _ engine.Action) {
+		tx, ty := int(math.Floor(b.X)), int(math.Floor(b.Y))
+		tile := ty*m.Width + tx
+		prev, seen := last[b.ID]
+		last[b.ID] = tile
+		if !seen || prev == tile {
+			return
+		}
+		e.entered++
+		for _, a := range v.Options {
+			if a.Kind == engine.ActEat {
+				e.withFood++
+			}
+		}
+		e.density += w.TruthTable().Meet[m.RegionAt(tx, ty)] / speed
+	})
+	for t := 0; t < ticks && len(w.Bodies()) > 0; t++ {
+		w.Step()
+	}
+	return e, nil
+}
+
+func meet(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
+	fmt.Printf("| 地図 | 条件 | 入ったタイル（1シードあたり） | 食料があった割合 | 表の読み（地域の食料 ÷ 陸） | 実際 ÷ 表 |\n")
+	fmt.Printf("| --- | --- | --- | --- | --- | --- |\n")
+	for _, v := range []string{variant.Random, variant.Base} {
+		var entered, had, read, ratio []float64
+		for s := 0; s < seeds; s++ {
+			cfg, err := variant.Config(v, seed0+int64(s))
+			if err != nil {
+				fail(err)
+			}
+			e, err := countEntries(cfg, m, ticks)
+			if err != nil {
+				fail(err)
+			}
+			entered = append(entered, e.entered)
+			had = append(had, e.withFood/e.entered)
+			read = append(read, e.density/e.entered)
+			ratio = append(ratio, e.withFood/e.density)
+		}
+		em, es := meanSE(entered)
+		hm, hs := meanSE(had)
+		rm, rs := meanSE(read)
+		qm, qs := meanSE(ratio)
+		fmt.Printf("| %s (%dx%d, %d シード, %d tick) | %s | %.0f ± %.0f | %.2f ± %.2f%% | %.2f ± %.2f%% | %.2f ± %.2f |\n",
+			name, m.Width, m.Height, seeds, ticks, v, em, es, 100*hm, 100*hs, 100*rm, 100*rs, qm, qs)
+	}
 }
