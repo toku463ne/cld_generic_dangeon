@@ -19,6 +19,9 @@ type Body struct {
 	X, Y   float64 // in tiles; the tile is the integer part
 	Energy float64
 	Born   int64 // tick it came into the world
+	// Heading is the direction of the body's last move, -1 before its
+	// first. Only KeepHeading reads it.
+	Heading int
 }
 
 // ActionKind is what an action does, for counting.
@@ -91,11 +94,12 @@ func (w *World) placeBodies() {
 	for i := 0; i < w.cfg.Bodies; i++ {
 		t := land[w.rng.Intn(len(land))]
 		w.bodies = append(w.bodies, Body{
-			ID:     w.nextID,
-			X:      float64(t%w.m.Width) + 0.5,
-			Y:      float64(t/w.m.Width) + 0.5,
-			Energy: w.cfg.EnergyMax,
-			Born:   w.tick,
+			ID:      w.nextID,
+			X:       float64(t%w.m.Width) + 0.5,
+			Y:       float64(t/w.m.Width) + 0.5,
+			Energy:  w.cfg.EnergyMax,
+			Born:    w.tick,
+			Heading: -1,
 		})
 		w.nextID++
 	}
@@ -127,6 +131,7 @@ func (w *World) act(b *Body, a Action) {
 		v := moveDirs[a.Dir]
 		b.X += v[0] * w.cfg.Speed
 		b.Y += v[1] * w.cfg.Speed
+		b.Heading = a.Dir
 	}
 }
 

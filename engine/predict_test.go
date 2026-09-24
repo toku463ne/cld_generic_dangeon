@@ -193,6 +193,63 @@ func TestWalksToFoodInSight(t *testing.T) {
 	}
 }
 
+// Where the options of least risk include the way the body last moved, it
+// keeps moving that way and draws nothing; where they do not, it draws.
+func TestKeepsHeading(t *testing.T) {
+	cfg := testConfig(1)
+	cfg.Bodies, cfg.FoodCap = 0, 0
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := Body{X: 1.5, Y: 2.5, Energy: 50, Heading: 0}
+	for i := 0; i < 16; i++ {
+		draws := w.Draws()
+		a := w.decide(&b)
+		if a != (Action{Kind: ActMove, Dir: 0}) || w.Draws() != draws {
+			t.Fatalf("step %d at (%v,%v): took %v with %d draws, want east with none", i, b.X, b.Y, a, w.Draws()-draws)
+		}
+		w.act(&b, a)
+	}
+	// Column 7 is water: east is no longer an option, and the heading
+	// bounces back west without a draw.
+	b.X = 6.9
+	draws := w.Draws()
+	if a := w.decide(&b); a != (Action{Kind: ActMove, Dir: 4}) || w.Draws() != draws {
+		t.Fatalf("at the water: took %v with %d draws, want west with none", a, w.Draws()-draws)
+	}
+}
+
+// A heading bounces off the axis that stops it: a diagonal meeting a wall
+// keeps its run along the wall and turns back from it, and one meeting a
+// corner turns back on both.
+func TestBounce(t *testing.T) {
+	cfg := testConfig(1)
+	cfg.Bodies, cfg.FoodCap = 0, 0
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		x, y    float64
+		heading int
+		want    int
+	}{
+		{3.5, 4.5, 1, 1}, // open ground: unchanged
+		{3.5, 0.1, 7, 1}, // north-east into the top edge: south-east
+		{0.1, 4.5, 3, 1}, // south-west into the left edge: south-east
+		{0.1, 0.1, 5, 1}, // north-west into the corner: south-east
+		{6.9, 4.5, 0, 4}, // east into the water: west
+		{6.9, 4.5, 7, 5}, // north-east into the water: north-west
+		{3.5, 8.9, 2, 6}, // south into the bottom edge: north
+	} {
+		b := Body{X: c.x, Y: c.y, Heading: c.heading}
+		if got := w.bounce(&b); got != c.want {
+			t.Fatalf("heading %d at (%v,%v): bounced to %d, want %d", c.heading, c.x, c.y, got, c.want)
+		}
+	}
+}
+
 // The walk is the octile distance: straight and diagonal moves both cover
 // Speed of it per tick.
 func TestWalkTicks(t *testing.T) {

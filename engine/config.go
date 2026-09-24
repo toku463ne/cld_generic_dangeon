@@ -32,14 +32,21 @@ type Config struct {
 
 	// Window is how many ticks ahead a body looks when it values its
 	// options: each is valued by the chance of being dead at the end of the
-	// window, and the body takes the least, drawing at random among ties.
-	// Zero looks nowhere, so every possible option ties and the choice is
-	// the uniform draw of stage 1-1, the control later stages pair against.
+	// window, and the body takes the least. Zero looks nowhere, so every
+	// possible option ties; with KeepHeading off the choice is then the
+	// uniform draw of stage 1-1, the control later stages pair against.
 	Window int
 	// Sight is how far a body sees food, in tiles: the square of tiles
 	// within Sight of the one it stands on, which is 3x3 at 1. Zero sees
 	// the tile it stands on only; a negative Sight sees nothing.
 	Sight int
+	// KeepHeading breaks ties by the body's last move: when the options of
+	// least risk include moving the way it last moved - reflected, where the
+	// land ends that way - it moves that way, and it draws at random among
+	// them only otherwise. It makes "keep
+	// moving enters new tiles" (the table's third row) near true of the
+	// body's own walk.
+	KeepHeading bool
 }
 
 // DefaultConfig returns the rules the measurements run under unless a
@@ -47,15 +54,16 @@ type Config struct {
 // each one and what decided it.
 func DefaultConfig() Config {
 	return Config{
-		Seed:       1,
-		FoodCap:    300,
-		FoodReturn: 0.002,
-		FoodEnergy: 30,
-		Bodies:     200,
-		EnergyMax:  100,
-		EnergyBurn: 0.1,
-		Speed:      0.25,
-		Window:     1000,
-		Sight:      1,
+		Seed:        1,
+		FoodCap:     300,
+		FoodReturn:  0.002,
+		FoodEnergy:  30,
+		Bodies:      200,
+		EnergyMax:   100,
+		EnergyBurn:  0.1,
+		Speed:       0.25,
+		Window:      1000,
+		Sight:       1,
+		KeepHeading: true,
 	}
 }

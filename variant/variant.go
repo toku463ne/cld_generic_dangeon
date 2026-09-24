@@ -15,20 +15,25 @@ import (
 // Base is the name of the variant that leaves the default config as it is.
 const Base = "base"
 
-// Blind is stage 1-2 as first run: valuation with no sight, so the body
-// knows only the region rows.
+// Blind is stage 1-2 as first run: valuation with no sight and no heading,
+// so the body knows only the region rows.
 const Blind = "blind"
 
-// Random is the stage 1-1 control: no window, so every possible action is
-// equally likely.
+// Restless is stage 1-2 with sight and no heading kept: ties are drawn at
+// random, as in stage 1-2p.
+const Restless = "restless"
+
+// Random is the stage 1-1 control: no window and no heading, so every
+// possible action is equally likely.
 const Random = "random"
 
 // rewrites maps a variant name to the rewrite of the default config it
 // stands for.
 var rewrites = map[string]func(*engine.Config){
-	Base:   func(*engine.Config) {},
-	Random: func(c *engine.Config) { c.Window = 0 },
-	Blind:  func(c *engine.Config) { c.Sight = -1 },
+	Base:     func(*engine.Config) {},
+	Random:   func(c *engine.Config) { c.Window, c.KeepHeading = 0, false },
+	Blind:    func(c *engine.Config) { c.Sight, c.KeepHeading = -1, false },
+	Restless: func(c *engine.Config) { c.KeepHeading = false },
 }
 
 // Config returns the default config rewritten by the named variant, with the

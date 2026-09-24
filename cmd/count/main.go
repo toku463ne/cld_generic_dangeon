@@ -18,8 +18,10 @@
 //	       comes into sight, and how far the nearest food in sight is.
 //
 //	forage (stage 1-2p) in the base world, what bodies do on food, per
-//	       energy band; how often a hungry body has food in sight; and how
-//	       far a body gets from where it was a full body's life ago.
+//	       energy band; how often a hungry body has food in sight; how far
+//	       a body gets from where it was a full body's life ago; and how
+//	       often the least risk is shared, and the body's last move is
+//	       among the options sharing it.
 //
 //	meet   (stage 1-2) in the worlds of the random and base variants, the
 //	       share of tiles a body enters that hold food, against what the
@@ -644,7 +646,10 @@ func energyTicks(cfg engine.Config) int { return int(math.Ceil(cfg.EnergyMax/cfg
 type forageTally struct {
 	onFood, ate, eatTied [bands]float64 // decisions on food, per energy band
 	hungry, hungrySees   float64        // decisions below a third of full, and those with food in sight
-	spread, spreadN      float64        // distance from where the body was a life ago
+	tied, lastAmong      float64        // decisions whose least risk is shared, and those where the body's last move is among them
+	tiedUnseen           float64        // tied decisions with no food in sight
+	decisions            float64
+	spread, spreadN      float64 // distance from where the body was a life ago
 }
 
 // countForage runs the base world and reads it through the trace. A
@@ -658,7 +663,33 @@ func countForage(cfg engine.Config, m engine.Map, ticks int) (forageTally, error
 	}
 	var f forageTally
 	life := energyTicks(cfg)
+	lastMove := map[int64]int{}
 	w.SetTrace(func(b engine.Body, v engine.Valuation, a engine.Action) {
+		least := math.Inf(1)
+		for _, r := range v.Risk[0] {
+			least = math.Min(least, r)
+		}
+		same, among := 0, false
+		last, moved := lastMove[b.ID]
+		for j, o := range v.Options {
+			if v.Risk[0][j] == least {
+				same++
+				among = among || (moved && o.Kind == engine.ActMove && o.Dir == last)
+			}
+		}
+		if same > 1 {
+			f.tied++
+			if len(v.Seen) == 0 {
+				f.tiedUnseen++
+			}
+			if among {
+				f.lastAmong++
+			}
+		}
+		if a.Kind == engine.ActMove {
+			lastMove[b.ID] = a.Dir
+		}
+		f.decisions++
 		band := min(int(b.Energy/cfg.EnergyMax*bands), bands-1)
 		if b.Energy < cfg.EnergyMax/3 {
 			f.hungry++
@@ -706,7 +737,7 @@ func countForage(cfg engine.Config, m engine.Map, ticks int) (forageTally, error
 func forage(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
 	var ate, tied [bands][]float64
 	var onFood [bands]float64
-	var sees, spread []float64
+	var sees, spread, shared, unseen, among []float64
 	for s := 0; s < seeds; s++ {
 		cfg, err := variant.Config(variant.Base, seed0+int64(s))
 		if err != nil {
@@ -729,6 +760,13 @@ func forage(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
 		if f.spreadN > 0 {
 			spread = append(spread, f.spread/f.spreadN)
 		}
+		if f.decisions > 0 {
+			shared = append(shared, f.tied/f.decisions)
+		}
+		if f.tied > 0 {
+			unseen = append(unseen, f.tiedUnseen/f.tied)
+			among = append(among, f.lastAmong/f.tied)
+		}
 	}
 	cfg, _ := variant.Config(variant.Base, seed0)
 	fmt.Printf("足元に食料がある決定（%s %dx%d、%d シード、%d tick）\n\n", name, m.Width, m.Height, seeds, ticks)
@@ -743,4 +781,8 @@ func forage(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
 	dm, ds := meanSE(spread)
 	fmt.Printf("\n体力が上限の 1/3 未満の決定で、視界に食料がある割合: %.1f ± %.1f%%\n", 100*sm, 100*ss)
 	fmt.Printf("%d tick 前（満腹から餓死まで）にいた位置からの距離: %.2f ± %.2f タイル\n", energyTicks(cfg), dm, ds)
+	tm, ts := meanSE(shared)
+	um, us := meanSE(unseen)
+	am, as := meanSE(among)
+	fmt.Printf("最善の手が同点の決定: 全決定の %.1f ± %.1f%%。そのうち視界に食料が無い: %.1f ± %.1f%%、直前の移動が最善の手の中にある: %.1f ± %.1f%%\n", 100*tm, 100*ts, 100*um, 100*us, 100*am, 100*as)
 }

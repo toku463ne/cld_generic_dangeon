@@ -130,6 +130,10 @@ func (w *World) Fingerprint() uint64 {
 		putF(b.Y)
 		putF(b.Energy)
 		put(uint64(b.Born))
+		// The heading is state only where a rule reads it.
+		if w.cfg.KeepHeading {
+			put(uint64(int64(b.Heading)))
+		}
 	}
 	put(uint64(w.nextID))
 	for _, d := range w.stats.Deaths {
