@@ -23,16 +23,26 @@
 //	       often the least risk is shared, and the body's last move is
 //	       among the options sharing it.
 //
+//	cycle  (stage 1-2q) in the base world, the rhythm of the food on the
+//	       ground: its autocorrelation at a few lags, how many phases the
+//	       bodies' energy modulo one meal takes, how deaths fall over the
+//	       meal cycle, and the swing and population per window - for the
+//	       world as it starts and for the same world with its starting
+//	       energies spread out.
+//
 //	meet   (stage 1-2) in the worlds of the random and base variants, the
 //	       share of tiles a body enters that hold food, against what the
 //	       truth table's third row reads: the food of the region over its land.
 package main
 
 import (
+	"bytes"
 	"container/heap"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"math"
+	"math/rand"
 	"os"
 	"sort"
 	"strings"
@@ -44,17 +54,17 @@ import (
 )
 
 func main() {
-	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage")
+	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage | cycle")
 	mapName := flag.String("map", "", "map (required)")
 	width := flag.Int("w", 0, "map width in tiles (required)")
 	height := flag.Int("h", 0, "map height in tiles (required)")
 	seeds := flag.Int("seeds", 0, "number of seeds (required)")
 	seed0 := flag.Int64("seed0", 1, "first seed")
-	ticks := flag.Int("ticks", 0, "ticks per run (underfoot, split, meet, sight and forage, required there)")
+	ticks := flag.Int("ticks", 0, "ticks per run (underfoot, split, meet, sight, forage and cycle, required there)")
 	every := flag.Int("every", 50, "split: read the world every this many ticks")
 	flag.Parse()
 
-	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" {
+	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" && *what != "cycle" {
 		fail(fmt.Errorf("unknown count %q", *what))
 	}
 	if *seeds <= 0 || *width <= 0 || *height <= 0 || *mapName == "" {
@@ -64,9 +74,13 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" {
+	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" || *what == "cycle" {
 		if *ticks <= 0 {
 			fail(fmt.Errorf("-ticks is required for %s", *what))
+		}
+		if *what == "cycle" {
+			cycle(m, *mapName, *seeds, *seed0, *ticks)
+			return
 		}
 		if *what == "forage" {
 			forage(m, *mapName, *seeds, *seed0, *ticks)
@@ -785,4 +799,204 @@ func forage(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
 	um, us := meanSE(unseen)
 	am, as := meanSE(among)
 	fmt.Printf("最善の手が同点の決定: 全決定の %.1f ± %.1f%%。そのうち視界に食料が無い: %.1f ± %.1f%%、直前の移動が最善の手の中にある: %.1f ± %.1f%%\n", 100*tm, 100*ts, 100*um, 100*us, 100*am, 100*as)
+}
+
+// cycleLags are the lags the cycle count reads the food's autocorrelation
+// at: half a meal, one meal, two, and the spacing of cmd/experiment's
+// checkpoints and three of them.
+var cycleLags = []int{150, 300, 600, 2000, 6000}
+
+// cycleWindow is the width of the windows the swing is read over.
+const cycleWindow = 5000
+
+// cycleRun is one seed's series.
+type cycleRun struct {
+	food, pop []float64 // at the end of every tick
+	phases    int       // distinct energies modulo one meal at the end, in tenths
+}
+
+// staggered rebuilds w with each body's starting energy drawn evenly from
+// (1, EnergyMax], through a save and a load. It is not a rule of the world:
+// it is the counterfactual start the count compares with, drawn from its
+// own source so that the world's own draws are untouched.
+func staggered(w *engine.World, seed int64) (*engine.World, error) {
+	var buf bytes.Buffer
+	if err := w.Save(&buf); err != nil {
+		return nil, err
+	}
+	var snap map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &snap); err != nil {
+		return nil, err
+	}
+	full := w.Config().EnergyMax
+	r := rand.New(rand.NewSource(seed))
+	for _, b := range snap["bodies"].([]any) {
+		b.(map[string]any)["Energy"] = 1 + r.Float64()*(full-1)
+	}
+	out, err := json.Marshal(snap)
+	if err != nil {
+		return nil, err
+	}
+	return engine.Load(bytes.NewReader(out))
+}
+
+func runCycle(cfg engine.Config, m engine.Map, ticks int, stagger bool) (cycleRun, error) {
+	w, err := engine.NewWorld(cfg, m)
+	if err != nil {
+		return cycleRun{}, err
+	}
+	if stagger {
+		if w, err = staggered(w, cfg.Seed); err != nil {
+			return cycleRun{}, err
+		}
+	}
+	var c cycleRun
+	for t := 0; t < ticks; t++ {
+		w.Step()
+		c.food = append(c.food, float64(w.FoodLedger().OnGround))
+		c.pop = append(c.pop, float64(len(w.Bodies())))
+	}
+	phases := map[int64]bool{}
+	for _, b := range w.Bodies() {
+		phases[int64(math.Round(math.Mod(b.Energy, cfg.FoodEnergy)*10))] = true
+	}
+	c.phases = len(phases)
+	return c, nil
+}
+
+func autocorr(xs []float64, lag int) float64 {
+	n := len(xs) - lag
+	if n < 2 {
+		return math.NaN()
+	}
+	var ma, mb float64
+	for i := 0; i < n; i++ {
+		ma += xs[i]
+		mb += xs[i+lag]
+	}
+	ma /= float64(n)
+	mb /= float64(n)
+	var sab, saa, sbb float64
+	for i := 0; i < n; i++ {
+		a, b := xs[i]-ma, xs[i+lag]-mb
+		sab += a * b
+		saa += a * a
+		sbb += b * b
+	}
+	return sab / math.Sqrt(saa*sbb)
+}
+
+func spanOf(xs []float64) float64 {
+	lo, hi := math.Inf(1), math.Inf(-1)
+	for _, x := range xs {
+		lo, hi = math.Min(lo, x), math.Max(hi, x)
+	}
+	return hi - lo
+}
+
+func cycle(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
+	cfg, err := variant.Config(variant.Base, seed0)
+	if err != nil {
+		fail(err)
+	}
+	meal := int(math.Round(cfg.FoodEnergy / cfg.EnergyBurn))
+	// The first 10000 ticks are the fall from the start; the rhythm is read
+	// after them.
+	from := min(10000, ticks/2)
+	fmt.Printf("地図 %s (%dx%d)、%d シード、%d tick。食事1回ぶんの tick: %d。周期は %d tick 以降で読む。\n\n", name, m.Width, m.Height, seeds, ticks, meal, from)
+	for _, stagger := range []bool{false, true} {
+		runs := make([]cycleRun, seeds)
+		for s := range runs {
+			c := cfg
+			c.Seed = seed0 + int64(s)
+			if runs[s], err = runCycle(c, m, ticks, stagger); err != nil {
+				fail(err)
+			}
+		}
+		label := "全員が満腹で同時に始まる（base）"
+		if stagger {
+			label = "始めの体力をばらした（1〜上限で一様）"
+		}
+		fmt.Printf("#### %s\n\n", label)
+
+		fmt.Printf("地面の食料の自己相関（シードごと、平均 ± 標準誤差）\n\n| ずれ（tick） |")
+		for _, l := range cycleLags {
+			fmt.Printf(" %d |", l)
+		}
+		fmt.Printf("\n| --- |%s\n| 自己相関 |", strings.Repeat(" --- |", len(cycleLags)))
+		for _, l := range cycleLags {
+			var xs []float64
+			for _, r := range runs {
+				xs = append(xs, autocorr(r.food[from:], l))
+			}
+			m, se := meanSE(xs)
+			fmt.Printf(" %.2f ± %.2f |", m, se)
+		}
+		fmt.Printf("\n\n")
+
+		var phases []float64
+		for _, r := range runs {
+			if len(r.pop) > 0 && r.pop[len(r.pop)-1] > 0 {
+				phases = append(phases, float64(r.phases))
+			}
+		}
+		pm, _ := meanSE(phases)
+		maxPhase := 0.0
+		for _, x := range phases {
+			maxPhase = math.Max(maxPhase, x)
+		}
+		fmt.Printf("最後の tick で、生きている身体の「体力 mod %.0f」（0.1 刻み）がとる値の数: 平均 %.1f、最大 %.0f（%d シード）\n\n", cfg.FoodEnergy, pm, maxPhase, len(phases))
+
+		// Deaths over the meal cycle: the quarter of phases where the mean
+		// food is lowest, against a quarter of the ticks.
+		var share []float64
+		for _, r := range runs {
+			byPhase := make([]float64, meal)
+			for t := from; t < ticks; t++ {
+				byPhase[t%meal] += r.food[t]
+			}
+			order := make([]int, meal)
+			for i := range order {
+				order[i] = i
+			}
+			sort.Slice(order, func(a, b int) bool { return byPhase[order[a]] < byPhase[order[b]] })
+			trough := map[int]bool{}
+			for _, ph := range order[:meal/4] {
+				trough[ph] = true
+			}
+			deaths, in := 0.0, 0.0
+			for t := from + 1; t < ticks; t++ {
+				d := r.pop[t-1] - r.pop[t]
+				deaths += d
+				if trough[t%meal] {
+					in += d
+				}
+			}
+			if deaths > 0 {
+				share = append(share, in/deaths)
+			}
+		}
+		sm, ss := meanSE(share)
+		fmt.Printf("%d tick 以降の死亡のうち、食料が一番少ない 1/4 の位相で起きた割合: %.2f ± %.2f（一様なら 0.25、%d シード）\n\n", from, sm, ss, len(share))
+
+		fmt.Printf("| 区間（tick） | 振れ幅: シード平均の食料 | 振れ幅: シードごと | 地面の食料（平均） | 人口（区間の終わり） |\n| --- | --- | --- | --- | --- |\n")
+		for lo := 0; lo+cycleWindow <= ticks; lo += cycleWindow {
+			hi := lo + cycleWindow
+			mean := make([]float64, cycleWindow)
+			var per, pop []float64
+			food := 0.0
+			for _, r := range runs {
+				for t := lo; t < hi; t++ {
+					mean[t-lo] += r.food[t] / float64(seeds)
+					food += r.food[t] / float64(seeds*cycleWindow)
+				}
+				per = append(per, spanOf(r.food[lo:hi]))
+				pop = append(pop, r.pop[hi-1])
+			}
+			pm, _ := meanSE(per)
+			popM, popSE := meanSE(pop)
+			fmt.Printf("| %d〜%d | %.1f | %.1f | %.1f | %.1f ± %.1f |\n", lo, hi, spanOf(mean), pm, food, popM, popSE)
+		}
+		fmt.Println()
+	}
 }
