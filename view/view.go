@@ -361,6 +361,14 @@ func (v *View) FollowText() string {
 	}
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "body #%d  energy %.1f  age %d  heading %s", b.ID, b.Energy, v.W.Tick()-b.Born, dirName(b.Heading))
+	if v.W.Config().Recheck > 0 && b.Decided >= 0 {
+		intent := actionName(b.Intent)
+		if b.Goal >= 0 {
+			w := v.mapW / v.scale
+			intent += fmt.Sprintf(" to food (%d,%d)", b.Goal%w, b.Goal/w)
+		}
+		fmt.Fprintf(&sb, "\nintent %s, decided at tick %d", intent, b.Decided)
+	}
 	d := v.last
 	if d == nil || d.body.ID != b.ID || len(d.risk) == 0 {
 		return sb.String()
