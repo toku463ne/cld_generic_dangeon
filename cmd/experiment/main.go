@@ -38,11 +38,12 @@ func main() {
 	var o options
 	var names string
 	flag.StringVar(&names, "variants", variant.Base, "comma-separated variants; the first is the base")
-	// Seeds, ticks and map size have no defaults yet: PLAN.md decides them
-	// from measurements, and a made-up default would be quietly used.
-	flag.IntVar(&o.seeds, "seeds", 0, "number of seeds (required)")
+	// Seeds and ticks are the provisional values stage 1-2 settled on
+	// (PARAMETERS.md); stage 1-5 fixes them. The map size has no default:
+	// it is part of choosing the map.
+	flag.IntVar(&o.seeds, "seeds", 12, "number of seeds (provisional default, PARAMETERS.md)")
 	flag.Int64Var(&o.seed0, "seed0", 1, "first seed")
-	flag.IntVar(&o.ticks, "ticks", 0, "ticks per run (required)")
+	flag.IntVar(&o.ticks, "ticks", 40000, "ticks per run (provisional default, PARAMETERS.md)")
 	flag.StringVar(&o.mapName, "map", "", "map: "+strings.Join(worldmap.Names, " | ")+" (required)")
 	flag.IntVar(&o.width, "w", 0, "map width in tiles (required)")
 	flag.IntVar(&o.height, "h", 0, "map height in tiles (required)")

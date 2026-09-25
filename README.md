@@ -15,16 +15,16 @@ go test ./engine -run '^$' -bench 'WorldStep|Decide'
 ## 実験
 
 ```
-go run ./cmd/experiment -map flat -w 64 -h 48 -seeds 12 -ticks 10000
+go run ./cmd/experiment -map flat -w 64 -h 48
 ```
 
 | オプション | 意味 |
 | --- | --- |
 | `-map` | 地図。`flat`（全面が陸・地域1つ）/ `constrained`（地域4つ・陸を二分する水の帯） |
 | `-w` / `-h` | 地図の幅・高さ（タイル数）。必須 |
-| `-seeds` | シード数。必須 |
+| `-seeds` | シード数（既定 12。仮の値、`PARAMETERS.md`） |
 | `-seed0` | 最初のシード（既定 1） |
-| `-ticks` | 1回の実行の tick 数。必須 |
+| `-ticks` | 1回の実行の tick 数（既定 40000。仮の値、`PARAMETERS.md`） |
 | `-variants` | 比べる条件をカンマ区切りで。先頭が base（既定 `base`）。`base` は既定の設定、`random` は窓 0（無作為に選ぶ 1-1 の対照）、`blind` は視界なし・向きを保たない（1-2 の1回目）、`restless` は視界ありで向きを保たない（1-2p）、`straightback` は向きを保つが真後ろへ跳ね返る（1-2q） |
 | `-floor` | 崩壊の下限。個体数がこれ以下になったシードは、そこで計算を打ち切る（既定 0 ＝ 絶滅。1-3 で決める） |
 
