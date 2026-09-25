@@ -29,7 +29,7 @@ type breedTally struct {
 	tie      [3]float64
 	rise     [3][]float64
 	start    int // bodies at tick 0
-	alive    int // bodies alive at the end
+	alive    int // of them, alive at the end
 	deathAge []float64
 }
 
@@ -91,10 +91,6 @@ func runBreed(cfg engine.Config, m engine.Map, ticks int) (breedTally, error) {
 			t.rise[i] = append(t.rise[i], after-now)
 		}
 	})
-	born := map[int64]int64{}
-	for _, b := range w.Bodies() {
-		born[b.ID] = b.Born
-	}
 	for tick := 1; tick <= ticks; tick++ {
 		bodies := w.Bodies()
 		clear(occ)
@@ -118,14 +114,19 @@ func runBreed(cfg engine.Config, m engine.Map, ticks int) (breedTally, error) {
 		}
 		for _, b := range bodies {
 			if !alive[b.ID] {
-				t.deathAge = append(t.deathAge, float64(w.Tick()-born[b.ID]))
+				t.deathAge = append(t.deathAge, float64(w.Tick()-b.Born))
 			}
 		}
 		if len(w.Bodies()) == 0 {
 			break
 		}
 	}
-	t.alive = len(w.Bodies())
+	// The first bodies are the IDs below the starting count.
+	for _, b := range w.Bodies() {
+		if b.ID < int64(t.start) {
+			t.alive++
+		}
+	}
 	return t, nil
 }
 
@@ -184,4 +185,112 @@ func breed(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
 	} else {
 		fmt.Println()
 	}
+}
+
+type mateTally struct {
+	offered, chose      float64 // decisions with a mate offered, and choosing one
+	eChose, eDeclined   float64 // summed energy of those that chose and declined
+	proposals, births   float64 // mate actions carried out, and births
+	riskChose, riskDecl []float64
+}
+
+// runMate counts, in the base world after tick 5000, the decisions that
+// had a mate among the options: the energy of those that took it and of
+// those that did not, and the rise in risk paying brought; and how many
+// mates were carried out per birth.
+func runMate(cfg engine.Config, m engine.Map, ticks int) (mateTally, error) {
+	var t mateTally
+	w, err := engine.NewWorld(cfg, m)
+	if err != nil {
+		return t, err
+	}
+	w.SetTrace(func(b engine.Body, v engine.Valuation, a engine.Action) {
+		if w.Tick() <= 5000 {
+			return
+		}
+		mate, best := -1, math.Inf(1)
+		for j, o := range v.Options {
+			if o.Kind == engine.ActMate {
+				mate = j
+			} else {
+				best = math.Min(best, v.Risk[0][j])
+			}
+		}
+		if mate < 0 {
+			return
+		}
+		t.offered++
+		rise := v.Risk[0][mate] - best
+		if a.Kind == engine.ActMate {
+			t.chose++
+			t.eChose += b.Energy
+			t.riskChose = append(t.riskChose, rise)
+		} else {
+			t.eDeclined += b.Energy
+			t.riskDecl = append(t.riskDecl, rise)
+		}
+	})
+	var births0 int64
+	var mates0 int64
+	for tick := 1; tick <= ticks; tick++ {
+		w.Step()
+		if tick == 5000 {
+			births0, mates0 = w.Stats().Births, w.Stats().Actions[engine.ActMate]
+		}
+		if len(w.Bodies()) == 0 {
+			break
+		}
+	}
+	st := w.Stats()
+	t.proposals = float64(st.Actions[engine.ActMate] - mates0)
+	t.births = float64(st.Births - births0)
+	return t, nil
+}
+
+// mate counts, for stage 1-3, whether mating is a comparison: the energy of
+// bodies that mate against those that had the chance and did not.
+func mate(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
+	fmt.Printf("地図 %s (%dx%d)、%d シード、%d tick、base（1-3）。tick 5000 より後の、交配の手が候補にあった決定。\n\n", name, m.Width, m.Height, seeds, ticks)
+	var ts []mateTally
+	for s := 0; s < seeds; s++ {
+		cfg, err := variant.Config(variant.Base, seed0+int64(s))
+		if err != nil {
+			fail(err)
+		}
+		t, err := runMate(cfg, m, ticks)
+		if err != nil {
+			fail(err)
+		}
+		ts = append(ts, t)
+	}
+	cell := func(f func(mateTally) float64, prec int) string {
+		var xs []float64
+		for _, t := range ts {
+			xs = append(xs, f(t))
+		}
+		mm, se := meanSE(xs)
+		return fmt.Sprintf("%.*f ± %.*f", prec, mm, prec, se)
+	}
+	fmt.Printf("| 量 | 値 |\n| --- | --- |\n")
+	fmt.Printf("| 交配の手を選んだ割合 | %s |\n", cell(func(t mateTally) float64 { return t.chose / t.offered }, 4))
+	fmt.Printf("| 選んだ決定の体力の平均 | %s |\n", cell(func(t mateTally) float64 { return t.eChose / t.chose }, 2))
+	fmt.Printf("| 選ばなかった決定の体力の平均 | %s |\n", cell(func(t mateTally) float64 { return t.eDeclined / (t.offered - t.chose) }, 2))
+	fmt.Printf("| 差（選んだ − 選ばなかった） | %s |\n", cell(func(t mateTally) float64 { return t.eChose/t.chose - t.eDeclined/(t.offered-t.chose) }, 2))
+	fmt.Printf("| 出生 1 体あたりの交配の手 | %s |\n", cell(func(t mateTally) float64 { return t.proposals / t.births }, 2))
+	for _, g := range []struct {
+		name string
+		f    func(mateTally) []float64
+	}{{"選んだ", func(t mateTally) []float64 { return t.riskChose }}, {"選ばなかった", func(t mateTally) []float64 { return t.riskDecl }}} {
+		var all []float64
+		for _, t := range ts {
+			all = append(all, g.f(t)...)
+		}
+		sort.Float64s(all)
+		if len(all) == 0 {
+			continue
+		}
+		q := func(p float64) float64 { return all[int(p*float64(len(all)-1))] }
+		fmt.Printf("| %s決定の、払うことによる死ぬ確率の上がり幅（最小・中央値・最大） | %.3g・%.3g・%.3g |\n", g.name, all[0], q(0.5), all[len(all)-1])
+	}
+	fmt.Println()
 }

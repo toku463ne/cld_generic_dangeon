@@ -47,9 +47,9 @@ func main() {
 	flag.StringVar(&o.mapName, "map", "", "map: "+strings.Join(worldmap.Names, " | ")+" (required)")
 	flag.IntVar(&o.width, "w", 0, "map width in tiles (required)")
 	flag.IntVar(&o.height, "h", 0, "map height in tiles (required)")
-	// The collapse floor is decided in stage 1-3 (PLAN.md). Until then it is
-	// zero: a seed has collapsed when nobody is left.
-	flag.IntVar(&o.floor, "floor", 0, "collapse floor: a seed whose population falls to this or below stops")
+	// The collapse floor is the provisional value stage 1-3 settled on
+	// (PARAMETERS.md); stage 1-5 fixes it.
+	flag.IntVar(&o.floor, "floor", 20, "collapse floor: a seed whose population falls to this or below stops (provisional default, PARAMETERS.md)")
 	flag.Parse()
 	o.variants = strings.Split(names, ",")
 
