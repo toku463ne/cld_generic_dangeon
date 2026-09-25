@@ -373,7 +373,15 @@ func (w *World) decide(b *Body) Action {
 			w.ties = append(w.ties, j)
 		}
 	}
-	a := Action{Kind: ActMove, Dir: bounce(b.Heading, func(d int) bool { return w.tied(Action{Kind: ActMove, Dir: d}) })}
+	var a Action
+	if w.cfg.KeepHeading && b.Heading >= 0 {
+		best := func(d int) bool { return w.tied(Action{Kind: ActMove, Dir: d}) }
+		h := bounce(b.Heading, best)
+		if w.cfg.TurnOffReverse && h == (b.Heading+4)%8 {
+			h = w.turnOff(b.Heading, h, best)
+		}
+		a = Action{Kind: ActMove, Dir: h}
+	}
 	if !w.cfg.KeepHeading || b.Heading < 0 || !w.tied(a) {
 		a = v.Options[w.ties[w.rng.Intn(len(w.ties))]]
 	}
@@ -406,6 +414,29 @@ func bounce(h int, best func(dir int) bool) int {
 	default:
 		return (8 - h) % 8
 	}
+}
+
+// turnOff turns a bounce that would send a body straight back, heading h
+// reversed into back, to one of the two directions 45 degrees either side
+// of back: away from the wall, but not along the line the body came in on.
+// A heading along an axis reflects into its own reverse, and a body that
+// kept it would walk one row or column for good, seeing a strip three tiles
+// wide. It takes whichever of the two is among the options of least risk,
+// draws between them if both are, and keeps back if neither is.
+func (w *World) turnOff(h, back int, best func(dir int) bool) int {
+	l, r := (h+3)%8, (h+5)%8
+	switch bl, br := best(l), best(r); {
+	case bl && br:
+		if w.rng.Intn(2) == 0 {
+			return l
+		}
+		return r
+	case bl:
+		return l
+	case br:
+		return r
+	}
+	return back
 }
 
 // axisDir is the straight move along one axis in the sign of c: pos when c

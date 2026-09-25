@@ -85,8 +85,24 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0x598db45e1aaf44c7)
+	const want = uint64(0x72d49e5113ca37a8)
 	w := newTestWorld(t, 1)
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// Without turning off the reverse the world is stage 1-2q: its fingerprint
+// is the one that stage pinned.
+func TestStraightbackIsStage12q(t *testing.T) {
+	const want = uint64(0x598db45e1aaf44c7)
+	cfg := testConfig(1)
+	cfg.TurnOffReverse = false
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
 		t.Fatalf("fingerprint = %#x, want %#x", got, want)

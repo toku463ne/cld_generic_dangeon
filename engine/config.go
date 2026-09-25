@@ -47,6 +47,13 @@ type Config struct {
 	// moving enters new tiles" (the table's third row) near true of the
 	// body's own walk.
 	KeepHeading bool
+	// TurnOffReverse, with KeepHeading, keeps a bounce from sending a body
+	// straight back the way it came: where the reflected heading is the
+	// reverse of the last move, the body turns 45 degrees off it to either
+	// side instead (drawn at random if both are among the options of least
+	// risk). Without it a heading along an axis reflects into its own
+	// reverse and the body walks one row or column back and forth.
+	TurnOffReverse bool
 }
 
 // DefaultConfig returns the rules the measurements run under unless a
@@ -54,16 +61,17 @@ type Config struct {
 // each one and what decided it.
 func DefaultConfig() Config {
 	return Config{
-		Seed:        1,
-		FoodCap:     300,
-		FoodReturn:  0.002,
-		FoodEnergy:  30,
-		Bodies:      200,
-		EnergyMax:   100,
-		EnergyBurn:  0.1,
-		Speed:       0.25,
-		Window:      1000,
-		Sight:       1,
-		KeepHeading: true,
+		Seed:           1,
+		FoodCap:        300,
+		FoodReturn:     0.002,
+		FoodEnergy:     30,
+		Bodies:         200,
+		EnergyMax:      100,
+		EnergyBurn:     0.1,
+		Speed:          0.25,
+		Window:         1000,
+		Sight:          1,
+		KeepHeading:    true,
+		TurnOffReverse: true,
 	}
 }

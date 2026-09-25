@@ -23,6 +23,10 @@ const Blind = "blind"
 // random, as in stage 1-2p.
 const Restless = "restless"
 
+// Straightback is stage 1-2q: the heading is kept and bounced, and a bounce
+// may send a body straight back the way it came.
+const Straightback = "straightback"
+
 // Random is the stage 1-1 control: no window and no heading, so every
 // possible action is equally likely.
 const Random = "random"
@@ -30,10 +34,11 @@ const Random = "random"
 // rewrites maps a variant name to the rewrite of the default config it
 // stands for.
 var rewrites = map[string]func(*engine.Config){
-	Base:     func(*engine.Config) {},
-	Random:   func(c *engine.Config) { c.Window, c.KeepHeading = 0, false },
-	Blind:    func(c *engine.Config) { c.Sight, c.KeepHeading = -1, false },
-	Restless: func(c *engine.Config) { c.KeepHeading = false },
+	Base:         func(*engine.Config) {},
+	Random:       func(c *engine.Config) { c.Window, c.KeepHeading = 0, false },
+	Blind:        func(c *engine.Config) { c.Sight, c.KeepHeading = -1, false },
+	Restless:     func(c *engine.Config) { c.KeepHeading = false },
+	Straightback: func(c *engine.Config) { c.TurnOffReverse = false },
 }
 
 // Config returns the default config rewritten by the named variant, with the

@@ -211,12 +211,60 @@ func TestKeepsHeading(t *testing.T) {
 		}
 		w.act(&b, a)
 	}
-	// Column 7 is water: east is no longer an option, and the heading
-	// bounces back west without a draw.
+	// Column 7 is water: east is no longer an option. Straight back west
+	// would walk the same row again, so the body turns north-west or
+	// south-west, drawing once between them.
 	b.X = 6.9
 	draws := w.Draws()
+	if a := w.decide(&b); (a != Action{Kind: ActMove, Dir: 3} && a != Action{Kind: ActMove, Dir: 5}) || w.Draws() != draws+1 {
+		t.Fatalf("at the water: took %v with %d draws, want south-west or north-west with one", a, w.Draws()-draws)
+	}
+	// Without TurnOffReverse (stage 1-2q) it bounces straight back west
+	// without a draw.
+	w.cfg.TurnOffReverse = false
+	draws = w.Draws()
 	if a := w.decide(&b); a != (Action{Kind: ActMove, Dir: 4}) || w.Draws() != draws {
-		t.Fatalf("at the water: took %v with %d draws, want west with none", a, w.Draws()-draws)
+		t.Fatalf("at the water, turning off the reverse off: took %v with %d draws, want west with none", a, w.Draws()-draws)
+	}
+}
+
+// A bounce that would send the body straight back turns 45 degrees off the
+// reverse to whichever side is among the best, and keeps the reverse only
+// where neither side is.
+func TestTurnOff(t *testing.T) {
+	w, err := NewWorld(testConfig(1), testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	only := func(in ...int) func(int) bool {
+		return func(d int) bool {
+			for _, o := range in {
+				if d == o {
+					return true
+				}
+			}
+			return false
+		}
+	}
+	for _, c := range []struct {
+		heading, back int
+		in            []int
+		want          []int
+	}{
+		{0, 4, []int{3, 4, 5}, []int{3, 5}}, // east into a wall: south-west or north-west
+		{6, 2, []int{2, 3}, []int{3}},       // north, only south-west open beside back
+		{6, 2, []int{1, 2}, []int{1}},       // north, only south-east
+		{7, 3, []int{2, 3, 4}, []int{2, 4}}, // north-east into a corner: south or west
+		{0, 4, []int{4}, []int{4}},          // neither side: straight back
+	} {
+		got := w.turnOff(c.heading, c.back, only(c.in...))
+		ok := false
+		for _, x := range c.want {
+			ok = ok || got == x
+		}
+		if !ok {
+			t.Fatalf("heading %d back %d with %v best: turned to %d, want one of %v", c.heading, c.back, c.in, got, c.want)
+		}
 	}
 }
 
