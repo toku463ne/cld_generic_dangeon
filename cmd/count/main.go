@@ -39,6 +39,11 @@
 //	       column back and forth: the share of deaths that end such a walk,
 //	       against the share of the living on one and on an axis heading.
 //
+//	change (stage 1-2e) in the base world, how often a decision changes
+//	       the body's action, and what observable change came before: food
+//	       underfoot, food in sight, or the next step of the last action
+//	       leaving the land or the region.
+//
 //	meet   (stage 1-2) in the worlds of the random and base variants, the
 //	       share of tiles a body enters that hold food, against what the
 //	       truth table's third row reads: the food of the region over its land.
@@ -63,7 +68,7 @@ import (
 )
 
 func main() {
-	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage | cycle | explore | shuttle")
+	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage | cycle | explore | shuttle | change")
 	mapName := flag.String("map", "", "map (required)")
 	width := flag.Int("w", 0, "map width in tiles (required)")
 	height := flag.Int("h", 0, "map height in tiles (required)")
@@ -73,7 +78,7 @@ func main() {
 	every := flag.Int("every", 50, "split: read the world every this many ticks")
 	flag.Parse()
 
-	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" && *what != "cycle" && *what != "explore" && *what != "shuttle" {
+	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" && *what != "cycle" && *what != "explore" && *what != "shuttle" && *what != "change" {
 		fail(fmt.Errorf("unknown count %q", *what))
 	}
 	if *seeds <= 0 || *width <= 0 || *height <= 0 || *mapName == "" {
@@ -83,9 +88,13 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" || *what == "cycle" || *what == "explore" || *what == "shuttle" {
+	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" || *what == "cycle" || *what == "explore" || *what == "shuttle" || *what == "change" {
 		if *ticks <= 0 {
 			fail(fmt.Errorf("-ticks is required for %s", *what))
+		}
+		if *what == "change" {
+			change(m, *mapName, *seeds, *seed0, *ticks)
+			return
 		}
 		if *what == "shuttle" {
 			shuttle(m, *mapName, *seeds, *seed0, *ticks)
@@ -1572,4 +1581,194 @@ func shuttle(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
 			cell(func(r shuttleRun) (float64, bool) { return r.axisAlive[i] / r.alive[i], r.alive[i] > 0 }))
 	}
 	fmt.Println()
+}
+
+// changeKinds name what came before a decision, in the order a decision
+// is filed: the first that applies.
+var changeKinds = []string{
+	"足元の食料が変わった",
+	"見えている食料が変わった",
+	"前の手の次の一歩が陸の外か別の地域",
+	"どれでもない",
+}
+
+type changeTally struct {
+	decisions     float64
+	same          float64
+	by, changedBy [4]float64
+	// noneBy splits the changes with none of the kinds above: [0] still
+	// walking to the same unit in sight (the path turned), [1] from moving
+	// on through the region to walking to a unit in sight, [2] the rest.
+	noneBy [3]float64
+	runs   []float64 // ticks between changes of action, per body
+}
+
+// runChange reads every decision of the base world from the trace, after
+// the first meal waves (tick 5000), and files it by what changed since the
+// same body's previous decision.
+func runChange(cfg engine.Config, m engine.Map, ticks int) (changeTally, error) {
+	var t changeTally
+	w, err := engine.NewWorld(cfg, m)
+	if err != nil {
+		return t, err
+	}
+	type last struct {
+		act    engine.Action
+		eat    bool
+		seen   map[Food2]bool
+		region engine.RegionID
+		x, y   float64
+		since  int
+		target Food2
+		walks  bool
+		ok     bool
+	}
+	prev := map[int64]*last{}
+	speed := cfg.Speed
+	step := func(x, y float64, a engine.Action) (float64, float64) {
+		ang := float64(a.Dir) * math.Pi / 4
+		dx, dy := math.Round(math.Cos(ang)*1e9)/1e9, math.Round(math.Sin(ang)*1e9)/1e9
+		return x + dx*speed, y + dy*speed
+	}
+	w.SetTrace(func(b engine.Body, v engine.Valuation, a engine.Action) {
+		eat := false
+		for _, o := range v.Options {
+			if o.Kind == engine.ActEat {
+				eat = true
+			}
+		}
+		seen := map[Food2]bool{}
+		for _, f := range v.Seen {
+			seen[Food2{f.X, f.Y}] = true
+		}
+		walks, target := false, Food2{}
+		if j := optionOf(v.Options, a); j >= 0 && j < len(v.Plan) && v.Plan[j] >= 0 {
+			f := v.Seen[v.Plan[j]]
+			walks, target = true, Food2{f.X, f.Y}
+		}
+		p := prev[b.ID]
+		if p == nil {
+			p = &last{}
+			prev[b.ID] = p
+		}
+		if p.ok && w.Tick() > 5000 {
+			kind := 3
+			switch {
+			case eat != p.eat:
+				kind = 0
+			case len(seen) != len(p.seen) || !sameSet(seen, p.seen):
+				kind = 1
+			case p.act.Kind == engine.ActMove:
+				nx, ny := step(b.X, b.Y, p.act)
+				tx, ty := int(math.Floor(nx)), int(math.Floor(ny))
+				if !m.InBounds(tx, ty) || m.TerrainAt(tx, ty) != engine.TerrainLand ||
+					m.RegionAt(tx, ty) != m.RegionAt(int(math.Floor(b.X)), int(math.Floor(b.Y))) {
+					kind = 2
+				}
+			}
+			t.decisions++
+			t.by[kind]++
+			if a == p.act {
+				t.same++
+				p.since++
+			} else {
+				t.changedBy[kind]++
+				if kind == 3 {
+					switch {
+					case walks && p.walks && target == p.target:
+						t.noneBy[0]++
+					case walks && !p.walks:
+						t.noneBy[1]++
+					default:
+						t.noneBy[2]++
+					}
+				}
+				t.runs = append(t.runs, float64(p.since+1))
+				p.since = 0
+			}
+		}
+		p.act, p.eat, p.seen, p.ok = a, eat, seen, true
+		p.walks, p.target = walks, target
+	})
+	for tick := 0; tick < ticks; tick++ {
+		w.Step()
+		if len(w.Bodies()) == 0 {
+			break
+		}
+	}
+	return t, nil
+}
+
+func optionOf(opts []engine.Action, a engine.Action) int {
+	for i, o := range opts {
+		if o == a {
+			return i
+		}
+	}
+	return -1
+}
+
+func sameSet(a, b map[Food2]bool) bool {
+	for k := range a {
+		if !b[k] {
+			return false
+		}
+	}
+	return true
+}
+
+// change counts, for stage 1-2e, how often a decision changes the body's
+// action and what came before the ones that do: whether deciding only when
+// something observable changes would take the same actions.
+func change(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
+	fmt.Printf("地図 %s (%dx%d)、%d シード、%d tick、base。tick 5000 より後の決定を、同じ身体の前の決定からの変化で分ける（上から順に最初に当てはまるもの）。\n\n", name, m.Width, m.Height, seeds, ticks)
+	var ts []changeTally
+	for s := 0; s < seeds; s++ {
+		cfg, err := variant.Config(variant.Base, seed0+int64(s))
+		if err != nil {
+			fail(err)
+		}
+		t, err := runChange(cfg, m, ticks)
+		if err != nil {
+			fail(err)
+		}
+		ts = append(ts, t)
+	}
+	cell := func(f func(changeTally) float64) string {
+		var xs []float64
+		for _, t := range ts {
+			xs = append(xs, f(t))
+		}
+		mm, se := meanSE(xs)
+		return fmt.Sprintf("%.4f ± %.4f", mm, se)
+	}
+	fmt.Printf("前の決定と同じ手を選んだ割合: %s\n\n", cell(func(t changeTally) float64 { return t.same / t.decisions }))
+	fmt.Printf("| 直前に変わったこと | 決定に占める割合 | そのうち手が変わった割合 | 手が変わった決定に占める割合 |\n| --- | --- | --- | --- |\n")
+	for k, n := range changeKinds {
+		fmt.Printf("| %s | %s | %s | %s |\n", n,
+			cell(func(t changeTally) float64 { return t.by[k] / t.decisions }),
+			cell(func(t changeTally) float64 {
+				if t.by[k] == 0 {
+					return 0
+				}
+				return t.changedBy[k] / t.by[k]
+			}),
+			cell(func(t changeTally) float64 { return t.changedBy[k] / (t.decisions - t.same) }))
+	}
+	fmt.Printf("\n「どれでもない」で手が変わった決定の内訳\n\n| 内訳 | 割合 |\n| --- | --- |\n")
+	for k, n := range []string{"同じ見えている食料へ歩き続けて、道が曲がった", "地域を歩き続ける手から、見えている食料へ歩く手に変わった", "その他"} {
+		fmt.Printf("| %s | %s |\n", n, cell(func(t changeTally) float64 {
+			if t.changedBy[3] == 0 {
+				return 0
+			}
+			return t.noneBy[k] / t.changedBy[3]
+		}))
+	}
+	var all []float64
+	for _, t := range ts {
+		all = append(all, t.runs...)
+	}
+	sort.Float64s(all)
+	q := func(p float64) float64 { return all[int(p*float64(len(all)-1))] }
+	fmt.Printf("\n同じ手が続いた長さ（tick、全シードの手の変わり目をまとめて）: 中央値 %.0f、90%% 点 %.0f、99%% 点 %.0f、最大 %.0f\n\n", q(0.5), q(0.9), q(0.99), all[len(all)-1])
 }
