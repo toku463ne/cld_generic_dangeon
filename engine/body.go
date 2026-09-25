@@ -42,8 +42,10 @@ type Body struct {
 	// Parents are the IDs of the two bodies it was born of, -1 for the
 	// first bodies.
 	Parents [2]int64
-	// Build is its own speed, most energy and burn (build.go).
+	// Build is its own speed, most energy and burn (build.go), and Share
+	// the share of its budget it was born with for speed (with Allot).
 	Build Build
+	Share float64 `json:",omitempty"`
 }
 
 // ActionKind is what an action does, for counting.
@@ -124,7 +126,7 @@ func (w *World) placeBodies() {
 	}
 	for i := 0; i < w.cfg.Bodies; i++ {
 		t := land[w.rng.Intn(len(land))]
-		w.bodies = append(w.bodies, Body{
+		b := Body{
 			ID:      w.nextID,
 			X:       float64(t%w.m.Width) + 0.5,
 			Y:       float64(t/w.m.Width) + 0.5,
@@ -134,7 +136,10 @@ func (w *World) placeBodies() {
 			Goal:    -1,
 			Decided: -1,
 			Parents: [2]int64{-1, -1},
-		})
+		}
+		w.allot(&b)
+		b.Energy = w.maxOf(&b)
+		w.bodies = append(w.bodies, b)
 		w.nextID++
 	}
 }

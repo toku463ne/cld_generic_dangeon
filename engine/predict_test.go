@@ -389,7 +389,13 @@ func abs(x int) int {
 // ones Value gives for the same body at the same moment, and the action taken
 // is one of the options of the least risk.
 func TestTraceIsTheChoice(t *testing.T) {
-	w := newTestWorld(t, 4)
+	// Value reads the config's build, so every body here has it.
+	cfg := testConfig(4)
+	cfg.Allot = false
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	decisions := 0
 	// Tables are built here from TruthTable, not taken from the world's
 	// cache; they are kept by chance of meeting only to keep the test fast.

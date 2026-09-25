@@ -136,7 +136,7 @@ func (w *World) mate(b *Body, id int64) {
 	b.Energy -= w.birthShare()
 	p.Energy -= w.birthShare()
 	b.Intent, p.Intent = Action{Kind: ActWait}, Action{Kind: ActWait}
-	w.born = append(w.born, Body{
+	child := Body{
 		ID:      w.nextID,
 		X:       b.X,
 		Y:       b.Y,
@@ -147,7 +147,9 @@ func (w *World) mate(b *Body, id int64) {
 		Decided: -1,
 		Mature:  w.tick + int64(w.cfg.MatureAge),
 		Parents: [2]int64{p.ID, b.ID},
-	})
+	}
+	w.allot(&child)
+	w.born = append(w.born, child)
 	w.nextID++
 	w.stats.Births++
 }

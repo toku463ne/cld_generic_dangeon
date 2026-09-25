@@ -36,7 +36,7 @@ func TestFollowsIntentBetweenDecisions(t *testing.T) {
 			x, y := p.X, p.Y
 			if p.Intent.Kind == ActMove {
 				d := moveDirs[p.Intent.Dir]
-				x, y = x+d[0]*w.cfg.Speed, y+d[1]*w.cfg.Speed
+				x, y = x+d[0]*w.speedOf(&p), y+d[1]*w.speedOf(&p)
 			}
 			if b.X != x || b.Y != y {
 				t.Fatalf("tick %d body %d: at (%v,%v), intent %v from (%v,%v) leads to (%v,%v)", w.Tick(), b.ID, b.X, b.Y, p.Intent, p.X, p.Y, x, y)

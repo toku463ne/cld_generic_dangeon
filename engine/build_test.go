@@ -8,8 +8,16 @@ import (
 // A build that spells out the config's own values is the zero build: the
 // world runs the same, draw for draw.
 func TestBuildOfTheConfigIsTheZeroBuild(t *testing.T) {
-	a, b := newTestWorld(t, 6), newTestWorld(t, 6)
-	cfg := b.Config()
+	cfg := testConfig(6)
+	cfg.Allot = false
+	a, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, x := range b.Bodies() {
 		b.SetBuild(x.ID, Build{Speed: cfg.Speed, EnergyMax: cfg.EnergyMax, EnergyBurn: cfg.EnergyBurn})
 	}

@@ -60,6 +60,7 @@ func TestRunOneStopsAtFloor(t *testing.T) {
 	cfg := engine.DefaultConfig()
 	cfg.FoodCap = 0   // everybody starves at the same tick
 	cfg.Breed = false // and no one pays for a child first
+	cfg.Allot = false // or holds more than the rest
 	m := worldmap.Flat(16, 12)
 	const ticks = 2000
 	r, err := runOne(cfg, m, ticks, 0)

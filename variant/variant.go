@@ -27,6 +27,9 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Fixed is stage 1-3: every body has the config's build.
+const Fixed = "fixed"
+
 // Nobreed is stage 1-2e: no one mates.
 const Nobreed = "nobreed"
 
@@ -40,13 +43,18 @@ const Random = "random"
 // rewrites maps a variant name to the rewrite of the default config it
 // stands for.
 var rewrites = map[string]func(*engine.Config){
-	Base:         func(*engine.Config) {},
-	Nobreed:      func(c *engine.Config) { c.Breed = false },
-	Everytick:    func(c *engine.Config) { c.Recheck, c.Breed = 0, false },
-	Random:       func(c *engine.Config) { c.Window, c.KeepHeading, c.Recheck, c.Breed = 0, false, 0, false },
-	Blind:        func(c *engine.Config) { c.Sight, c.KeepHeading, c.Recheck, c.Breed = -1, false, 0, false },
-	Restless:     func(c *engine.Config) { c.KeepHeading, c.Recheck, c.Breed = false, 0, false },
-	Straightback: func(c *engine.Config) { c.TurnOffReverse, c.Recheck, c.Breed = false, 0, false },
+	Base:      func(*engine.Config) {},
+	Fixed:     func(c *engine.Config) { c.Allot = false },
+	Nobreed:   func(c *engine.Config) { c.Breed, c.Allot = false, false },
+	Everytick: func(c *engine.Config) { c.Recheck, c.Breed, c.Allot = 0, false, false },
+	Random: func(c *engine.Config) {
+		c.Window, c.KeepHeading, c.Recheck, c.Breed, c.Allot = 0, false, 0, false, false
+	},
+	Blind: func(c *engine.Config) {
+		c.Sight, c.KeepHeading, c.Recheck, c.Breed, c.Allot = -1, false, 0, false, false
+	},
+	Restless:     func(c *engine.Config) { c.KeepHeading, c.Recheck, c.Breed, c.Allot = false, 0, false, false },
+	Straightback: func(c *engine.Config) { c.TurnOffReverse, c.Recheck, c.Breed, c.Allot = false, 0, false, false },
 }
 
 // Config returns the default config rewritten by the named variant, with the

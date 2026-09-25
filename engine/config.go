@@ -74,6 +74,24 @@ type Config struct {
 	// MatureAge is how many ticks after its birth a child becomes an adult
 	// and may mate.
 	MatureAge int
+
+	// Allot gives every body, at birth, a share of its budget for speed,
+	// the rest going to its most energy (build.go); the share is drawn
+	// uniformly from AllotLevels evenly spaced values within AllotSpread
+	// of one half, and is not inherited. Off, every body has the config's
+	// build: stage 1-3.
+	Allot bool
+	// AllotSpread is how far a body's share may lie from one half.
+	AllotSpread float64
+	// AllotLevels is how many shares there are to draw from, one half
+	// among them when it is odd. Shares come in levels so that bodies share
+	// survival tables, which cost about a window times a full body's ticks
+	// each to build.
+	AllotLevels int
+	// AllotCurve bends what a share buys: an ability is the config's value
+	// times (2 x share) to this power, so an even split buys the config's
+	// values, and below 1 each further share buys less.
+	AllotCurve float64
 }
 
 // DefaultConfig returns the rules the measurements run under unless a
@@ -98,5 +116,9 @@ func DefaultConfig() Config {
 		ChildWorth:     0.5,
 		BirthEnergy:    50,
 		MatureAge:      1000,
+		Allot:          true,
+		AllotSpread:    0.25,
+		AllotLevels:    11,
+		AllotCurve:     0.5,
 	}
 }

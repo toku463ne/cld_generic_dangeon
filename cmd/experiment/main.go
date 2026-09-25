@@ -13,6 +13,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"time"
 
@@ -78,9 +79,17 @@ type result struct {
 	actions   [engine.NumActionKinds]float64
 	decided   float64 // decisions over actions (body-ticks)
 	births    float64
-	adultRate float64                     // matured over matured and died young; NaN with neither
-	regions   []float64                   // regions with a body in them, at tick 0 and each checkpoint
-	valley    float64                     // fewest bodies at any tick after tick 0
+	adultRate float64   // matured over matured and died young; NaN with neither
+	regions   []float64 // regions with a body in them, at tick 0 and each checkpoint
+	valley    float64   // fewest bodies at any tick after tick 0
+	// With Allot: per share of the budget for speed, the bodies born
+	// after the first quarter of the run that died before its end, and
+	// the children they had; and the mean share of the living at tick 0
+	// and each checkpoint.
+	shares    []float64
+	lives     map[float64]float64
+	lifeKids  map[float64]float64
+	shareLive []float64
 	why       [engine.NumTriggers]float64 // share of the decisions by trigger
 	regionOf  []float64                   // share of the bodies in each region, averaged over the second half of the run
 	regionOK  bool                        // whether regionOf has any tick behind it
@@ -147,6 +156,26 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	record()
 	r.series = append(r.series, int32(len(w.Bodies())))
 	r.valley = math.Inf(1)
+	r.lives, r.lifeKids = map[float64]float64{}, map[float64]float64{}
+	meanShare := func() float64 {
+		bs := w.Bodies()
+		if len(bs) == 0 {
+			return math.NaN()
+		}
+		x := 0.0
+		for _, b := range bs {
+			x += b.Share
+		}
+		return x / float64(len(bs))
+	}
+	if cfg.Allot {
+		r.shareLive = append(r.shareLive, meanShare())
+	}
+	known := map[int64]engine.Body{}
+	kids := map[int64]int{}
+	for _, b := range w.Bodies() {
+		known[b.ID] = b
+	}
 	every := max(ticks/checkpoints, 1)
 	half := ticks / 2
 	sampled := 0.0
@@ -157,6 +186,37 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		}
 		r.series = append(r.series, int32(len(w.Bodies())))
 		r.valley = math.Min(r.valley, float64(len(w.Bodies())))
+		if cfg.Allot {
+			// Lifetime births by share: credit the parents of the newborn,
+			// and close the lives of the dead.
+			alive := map[int64]bool{}
+			for _, b := range w.Bodies() {
+				alive[b.ID] = true
+				if _, ok := known[b.ID]; !ok {
+					known[b.ID] = b
+					for _, p := range b.Parents {
+						kids[p]++
+					}
+				}
+			}
+			for id, b := range known {
+				if alive[id] {
+					continue
+				}
+				if b.Born > int64(ticks/4) {
+					if _, ok := r.lives[b.Share]; !ok {
+						r.shares = append(r.shares, b.Share)
+					}
+					r.lives[b.Share]++
+					r.lifeKids[b.Share] += float64(kids[id])
+				}
+				delete(known, id)
+				delete(kids, id)
+			}
+			if t%every == 0 {
+				r.shareLive = append(r.shareLive, meanShare())
+			}
+		}
 		if t%every == 0 {
 			record()
 		}
@@ -483,6 +543,10 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		p("成人到達率: —（成人した子も成人前に死んだ子もいない）\n\n")
 	}
 
+	if baseCfg, _ := variant.Config(base, o.seed0); baseCfg.Allot {
+		writeAllot(p, o, rs, every, rows)
+	}
+
 	p("### 補助の表: 占有地域数と個体数の谷（%s）\n\n", base)
 	p("| tick | 占有地域数 | 生存シード数 |\n| --- | --- | --- |\n")
 	for i := 0; i < rows; i++ {
@@ -576,4 +640,50 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 			p("| %s（%s） | %s | %s | %s |\n", mt.name, v, fmtMeanSE(b, mt.prec), fmtMeanSE(x, mt.prec), fmtMeanSE(d, mt.prec))
 		}
 	}
+}
+
+// writeAllot prints the selection gradient on the share of the budget for
+// speed: lifetime births per body by share, the paired difference between
+// the bodies leaning to speed and to the most energy, and the mean share of
+// the living over the run.
+func writeAllot(p func(string, ...any), o options, rs []result, every, rows int) {
+	base := o.variants[0]
+	p("### 補助の表: 配分と生涯出生数（%s）\n\n", base)
+	p("tick %d より後に生まれ、終わりまでに死んだ身体。生涯出生数は子の数（成人前に死んだ身体は 0 として入る）。\n\n", o.ticks/4)
+	set := map[float64]bool{}
+	for _, r := range rs {
+		for _, x := range r.shares {
+			set[x] = true
+		}
+	}
+	var shares []float64
+	for x := range set {
+		shares = append(shares, x)
+	}
+	sort.Float64s(shares)
+	p("| 速さへの配分 | 生涯出生数 | 身体の数（1シードあたり） |\n| --- | --- | --- |\n")
+	for _, x := range shares {
+		ok := func(r result) bool { return r.lives[x] > 0 }
+		kids := collectWhere(rs, ok, func(r result) float64 { return r.lifeKids[x] / r.lives[x] })
+		n := collect(rs, func(r result) float64 { return r.lives[x] })
+		p("| %.3f | %s | %s |\n", x, fmtMeanSE(kids, 3), fmtMeanSE(n, 1))
+	}
+	side := func(r result, hi bool) float64 {
+		k, n := 0.0, 0.0
+		for _, x := range r.shares {
+			if (hi && x > 0.5+1e-9) || (!hi && x < 0.5-1e-9) {
+				k += r.lifeKids[x]
+				n += r.lives[x]
+			}
+		}
+		return k / n
+	}
+	d := collect(rs, func(r result) float64 { return side(r, true) - side(r, false) })
+	p("\n速さの側（配分 > 0.5）− 体力の上限の側（< 0.5）の生涯出生数（同じシードの対の差）: %s\n\n", fmtMeanSE(d, 3))
+	p("| tick | 生きている身体の配分の平均 |\n| --- | --- |\n")
+	for i := 0; i < rows; i += max(rows/4, 1) {
+		xs := collectWhere(rs, func(r result) bool { return i < len(r.shareLive) && !math.IsNaN(r.shareLive[i]) }, func(r result) float64 { return r.shareLive[i] })
+		p("| %d | %s |\n", i*every, fmtMeanSE(xs, 4))
+	}
+	p("\n")
 }
