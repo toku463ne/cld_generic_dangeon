@@ -18,6 +18,10 @@ import "math"
 //	           the walk as the valuation counts it (walkTicks): the food
 //	           is level with it on one axis, or reached
 //	recheck    Recheck ticks have passed since it last decided
+//	waited     it waited last tick: waiting is not an intent
+//
+// Waiting is a tick not moved, not a plan. Held as an intent it would
+// last until Recheck, since a body standing still sees nothing change.
 //
 // A trigger says "think again", never what to do (NODE.md): what the body
 // does after a trigger is whatever decide values best, as on any tick of
@@ -37,6 +41,7 @@ const (
 	TriggerStep
 	TriggerPath
 	TriggerRecheck
+	TriggerWaited
 	NumTriggers
 
 	// noTrigger is a tick the body follows its intent.
@@ -44,7 +49,7 @@ const (
 )
 
 // TriggerNames name the triggers for reports, in order.
-var TriggerNames = [NumTriggers]string{"everytick", "first", "underfoot", "sight", "step", "path", "recheck"}
+var TriggerNames = [NumTriggers]string{"everytick", "first", "underfoot", "sight", "step", "path", "recheck", "waited"}
 
 // turn returns the action body b takes this tick: its intent, or a new
 // decision when a trigger is true.
@@ -108,7 +113,8 @@ func (w *World) perceive(b *Body) (under bool, saw uint64) {
 		for x := bx - w.cfg.Sight; x <= bx+w.cfg.Sight; x++ {
 			if w.m.InBounds(x, y) {
 				if t := w.m.index(x, y); w.foodOn(t) >= 0 {
-					saw = (saw ^ uint64(t)) * prime
+					off := (y-by+w.cfg.Sight)*(2*w.cfg.Sight+1) + x - bx + w.cfg.Sight
+					saw = (saw ^ uint64(off)) * prime
 					n++
 				}
 			}
@@ -127,6 +133,8 @@ func (w *World) trigger(b *Body, under bool, saw uint64) Trigger {
 		return TriggerUnderfoot
 	case saw != b.Saw:
 		return TriggerSight
+	case b.Intent.Kind == ActWait:
+		return TriggerWaited
 	}
 	if a := b.Intent; a.Kind == ActMove {
 		d := moveDirs[a.Dir]

@@ -46,8 +46,8 @@ func TestFollowsIntentBetweenDecisions(t *testing.T) {
 	}
 }
 
-// Every trigger but the one for deciding every tick fires in a world under
-// way, and the decisions are fewer than the actions. (On the small, crowded
+// Every trigger but deciding every tick and the recheck fires in a world
+// under way (the recheck is a safety net, rare on any map: TestRecheck), and the decisions are fewer than the actions. (On the small, crowded
 // test map food comes and goes in sight often; the share on the maps the
 // experiments run is in the stage 1-2e report.)
 func TestTriggersFire(t *testing.T) {
@@ -55,7 +55,7 @@ func TestTriggersFire(t *testing.T) {
 	run(w, 3000)
 	st := w.Stats()
 	for k := TriggerFirst; k < NumTriggers; k++ {
-		if st.Decisions[k] == 0 {
+		if k != TriggerRecheck && st.Decisions[k] == 0 {
 			t.Errorf("trigger %s never fired", TriggerNames[k])
 		}
 	}
@@ -105,5 +105,54 @@ func TestPathTrigger(t *testing.T) {
 		if got := w.trigger(&b, b.Under, b.Saw); got != c.want {
 			t.Errorf("%+v: trigger %d, want %d", c, got, c.want)
 		}
+	}
+}
+
+// A body that perceives nothing new decides again after Recheck ticks, and
+// after a tick of waiting.
+func TestRecheckAndWait(t *testing.T) {
+	cfg := testConfig(1)
+	cfg.Bodies = 0
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.tick = 1000
+	b := Body{X: 2.5, Y: 5.5, Intent: Action{Kind: ActMove, Dir: 0}, Goal: -1}
+	b.Under, b.Saw = w.perceive(&b)
+	for _, c := range []struct {
+		ago  int64
+		want Trigger
+	}{{0, noTrigger}, {int64(cfg.Recheck) - 1, noTrigger}, {int64(cfg.Recheck), TriggerRecheck}} {
+		b.Decided = w.tick - c.ago
+		if got := w.trigger(&b, b.Under, b.Saw); got != c.want {
+			t.Errorf("decided %d ticks ago: trigger %d, want %d", c.ago, got, c.want)
+		}
+	}
+	b.Decided, b.Intent = w.tick, Action{Kind: ActWait}
+	if got := w.trigger(&b, b.Under, b.Saw); got != TriggerWaited {
+		t.Errorf("after waiting: trigger %d, want %d", got, TriggerWaited)
+	}
+}
+
+// Sight is perceived from where the body stands: stepping onto the next
+// tile changes it when food is in sight, and does not when none is.
+func TestSightIsFromTheBody(t *testing.T) {
+	cfg := testConfig(1)
+	cfg.Bodies, cfg.FoodCap = 0, 0
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	here, next := Body{X: 2.5, Y: 2.5}, Body{X: 3.5, Y: 2.5}
+	_, a := w.perceive(&here)
+	if _, b := w.perceive(&next); a != b {
+		t.Error("with no food, the next tile looks different")
+	}
+	w.food.foods = append(w.food.foods, Food{X: 3, Y: 3})
+	w.food.foodAt[w.m.index(3, 3)] = int32(len(w.food.foods))
+	_, a = w.perceive(&here)
+	if _, b := w.perceive(&next); a == b {
+		t.Error("with food in sight of both tiles, the next tile looks the same")
 	}
 }
