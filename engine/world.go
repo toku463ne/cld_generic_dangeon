@@ -52,13 +52,13 @@ func NewWorld(cfg Config, m Map) (*World, error) {
 }
 
 // Step advances the world by one tick: vacant food comes back, then every
-// body in turn acts and spends its energy, then the dead are removed.
+// body in turn follows its intent or decides (intent.go), acts and spends its energy, then the dead are removed.
 func (w *World) Step() {
 	w.tick++
 	w.returnFood()
 	for i := range w.bodies {
 		b := &w.bodies[i]
-		w.act(b, w.decide(b))
+		w.act(b, w.turn(b))
 		b.Energy -= w.cfg.EnergyBurn
 		w.stats.EnergyBurned += w.cfg.EnergyBurn
 	}
@@ -133,6 +133,19 @@ func (w *World) Fingerprint() uint64 {
 		// The heading is state only where a rule reads it.
 		if w.cfg.KeepHeading {
 			put(uint64(int64(b.Heading)))
+		}
+		// So is the intent, where bodies follow one between decisions.
+		if w.cfg.Recheck > 0 {
+			put(uint64(b.Intent.Kind))
+			put(uint64(b.Intent.Dir))
+			put(uint64(int64(b.Goal)))
+			put(uint64(b.Decided))
+			if b.Under {
+				put(1)
+			} else {
+				put(0)
+			}
+			put(b.Saw)
 		}
 	}
 	put(uint64(w.nextID))

@@ -85,8 +85,24 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0x72d49e5113ca37a8)
+	const want = uint64(0x3cf2c81748c9b732)
 	w := newTestWorld(t, 1)
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// Deciding every tick, the world is stage 1-2r: its fingerprint is the one
+// that stage pinned.
+func TestEverytickIsStage12r(t *testing.T) {
+	const want = uint64(0x72d49e5113ca37a8)
+	cfg := testConfig(1)
+	cfg.Recheck = 0
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
 		t.Fatalf("fingerprint = %#x, want %#x", got, want)
@@ -98,7 +114,7 @@ func TestFingerprint(t *testing.T) {
 func TestStraightbackIsStage12q(t *testing.T) {
 	const want = uint64(0x598db45e1aaf44c7)
 	cfg := testConfig(1)
-	cfg.TurnOffReverse = false
+	cfg.TurnOffReverse, cfg.Recheck = false, 0
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -114,7 +130,7 @@ func TestStraightbackIsStage12q(t *testing.T) {
 func TestNoHeadingIsStage12p(t *testing.T) {
 	const want = uint64(0x46ffb00b8b64a80)
 	cfg := testConfig(1)
-	cfg.KeepHeading = false
+	cfg.KeepHeading, cfg.Recheck = false, 0
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -130,7 +146,7 @@ func TestNoHeadingIsStage12p(t *testing.T) {
 func TestNoSightIsFirstStage12(t *testing.T) {
 	const want = uint64(0x51de0e4034431e90)
 	cfg := testConfig(1)
-	cfg.Sight, cfg.KeepHeading = -1, false
+	cfg.Sight, cfg.KeepHeading, cfg.Recheck = -1, false, 0
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -146,7 +162,7 @@ func TestNoSightIsFirstStage12(t *testing.T) {
 func TestNoWindowIsStage11(t *testing.T) {
 	const want = uint64(0xa43263b50e366b1e)
 	cfg := testConfig(1)
-	cfg.Window, cfg.KeepHeading = 0, false
+	cfg.Window, cfg.KeepHeading, cfg.Recheck = 0, false, 0
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)

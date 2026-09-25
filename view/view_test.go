@@ -48,7 +48,10 @@ func TestPrepareMatchesExperimentRun(t *testing.T) {
 // Following a body, keeping trails and drawing change nothing in the world:
 // the view only reads it.
 func TestViewChangesNothing(t *testing.T) {
-	o := Options{Map: "constrained", Width: 32, Height: 24, Variant: variant.Base, Seed: 9, FromTick: 1000, Follow: "hungriest"}
+	o := Options{Map: "constrained", Width: 32, Height: 24, Variant: variant.Base, Seed: 9, FromTick: 1000, Follow: "0"}
+	// Body 0 lives through the run. The hungriest body at tick 1000 dies
+	// following its intent before it decides again, and leaves no decision
+	// to show.
 	v, err := Prepare(o)
 	if err != nil {
 		t.Fatal(err)

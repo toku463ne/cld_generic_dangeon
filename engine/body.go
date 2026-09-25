@@ -22,6 +22,17 @@ type Body struct {
 	// Heading is the direction of the body's last move, -1 before its
 	// first. Only KeepHeading reads it.
 	Heading int
+
+	// Between decisions (Recheck above zero, intent.go) the body follows
+	// Intent, the action its last decision took. Goal is the tile of the
+	// food that action walks to, -1 for none; Decided is the tick of that
+	// decision, -1 before the first. Under and Saw are what it perceived
+	// on its last turn: food on its tile, and a hash of the food in sight.
+	Intent  Action
+	Goal    int
+	Decided int64
+	Under   bool
+	Saw     uint64
 }
 
 // ActionKind is what an action does, for counting.
@@ -68,6 +79,9 @@ type Stats struct {
 	Deaths       [NumCauses]int64
 	EnergyBurned float64
 	Actions      [NumActionKinds]int64
+	// Decisions counts the ticks a body valued its options, by what made
+	// it decide. The ticks it followed its intent are the rest of Actions.
+	Decisions [NumTriggers]int64
 }
 
 // tileOf returns the index of the tile under (x, y), or -1 off the map.
@@ -100,6 +114,8 @@ func (w *World) placeBodies() {
 			Energy:  w.cfg.EnergyMax,
 			Born:    w.tick,
 			Heading: -1,
+			Goal:    -1,
+			Decided: -1,
 		})
 		w.nextID++
 	}

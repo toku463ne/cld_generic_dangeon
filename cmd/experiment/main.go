@@ -76,8 +76,10 @@ type result struct {
 	starved   float64
 	burned    float64
 	actions   [engine.NumActionKinds]float64
-	regionOf  []float64 // share of the bodies in each region, averaged over the second half of the run
-	regionOK  bool      // whether regionOf has any tick behind it
+	decided   float64                     // decisions over actions (body-ticks)
+	why       [engine.NumTriggers]float64 // share of the decisions by trigger
+	regionOf  []float64                   // share of the bodies in each region, averaged over the second half of the run
+	regionOK  bool                        // whether regionOf has any tick behind it
 }
 
 func run(out, log io.Writer, o options, command string) error {
@@ -178,6 +180,18 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		if total > 0 {
 			r.actions[k] = float64(n) / total
 		}
+	}
+	decisions := 0.0
+	for _, n := range st.Decisions {
+		decisions += float64(n)
+	}
+	for k, n := range st.Decisions {
+		if decisions > 0 {
+			r.why[k] = float64(n) / decisions
+		}
+	}
+	if total > 0 {
+		r.decided = decisions / total
 	}
 	return r, nil
 }
@@ -435,6 +449,14 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	}
 	p("\n")
 
+	p("### 補助の表: 判断のきっかけ（%s）\n\n", base)
+	p("決定の割合: %s\n\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.decided }), 4))
+	p("| きっかけ | 決定に占める割合 |\n| --- | --- |\n")
+	for k, name := range engine.TriggerNames {
+		p("| %s | %s |\n", name, fmtMeanSE(collect(rs, func(r result) float64 { return r.why[k] }), 4))
+	}
+	p("\n")
+
 	p("### 6. 記憶\n\n")
 	p("| 種別 | 上位10 |\n| --- | --- |\n")
 	p("| 合成されていない高頻度記憶 | |\n| 合成された高頻度記憶 | |\n| ノード平均が高得点の中間項 | |\n\n")
@@ -483,11 +505,13 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	p("| 指標 | %s | %s | 差 |\n| --- | --- | --- | --- |\n", base, "本件")
 	metrics := []struct {
 		name string
+		prec int
 		f    func(result) float64
 	}{
-		{"人口（最終）", func(r result) float64 { return r.pop[len(r.pop)-1] }},
-		{"餓死", func(r result) float64 { return r.starved }},
-		{"体力消耗（合計）", func(r result) float64 { return r.burned }},
+		{"人口（最終）", 2, func(r result) float64 { return r.pop[len(r.pop)-1] }},
+		{"餓死", 2, func(r result) float64 { return r.starved }},
+		{"体力消耗（合計）", 2, func(r result) float64 { return r.burned }},
+		{"決定の割合", 4, func(r result) float64 { return r.decided }},
 	}
 	for _, v := range o.variants[1:] {
 		for _, mt := range metrics {
@@ -497,7 +521,7 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 			for i := range b {
 				d[i] = x[i] - b[i]
 			}
-			p("| %s（%s） | %s | %s | %s |\n", mt.name, v, fmtMeanSE(b, 2), fmtMeanSE(x, 2), fmtMeanSE(d, 2))
+			p("| %s（%s） | %s | %s | %s |\n", mt.name, v, fmtMeanSE(b, mt.prec), fmtMeanSE(x, mt.prec), fmtMeanSE(d, mt.prec))
 		}
 	}
 }

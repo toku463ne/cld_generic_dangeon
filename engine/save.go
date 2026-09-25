@@ -18,7 +18,7 @@ import (
 // holds which food, the land of each region) is rebuilt rather than saved.
 
 // snapshotVersion changes whenever the format does.
-const snapshotVersion = 4
+const snapshotVersion = 5
 
 type snapshot struct {
 	Version int    `json:"version"`

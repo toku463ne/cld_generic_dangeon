@@ -85,6 +85,7 @@ type decision struct {
 	plan   []int
 	arrive []int
 	chosen engine.Action
+	why    engine.Trigger
 }
 
 // regionColors tint the land by region, so that the regions of the
@@ -167,7 +168,7 @@ func (v *View) trace(b engine.Body, val engine.Valuation, a engine.Action) {
 		return
 	}
 	d := &decision{
-		tick: v.W.Tick(), body: b, chosen: a,
+		tick: v.W.Tick(), body: b, chosen: a, why: val.Why,
 		opts:   append([]engine.Action(nil), val.Options...),
 		seen:   append([]engine.Food(nil), val.Seen...),
 		plan:   append([]int(nil), val.Plan...),
@@ -364,7 +365,7 @@ func (v *View) FollowText() string {
 	if d == nil || d.body.ID != b.ID || len(d.risk) == 0 {
 		return sb.String()
 	}
-	fmt.Fprintf(&sb, "\ntick %d: took %s, saw %d food", d.tick, actionName(d.chosen), len(d.seen))
+	fmt.Fprintf(&sb, "\ntick %d (%s): took %s, saw %d food", d.tick, engine.TriggerNames[d.why], actionName(d.chosen), len(d.seen))
 	idx := make([]int, len(d.opts))
 	for i := range idx {
 		idx[i] = i

@@ -82,9 +82,7 @@ func (w *World) reach() int {
 // length speed in the eight directions. A diagonal move covers speed/sqrt2
 // of each axis, so the path is the octile distance.
 func walkTicks(dx, dy, speed float64) int {
-	lo, hi := math.Min(dx, dy), math.Max(dx, dy)
-	d := hi + (math.Sqrt2-1)*lo
-	return int(math.Ceil(d/speed - 1e-9))
+	return int(math.Ceil(octile(dx, dy)/speed - 1e-9))
 }
 
 // energyTicks is how many ticks of burning an amount of energy lasts. A body
@@ -182,6 +180,8 @@ func (s Survival) Alive(i, n int) float64 { return 1 - s.Dead(i, n) }
 // the index into Seen of the unit it walks to, Arrive ticks after the
 // option's own tick, or -1 for keeping on the move through the region.
 type Valuation struct {
+	// Why is what made the body decide (intent.go).
+	Why     Trigger
 	Options []Action
 	Risk    [][]float64 // Risk[window][option]
 	Seen    []Food

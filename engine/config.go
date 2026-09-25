@@ -54,6 +54,12 @@ type Config struct {
 	// risk). Without it a heading along an axis reflects into its own
 	// reverse and the body walks one row or column back and forth.
 	TurnOffReverse bool
+	// Recheck is the most ticks a body follows the action it last chose
+	// before it decides again when nothing has happened (intent.go). Other
+	// than that it decides only when something it perceives changes, or
+	// its step leaves the land or the region, or its walk to food turns.
+	// Zero decides every tick, as stage 1-2r did.
+	Recheck int
 }
 
 // DefaultConfig returns the rules the measurements run under unless a
@@ -73,5 +79,6 @@ func DefaultConfig() Config {
 		Sight:          1,
 		KeepHeading:    true,
 		TurnOffReverse: true,
+		Recheck:        300,
 	}
 }
