@@ -76,7 +76,11 @@ type result struct {
 	starved   float64
 	burned    float64
 	actions   [engine.NumActionKinds]float64
-	decided   float64                     // decisions over actions (body-ticks)
+	decided   float64 // decisions over actions (body-ticks)
+	births    float64
+	adultRate float64                     // matured over matured and died young; NaN with neither
+	regions   []float64                   // regions with a body in them, at tick 0 and each checkpoint
+	valley    float64                     // fewest bodies at any tick after tick 0
 	why       [engine.NumTriggers]float64 // share of the decisions by trigger
 	regionOf  []float64                   // share of the bodies in each region, averaged over the second half of the run
 	regionOK  bool                        // whether regionOf has any tick behind it
@@ -122,14 +126,27 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		return result{}, err
 	}
 	r := result{regionOf: make([]float64, len(m.RegionFood)), fellAt: -1}
+	occupied := func() float64 {
+		in := make([]bool, len(m.RegionFood))
+		k := 0.0
+		for _, b := range w.Bodies() {
+			if g := m.RegionAt(int(b.X), int(b.Y)); !in[g] {
+				in[g] = true
+				k++
+			}
+		}
+		return k
+	}
 	record := func() {
 		n := len(w.Bodies())
 		r.pop = append(r.pop, float64(n))
+		r.regions = append(r.regions, occupied())
 		r.food = append(r.food, float64(w.FoodLedger().OnGround))
 		r.surviving = append(r.surviving, n > floor)
 	}
 	record()
 	r.series = append(r.series, int32(len(w.Bodies())))
+	r.valley = math.Inf(1)
 	every := max(ticks/checkpoints, 1)
 	half := ticks / 2
 	sampled := 0.0
@@ -139,6 +156,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 			return result{}, fmt.Errorf("tick %d: food ledger does not close: %+v", t, l)
 		}
 		r.series = append(r.series, int32(len(w.Bodies())))
+		r.valley = math.Min(r.valley, float64(len(w.Bodies())))
 		if t%every == 0 {
 			record()
 		}
@@ -148,6 +166,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 			r.fellAt = t
 			for len(r.pop) < ticks/every+1 {
 				r.pop = append(r.pop, float64(len(w.Bodies())))
+				r.regions = append(r.regions, math.NaN())
 				r.food = append(r.food, math.NaN())
 				r.surviving = append(r.surviving, false)
 			}
@@ -192,6 +211,11 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	}
 	if total > 0 {
 		r.decided = decisions / total
+	}
+	r.births = float64(st.Births)
+	r.adultRate = math.NaN()
+	if n := st.Matured + st.DiedYoung; n > 0 {
+		r.adultRate = float64(st.Matured) / float64(n)
 	}
 	return r, nil
 }
@@ -436,7 +460,9 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	starved := collect(rs, func(r result) float64 { return r.starved })
 	p("### 4. 出来事の回数（%s）\n\n", base)
 	p("| 出来事 | 回数 |\n| --- | --- |\n")
-	for _, e := range []string{"交配", "出生", "種族内の戦い", "種族間の戦い", "コインを拾った", "売買"} {
+	births := fmtMeanSE(collect(rs, func(r result) float64 { return r.births }), 2)
+	p("| 交配 | %s |\n| 出生 | %s |\n", births, births)
+	for _, e := range []string{"種族内の戦い", "種族間の戦い", "コインを拾った", "売買"} {
 		p("| %s | 0 |\n", e)
 	}
 	p("| 体力消耗（合計） | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.burned }), 1))
@@ -444,10 +470,35 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 
 	p("### 5. 行動の選択割合（%s）\n\n", base)
 	p("| 行動 | 割合 |\n| --- | --- |\n")
-	for k, name := range []string{"待つ", "食べる", "移動"} {
+	for k, name := range []string{"待つ", "食べる", "移動", "交配"} {
 		p("| %s | %s%% |\n", name, fmtMeanSE(collect(rs, func(r result) float64 { return 100 * r.actions[k] }), 2))
 	}
 	p("\n")
+
+	adult := collectWhere(rs, func(r result) bool { return !math.IsNaN(r.adultRate) }, func(r result) float64 { return r.adultRate })
+	p("### 補助の表: 成人到達率（%s）\n\n", base)
+	if len(adult) > 0 {
+		p("成人到達率: %s（%d / %d シード。成人した子 ÷（成人した子 ＋ 成人前に死んだ子））\n\n", fmtMeanSE(adult, 4), len(adult), len(rs))
+	} else {
+		p("成人到達率: —（成人した子も成人前に死んだ子もいない）\n\n")
+	}
+
+	p("### 補助の表: 占有地域数と個体数の谷（%s）\n\n", base)
+	p("| tick | 占有地域数 | 生存シード数 |\n| --- | --- | --- |\n")
+	for i := 0; i < rows; i++ {
+		xs := collectWhere(rs, aliveAt(i), func(r result) float64 { return r.regions[i] })
+		p("| %d | %s | %d / %d |\n", i*every, fmtMeanSE(xs, 2), len(xs), len(rs))
+	}
+	valleys := collectWhere(rs, func(r result) bool { return r.fellAt < 0 }, func(r result) float64 { return r.valley })
+	if len(valleys) > 0 {
+		lo := valleys[0]
+		for _, x := range valleys {
+			lo = math.Min(lo, x)
+		}
+		p("\n崩壊しなかったシードの個体数の谷（tick 1 以降の最小）: 平均 %s、最小 %.0f（%d シード）\n\n", fmtMeanSE(valleys, 1), lo, len(valleys))
+	} else {
+		p("\n崩壊しなかったシードが無い。\n\n")
+	}
 
 	p("### 補助の表: 判断のきっかけ（%s）\n\n", base)
 	p("決定の割合: %s\n\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.decided }), 4))
@@ -511,6 +562,7 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"人口（最終）", 2, func(r result) float64 { return r.pop[len(r.pop)-1] }},
 		{"餓死", 2, func(r result) float64 { return r.starved }},
 		{"体力消耗（合計）", 2, func(r result) float64 { return r.burned }},
+		{"出生", 2, func(r result) float64 { return r.births }},
 		{"決定の割合", 4, func(r result) float64 { return r.decided }},
 	}
 	for _, v := range o.variants[1:] {

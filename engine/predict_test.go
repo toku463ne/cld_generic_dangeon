@@ -209,7 +209,7 @@ func TestKeepsHeading(t *testing.T) {
 		if a != (Action{Kind: ActMove, Dir: 0}) || w.Draws() != draws {
 			t.Fatalf("step %d at (%v,%v): took %v with %d draws, want east with none", i, b.X, b.Y, a, w.Draws()-draws)
 		}
-		w.act(&b, a)
+		w.act(-1, &b, a)
 	}
 	// Column 7 is water: east is no longer an option. Straight back west
 	// would walk the same row again, so the body turns north-west or
@@ -415,17 +415,22 @@ func TestTraceIsTheChoice(t *testing.T) {
 		if len(want.Options) != len(v.Options) {
 			t.Fatalf("tick %d body %d: %d options traced, Value gives %d", w.Tick(), b.ID, len(v.Options), len(want.Options))
 		}
+		// The choice is made on the score: the risk less ChildWorth for
+		// each child.
 		best := math.Inf(1)
 		for j := range v.Options {
-			if v.Options[j] != want.Options[j] || v.Risk[0][j] != want.Risk[0][j] {
-				t.Fatalf("tick %d body %d option %d: traced %v %v, Value gives %v %v",
-					w.Tick(), b.ID, j, v.Options[j], v.Risk[0][j], want.Options[j], want.Risk[0][j])
+			if v.Options[j] != want.Options[j] || v.Risk[0][j] != want.Risk[0][j] || v.Child[j] != want.Child[j] {
+				t.Fatalf("tick %d body %d option %d: traced %v %v %v, Value gives %v %v %v",
+					w.Tick(), b.ID, j, v.Options[j], v.Risk[0][j], v.Child[j], want.Options[j], want.Risk[0][j], want.Child[j])
 			}
-			best = math.Min(best, v.Risk[0][j])
+			if s := v.Risk[0][j] - w.cfg.ChildWorth*v.Child[j]; v.Score[j] != s {
+				t.Fatalf("tick %d body %d option %d: score %v, risk and child give %v", w.Tick(), b.ID, j, v.Score[j], s)
+			}
+			best = math.Min(best, v.Score[j])
 		}
 		taken := false
 		for j := range v.Options {
-			taken = taken || (v.Options[j] == a && v.Risk[0][j] == best)
+			taken = taken || (v.Options[j] == a && v.Score[j] == best)
 		}
 		if !taken {
 			t.Fatalf("tick %d body %d: took %v, not an option of the least risk %v", w.Tick(), b.ID, a, best)

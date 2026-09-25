@@ -60,6 +60,20 @@ type Config struct {
 	// its step leaves the land or the region, or its walk to food turns.
 	// Zero decides every tick, as stage 1-2r did.
 	Recheck int
+
+	// Breed lets adults mate and bear children (breed.go). Off, the world
+	// is stage 1-2e.
+	Breed bool
+	// ChildWorth is what a sure child is worth against a sure death: an
+	// option scores its risk minus ChildWorth times its chance of a child,
+	// and the body takes the least. Below 1, life comes before descendants.
+	ChildWorth float64
+	// BirthEnergy is the energy a child is born with; each parent pays
+	// half.
+	BirthEnergy float64
+	// MatureAge is how many ticks after its birth a child becomes an adult
+	// and may mate.
+	MatureAge int
 }
 
 // DefaultConfig returns the rules the measurements run under unless a
@@ -80,5 +94,9 @@ func DefaultConfig() Config {
 		KeepHeading:    true,
 		TurnOffReverse: true,
 		Recheck:        300,
+		Breed:          true,
+		ChildWorth:     0.5,
+		BirthEnergy:    50,
+		MatureAge:      1000,
 	}
 }

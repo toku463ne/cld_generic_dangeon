@@ -26,7 +26,10 @@ func TestFollowsIntentBetweenDecisions(t *testing.T) {
 				}
 				continue
 			}
-			p := before[b.ID]
+			p, ok := before[b.ID]
+			if !ok {
+				continue // born this tick
+			}
 			if b.Intent != p.Intent || b.Goal != p.Goal || b.Decided != p.Decided {
 				t.Fatalf("tick %d body %d: intent changed without a decision", w.Tick(), b.ID)
 			}
@@ -102,7 +105,7 @@ func TestPathTrigger(t *testing.T) {
 			b.Goal = w.m.index(c.gx, c.gy)
 		}
 		b.Under, b.Saw = w.perceive(&b)
-		if got := w.trigger(&b, b.Under, b.Saw); got != c.want {
+		if got := w.trigger(&b, b.Under, b.Saw, b.Mates); got != c.want {
 			t.Errorf("%+v: trigger %d, want %d", c, got, c.want)
 		}
 	}
@@ -125,12 +128,12 @@ func TestRecheckAndWait(t *testing.T) {
 		want Trigger
 	}{{0, noTrigger}, {int64(cfg.Recheck) - 1, noTrigger}, {int64(cfg.Recheck), TriggerRecheck}} {
 		b.Decided = w.tick - c.ago
-		if got := w.trigger(&b, b.Under, b.Saw); got != c.want {
+		if got := w.trigger(&b, b.Under, b.Saw, b.Mates); got != c.want {
 			t.Errorf("decided %d ticks ago: trigger %d, want %d", c.ago, got, c.want)
 		}
 	}
 	b.Decided, b.Intent = w.tick, Action{Kind: ActWait}
-	if got := w.trigger(&b, b.Under, b.Saw); got != TriggerWaited {
+	if got := w.trigger(&b, b.Under, b.Saw, b.Mates); got != TriggerWaited {
 		t.Errorf("after waiting: trigger %d, want %d", got, TriggerWaited)
 	}
 }

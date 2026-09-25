@@ -24,6 +24,7 @@ func TestBodiesStayOnLand(t *testing.T) {
 func TestNoFoodStarvesEveryBody(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.FoodCap = 0
+	cfg.Breed = false // no one is born to outlive the count
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +66,7 @@ func TestEatingRestoresEnergyUpToMax(t *testing.T) {
 	if !found {
 		t.Fatal("eating is not offered on a tile with food")
 	}
-	w.act(&b, Action{Kind: ActEat})
+	w.act(-1, &b, Action{Kind: ActEat})
 	if b.Energy != cfg.EnergyMax {
 		t.Fatalf("energy after eating %v, want capped at %v", b.Energy, cfg.EnergyMax)
 	}

@@ -33,6 +33,15 @@ type Body struct {
 	Decided int64
 	Under   bool
 	Saw     uint64
+
+	// Mature is the tick the body becomes an adult (breed.go); the first
+	// bodies are adults from the start. Mates is a hash of the adults in
+	// sight on its last turn.
+	Mature int64
+	Mates  uint64
+	// Parents are the IDs of the two bodies it was born of, -1 for the
+	// first bodies.
+	Parents [2]int64
 }
 
 // ActionKind is what an action does, for counting.
@@ -42,13 +51,16 @@ const (
 	ActWait ActionKind = iota
 	ActEat
 	ActMove
+	ActMate
 	NumActionKinds
 )
 
-// Action is one choice a body can make. Dir is used by moves only.
+// Action is one choice a body can make. Dir is used by moves only, and
+// Mate, the ID of the body mated with, by ActMate only.
 type Action struct {
 	Kind ActionKind
 	Dir  int
+	Mate int64
 }
 
 // Cause is why a body died.
@@ -82,6 +94,9 @@ type Stats struct {
 	// Decisions counts the ticks a body valued its options, by what made
 	// it decide. The ticks it followed its intent are the rest of Actions.
 	Decisions [NumTriggers]int64
+	// Births counts the bodies born (breed.go). Of them, Matured became
+	// adults and DiedYoung died before.
+	Births, Matured, DiedYoung int64
 }
 
 // tileOf returns the index of the tile under (x, y), or -1 off the map.
@@ -116,6 +131,7 @@ func (w *World) placeBodies() {
 			Heading: -1,
 			Goal:    -1,
 			Decided: -1,
+			Parents: [2]int64{-1, -1},
 		})
 		w.nextID++
 	}
@@ -133,21 +149,27 @@ func (w *World) possibleActions(dst []Action, b *Body) []Action {
 			dst = append(dst, Action{Kind: ActMove, Dir: d})
 		}
 	}
-	return dst
+	return w.mateOptions(dst, b)
 }
 
-func (w *World) act(b *Body, a Action) {
+// act carries out action a of body b, the i-th of the world's bodies; i is
+// -1 for a body that is not one of them (tests).
+func (w *World) act(i int, b *Body, a Action) {
 	w.stats.Actions[a.Kind]++
 	switch a.Kind {
+	case ActMate:
+		w.mate(b, a.Mate)
 	case ActEat:
 		t := w.tileOf(b.X, b.Y)
 		w.eatFood(w.foodOn(t))
 		b.Energy = math.Min(b.Energy+w.cfg.FoodEnergy, w.cfg.EnergyMax)
 	case ActMove:
+		from := w.tileOf(b.X, b.Y)
 		v := moveDirs[a.Dir]
 		b.X += v[0] * w.cfg.Speed
 		b.Y += v[1] * w.cfg.Speed
 		b.Heading = a.Dir
+		w.moved(i, from, w.tileOf(b.X, b.Y))
 	}
 }
 

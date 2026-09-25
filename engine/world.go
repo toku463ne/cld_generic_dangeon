@@ -25,6 +25,11 @@ type World struct {
 	nextID int64
 	stats  Stats
 
+	// grid lists the bodies on each tile (breed.go), and born the children
+	// born this tick, who join the world at its end.
+	grid [][]int32
+	born []Body
+
 	// pred is what valuing options needs and can be rebuilt from the rest,
 	// so it is neither saved nor fingerprinted.
 	pred predictor
@@ -48,21 +53,30 @@ func NewWorld(cfg Config, m Map) (*World, error) {
 	w.initPredict()
 	w.fillFood()
 	w.placeBodies()
+	w.buildGrid()
 	return w, nil
 }
 
 // Step advances the world by one tick: vacant food comes back, then every
-// body in turn follows its intent or decides (intent.go), acts and spends its energy, then the dead are removed.
+// body in turn follows its intent or decides (intent.go), acts and spends
+// its energy, then the dead are removed and the children born this tick
+// join.
 func (w *World) Step() {
 	w.tick++
 	w.returnFood()
 	for i := range w.bodies {
 		b := &w.bodies[i]
-		w.act(b, w.turn(b))
+		if b.Mature == w.tick && b.Mature > 0 {
+			w.stats.Matured++
+		}
+		w.act(i, b, w.turn(b))
 		b.Energy -= w.cfg.EnergyBurn
 		w.stats.EnergyBurned += w.cfg.EnergyBurn
 	}
 	w.removeDead()
+	w.bodies = append(w.bodies, w.born...)
+	w.born = w.born[:0]
+	w.buildGrid()
 }
 
 // removeDead drops the bodies that have run out of energy, keeping the order
@@ -72,6 +86,9 @@ func (w *World) removeDead() {
 	for _, b := range w.bodies {
 		if b.Energy <= 0 {
 			w.stats.Deaths[CauseStarved]++
+			if w.tick < b.Mature {
+				w.stats.DiedYoung++
+			}
 			continue
 		}
 		alive = append(alive, b)
@@ -147,10 +164,20 @@ func (w *World) Fingerprint() uint64 {
 			}
 			put(b.Saw)
 		}
+		// And the age of coming of age, where bodies breed.
+		if w.cfg.Breed {
+			put(uint64(b.Mature))
+			put(b.Mates)
+			put(uint64(b.Parents[0]))
+			put(uint64(b.Parents[1]))
+		}
 	}
 	put(uint64(w.nextID))
 	for _, d := range w.stats.Deaths {
 		put(uint64(d))
+	}
+	if w.cfg.Breed {
+		put(uint64(w.stats.Births))
 	}
 	return h.Sum64()
 }

@@ -81,6 +81,7 @@ type decision struct {
 	body   engine.Body
 	opts   []engine.Action
 	risk   []float64 // first window
+	child  []float64
 	seen   []engine.Food
 	plan   []int
 	arrive []int
@@ -177,6 +178,7 @@ func (v *View) trace(b engine.Body, val engine.Valuation, a engine.Action) {
 	if len(val.Risk) > 0 {
 		d.risk = append([]float64(nil), val.Risk[0]...)
 	}
+	d.child = append([]float64(nil), val.Child...)
 	v.last = d
 }
 
@@ -378,7 +380,14 @@ func (v *View) FollowText() string {
 	for i := range idx {
 		idx[i] = i
 	}
-	sort.SliceStable(idx, func(i, j int) bool { return d.risk[idx[i]] < d.risk[idx[j]] })
+	child := v.W.Config().ChildWorth
+	score := func(j int) float64 {
+		if j < len(d.child) {
+			return d.risk[j] - child*d.child[j]
+		}
+		return d.risk[j]
+	}
+	sort.SliceStable(idx, func(i, j int) bool { return score(idx[i]) < score(idx[j]) })
 	for n, j := range idx {
 		if n == 4 {
 			fmt.Fprintf(&sb, "\n  ... %d more", len(idx)-n)
@@ -388,6 +397,9 @@ func (v *View) FollowText() string {
 		if d.plan[j] >= 0 {
 			f := d.seen[d.plan[j]]
 			via = fmt.Sprintf("walk to food (%d,%d) in %d", f.X, f.Y, d.arrive[j])
+		}
+		if j < len(d.child) && d.child[j] > 0 {
+			via += fmt.Sprintf(", child %.0f", d.child[j])
 		}
 		fmt.Fprintf(&sb, "\n  %-8s risk %.4f  via %s", actionName(d.opts[j]), d.risk[j], via)
 	}
@@ -418,6 +430,8 @@ func actionName(a engine.Action) string {
 		return "wait"
 	case engine.ActEat:
 		return "eat"
+	case engine.ActMate:
+		return fmt.Sprintf("mate #%d", a.Mate)
 	}
 	return "move " + dirName(a.Dir)
 }

@@ -1,6 +1,7 @@
 package view
 
 import (
+	"fmt"
 	"image"
 	"strings"
 	"testing"
@@ -48,10 +49,21 @@ func TestPrepareMatchesExperimentRun(t *testing.T) {
 // Following a body, keeping trails and drawing change nothing in the world:
 // the view only reads it.
 func TestViewChangesNothing(t *testing.T) {
-	o := Options{Map: "constrained", Width: 32, Height: 24, Variant: variant.Base, Seed: 9, FromTick: 1000, Follow: "0"}
-	// Body 0 lives through the run. The hungriest body at tick 1000 dies
-	// following its intent before it decides again, and leaves no decision
-	// to show.
+	// Follow a body alive from tick 1000 to 1500, so that it decides at
+	// least once (Recheck) while followed. (The hungriest body at tick 1000
+	// can die following its intent before it decides again.)
+	end := stepped(t, 1500).Bodies()
+	var id int64 = -1
+	for _, b := range end {
+		if b.Born <= 1000 {
+			id = b.ID
+			break
+		}
+	}
+	if id < 0 {
+		t.Fatal("no body lives from tick 1000 to 1500")
+	}
+	o := Options{Map: "constrained", Width: 32, Height: 24, Variant: variant.Base, Seed: 9, FromTick: 1000, Follow: fmt.Sprint(id)}
 	v, err := Prepare(o)
 	if err != nil {
 		t.Fatal(err)

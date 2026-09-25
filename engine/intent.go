@@ -12,15 +12,17 @@ import "math"
 //	underfoot  whether there is food on its tile changed ("eat" enters or
 //	           leaves the options)
 //	sight      the food in sight changed
+//	partner    the adults in sight changed (with Breed, breed.go)
 //	step       the next step of the intent leaves the land or the map, or
 //	           enters another region
 //	path       walking to food, the next step no longer takes a tick off
 //	           the walk as the valuation counts it (walkTicks): the food
 //	           is level with it on one axis, or reached
 //	recheck    Recheck ticks have passed since it last decided
-//	waited     it waited last tick: waiting is not an intent
+//	waited     it waited or asked to mate last tick: neither is an intent
 //
-// Waiting is a tick not moved, not a plan. Held as an intent it would
+// Waiting is a tick not moved, not a plan; so is a mate, which a birth
+// ends or the partner's not mating back leaves as a wait. Held as an intent it would
 // last until Recheck, since a body standing still sees nothing change.
 //
 // A trigger says "think again", never what to do (NODE.md): what the body
@@ -38,6 +40,7 @@ const (
 	TriggerFirst
 	TriggerUnderfoot
 	TriggerSight
+	TriggerPartner
 	TriggerStep
 	TriggerPath
 	TriggerRecheck
@@ -49,7 +52,7 @@ const (
 )
 
 // TriggerNames name the triggers for reports, in order.
-var TriggerNames = [NumTriggers]string{"everytick", "first", "underfoot", "sight", "step", "path", "recheck", "waited"}
+var TriggerNames = [NumTriggers]string{"everytick", "first", "underfoot", "sight", "partner", "step", "path", "recheck", "waited"}
 
 // turn returns the action body b takes this tick: its intent, or a new
 // decision when a trigger is true.
@@ -57,8 +60,9 @@ func (w *World) turn(b *Body) Action {
 	why := TriggerEveryTick
 	if w.cfg.Recheck > 0 {
 		under, saw := w.perceive(b)
-		why = w.trigger(b, under, saw)
-		b.Under, b.Saw = under, saw
+		mates := w.sawMates(b)
+		why = w.trigger(b, under, saw, mates)
+		b.Under, b.Saw, b.Mates = under, saw, mates
 		if why == noTrigger {
 			return b.Intent
 		}
@@ -66,9 +70,9 @@ func (w *World) turn(b *Body) Action {
 	w.stats.Decisions[why]++
 	w.valuation.Why = why
 	a := w.decide(b)
-	if w.cfg.Recheck > 0 {
-		b.Intent, b.Goal, b.Decided = a, w.goalOf(b, a), w.tick
-	}
+	// A birth reads the partner's intent (breed.go), so the intent is kept
+	// even when every tick is a decision.
+	b.Intent, b.Goal, b.Decided = a, w.goalOf(b, a), w.tick
 	return a
 }
 
@@ -123,9 +127,9 @@ func (w *World) perceive(b *Body) (under bool, saw uint64) {
 	return under, (saw ^ n) * prime
 }
 
-// trigger returns the first trigger true of body b, which perceives under
-// and saw now, or noTrigger.
-func (w *World) trigger(b *Body, under bool, saw uint64) Trigger {
+// trigger returns the first trigger true of body b, which perceives under,
+// saw and mates now, or noTrigger.
+func (w *World) trigger(b *Body, under bool, saw, mates uint64) Trigger {
 	switch {
 	case b.Decided < 0:
 		return TriggerFirst
@@ -133,7 +137,9 @@ func (w *World) trigger(b *Body, under bool, saw uint64) Trigger {
 		return TriggerUnderfoot
 	case saw != b.Saw:
 		return TriggerSight
-	case b.Intent.Kind == ActWait:
+	case mates != b.Mates:
+		return TriggerPartner
+	case b.Intent.Kind == ActWait, b.Intent.Kind == ActMate:
 		return TriggerWaited
 	}
 	if a := b.Intent; a.Kind == ActMove {

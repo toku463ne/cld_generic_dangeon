@@ -16,6 +16,7 @@ import "math"
 //	(land, wait or move)                 -> energy -EnergyBurn, position moved by Speed
 //	(this region, keep moving)           -> stands on a tile with food, chance p per tile entered
 //	(tile with food in sight, walk to it) -> stands on it after d/Speed ticks
+//	(adult in sight, mate)               -> energy -BirthEnergy/2, a child
 //
 // The third and fourth rows' outcome is the first row's subject, so they
 // chain into "keep moving -> energy back, chance p per tile" and "walk to
@@ -173,7 +174,8 @@ func (s Survival) Alive(i, n int) float64 { return 1 - s.Dead(i, n) }
 // Valuation is the options of one body and the risk of each in every
 // window: the chance of being dead at the window's end. The lower the risk,
 // the better the option; the worth of an option in the survival currency is
-// the risk it takes away.
+// the risk it takes away, and in the child currency the chance of a child
+// it brings.
 //
 // Seen is the food the body saw when it decided, and Plan says, for each
 // option in the first window, which continuation its risk was read from:
@@ -184,9 +186,14 @@ type Valuation struct {
 	Why     Trigger
 	Options []Action
 	Risk    [][]float64 // Risk[window][option]
-	Seen    []Food
-	Plan    []int
-	Arrive  []int
+	// Child is each option's chance of a child, the second currency
+	// (breed.go): 1 for a mate, 0 otherwise. Score is what the choice is
+	// made on, the first window's risk minus ChildWorth times Child.
+	Child  []float64
+	Score  []float64
+	Seen   []Food
+	Plan   []int
+	Arrive []int
 }
 
 // Value predicts and values every option body b has now. survival is the
@@ -204,6 +211,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 	v.Options = w.possibleActions(v.Options[:0], &b)
 	v.Seen = w.inSight(v.Seen[:0], &b)
 	v.Plan, v.Arrive = v.Plan[:0], v.Arrive[:0]
+	v.Child = v.Child[:0]
 	n := energyTicks(b.Energy, w.cfg.EnergyBurn)
 	for len(v.Risk) < len(windows) {
 		v.Risk = append(v.Risk, nil)
@@ -223,7 +231,15 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 		case ActMove:
 			d := moveDirs[a.Dir]
 			x, y = b.X+d[0]*w.cfg.Speed, b.Y+d[1]*w.cfg.Speed
+		case ActMate:
+			// Read as agreed: the share paid, and a child.
+			after = energyTicks(b.Energy-w.birthShare(), w.cfg.EnergyBurn) - 1
 		}
+		child := 0.0
+		if a.Kind == ActMate {
+			child = 1
+		}
+		v.Child = append(v.Child, child)
 		region := w.m.RegionAt(int(math.Floor(x)), int(math.Floor(y)))
 		for i, win := range windows {
 			// Keep moving through the region.
@@ -352,7 +368,7 @@ func (w *World) decide(b *Body) Action {
 		w.valueInto(v, w.pred.meal, w.pred.full, w.pred.windows, w.survival, *b)
 	} else {
 		v.Options = w.possibleActions(v.Options[:0], b)
-		v.Seen, v.Plan, v.Arrive = v.Seen[:0], v.Plan[:0], v.Arrive[:0]
+		v.Seen, v.Plan, v.Arrive, v.Child = v.Seen[:0], v.Plan[:0], v.Arrive[:0], v.Child[:0]
 		if cap(v.Risk) == 0 {
 			v.Risk = make([][]float64, 1)
 		}
@@ -362,9 +378,17 @@ func (w *World) decide(b *Body) Action {
 			v.Risk[0] = append(v.Risk[0], 0)
 		}
 	}
+	v.Score = v.Score[:0]
+	for j, x := range v.Risk[0] {
+		c := 0.0
+		if j < len(v.Child) {
+			c = v.Child[j]
+		}
+		v.Score = append(v.Score, x-w.cfg.ChildWorth*c)
+	}
 	best := math.Inf(1)
 	w.ties = w.ties[:0]
-	for j, x := range v.Risk[0] {
+	for j, x := range v.Score {
 		switch {
 		case x < best:
 			best = x
