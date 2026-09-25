@@ -57,6 +57,10 @@
 //	       deaths come steadily or in waves: generations passing, or a
 //	       world that dies back and grows again.
 //
+//	invade (stage 1-4) half of the bodies born have one ability raised or
+//	       lowered; they are set against the other half in the same world,
+//	       by the share of children coming of age and children per adult.
+//
 //	meet   (stage 1-2) in the worlds of the random and base variants, the
 //	       share of tiles a body enters that hold food, against what the
 //	       truth table's third row reads: the food of the region over its land.
@@ -81,7 +85,7 @@ import (
 )
 
 func main() {
-	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage | cycle | explore | shuttle | change | breed | mate | turnover")
+	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage | cycle | explore | shuttle | change | breed | mate | turnover | invade")
 	mapName := flag.String("map", "", "map (required)")
 	width := flag.Int("w", 0, "map width in tiles (required)")
 	height := flag.Int("h", 0, "map height in tiles (required)")
@@ -91,7 +95,7 @@ func main() {
 	every := flag.Int("every", 50, "split: read the world every this many ticks")
 	flag.Parse()
 
-	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" && *what != "cycle" && *what != "explore" && *what != "shuttle" && *what != "change" && *what != "breed" && *what != "mate" && *what != "turnover" {
+	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" && *what != "cycle" && *what != "explore" && *what != "shuttle" && *what != "change" && *what != "breed" && *what != "mate" && *what != "turnover" && *what != "invade" {
 		fail(fmt.Errorf("unknown count %q", *what))
 	}
 	if *seeds <= 0 || *width <= 0 || *height <= 0 || *mapName == "" {
@@ -101,9 +105,13 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" || *what == "cycle" || *what == "explore" || *what == "shuttle" || *what == "change" || *what == "breed" || *what == "mate" || *what == "turnover" {
+	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" || *what == "cycle" || *what == "explore" || *what == "shuttle" || *what == "change" || *what == "breed" || *what == "mate" || *what == "turnover" || *what == "invade" {
 		if *ticks <= 0 {
 			fail(fmt.Errorf("-ticks is required for %s", *what))
+		}
+		if *what == "invade" {
+			invade(m, *mapName, *seeds, *seed0, *ticks)
+			return
 		}
 		if *what == "turnover" {
 			turnover(m, *mapName, *seeds, *seed0, *ticks)
