@@ -45,6 +45,9 @@ const (
 	TriggerPath
 	TriggerRecheck
 	TriggerWaited
+	// TriggerOutside is a tick a chooser decides for the body (chooser.go)
+	// and nothing else made it decide.
+	TriggerOutside
 	NumTriggers
 
 	// noTrigger is a tick the body follows its intent.
@@ -52,24 +55,34 @@ const (
 )
 
 // TriggerNames name the triggers for reports, in order.
-var TriggerNames = [NumTriggers]string{"everytick", "first", "underfoot", "sight", "partner", "step", "path", "recheck", "waited"}
+var TriggerNames = [NumTriggers]string{"everytick", "first", "underfoot", "sight", "partner", "step", "path", "recheck", "waited", "outside"}
 
 // turn returns the action body b takes this tick: its intent, or a new
 // decision when a trigger is true.
 func (w *World) turn(b *Body) Action {
 	why := TriggerEveryTick
+	taken := w.takes(b)
 	if w.cfg.Recheck > 0 {
 		under, saw := w.perceive(b)
 		mates := w.sawMates(b)
 		why = w.trigger(b, under, saw, mates)
 		b.Under, b.Saw, b.Mates = under, saw, mates
 		if why == noTrigger {
-			return b.Intent
+			if !taken {
+				return b.Intent
+			}
+			why = TriggerOutside
 		}
 	}
 	w.stats.Decisions[why]++
 	w.valuation.Why = why
 	a := w.decide(b)
+	if taken {
+		a = w.chosen(b, a)
+	}
+	if w.trace != nil {
+		w.trace(*b, w.valuation, a)
+	}
 	// A birth reads the partner's intent (breed.go), so the intent is kept
 	// even when every tick is a decision.
 	b.Intent, b.Goal, b.Decided = a, w.goalOf(b, a), w.tick

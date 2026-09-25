@@ -43,6 +43,9 @@ type View struct {
 
 	follow int64 // ID of the followed body, or noBody
 	last   *decision
+
+	// drive plays a body, when its ID is set (drive.go).
+	drive Driver
 }
 
 const (
@@ -116,6 +119,7 @@ func New(w *engine.World, scale int) *View {
 		trails: map[int64]*trail{},
 		follow: noBody,
 		zoom:   1,
+		drive:  Driver{ID: noBody},
 	}
 	v.ground = image.NewRGBA(image.Rect(0, 0, v.mapW, v.MapH))
 	for y := 0; y < m.Height; y++ {
@@ -128,6 +132,7 @@ func New(w *engine.World, scale int) *View {
 		}
 	}
 	w.SetTrace(v.trace)
+	w.SetChooser(&v.drive)
 	v.observe(true)
 	return v
 }
@@ -187,6 +192,7 @@ func (v *View) trace(b engine.Body, val engine.Valuation, a engine.Action) {
 func (v *View) followID(id int64) {
 	v.follow = id
 	v.last = nil
+	v.drive.ID = noBody
 }
 
 // FollowHungriest follows the living body with the least energy.
@@ -363,6 +369,9 @@ func (v *View) FollowText() string {
 	}
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "body #%d  energy %.1f  age %d  heading %s", b.ID, b.Energy, v.W.Tick()-b.Born, dirName(b.Heading))
+	if v.drive.ID == b.ID {
+		sb.WriteString("  PLAYED")
+	}
 	if v.W.Config().Recheck > 0 && b.Decided >= 0 {
 		intent := actionName(b.Intent)
 		if b.Goal >= 0 {

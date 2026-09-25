@@ -131,3 +131,36 @@ func TestPrepareRejectsBadOptions(t *testing.T) {
 		}
 	}
 }
+
+// The directions held map onto the engine's: east first, clockwise with y
+// down.
+func TestDirOf(t *testing.T) {
+	for _, c := range []struct{ dx, dy, want int }{
+		{1, 0, 0}, {1, 1, 1}, {0, 1, 2}, {-1, 1, 3}, {-1, 0, 4}, {-1, -1, 5}, {0, -1, 6}, {1, -1, 7},
+	} {
+		if got := dirOf(c.dx, c.dy); got != c.want {
+			t.Errorf("dirOf(%d,%d) = %d, want %d", c.dx, c.dy, got, c.want)
+		}
+	}
+}
+
+// A played body moves the way held, one of its own options.
+func TestPlayedBodyMovesAsHeld(t *testing.T) {
+	o := Options{Map: "flat", Width: 32, Height: 24, Variant: variant.Base, Seed: 3, FromTick: 10, Follow: "0"}
+	v, err := Prepare(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v.Play()
+	d := v.Driver()
+	d.Dx = 1
+	before, _ := v.followed()
+	v.Step(false)
+	after, ok := v.followed()
+	if !ok || after.X <= before.X || after.Y != before.Y {
+		t.Fatalf("held east: (%v,%v) -> (%v,%v)", before.X, before.Y, after.X, after.Y)
+	}
+	if !strings.Contains(v.FollowText(), "PLAYED") {
+		t.Fatalf("follow text does not say the body is played: %q", v.FollowText())
+	}
+}

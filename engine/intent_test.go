@@ -58,7 +58,7 @@ func TestTriggersFire(t *testing.T) {
 	run(w, 3000)
 	st := w.Stats()
 	for k := TriggerFirst; k < NumTriggers; k++ {
-		if k != TriggerRecheck && st.Decisions[k] == 0 {
+		if k != TriggerRecheck && k != TriggerOutside && st.Decisions[k] == 0 {
 			t.Errorf("trigger %s never fired", TriggerNames[k])
 		}
 	}

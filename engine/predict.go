@@ -443,9 +443,6 @@ func (w *World) decide(b *Body) Action {
 	if !w.cfg.KeepHeading || b.Heading < 0 || !w.tied(a) {
 		a = v.Options[w.ties[w.rng.Intn(len(w.ties))]]
 	}
-	if w.trace != nil {
-		w.trace(*b, *v, a)
-	}
 	return a
 }
 

@@ -37,6 +37,10 @@ type World struct {
 	valuation Valuation
 	ties      []int
 
+	// chooser, when set, takes the decisions of the bodies it names
+	// (chooser.go).
+	chooser Chooser
+
 	// trace, when set, is shown every decision as it is made.
 	trace func(Body, Valuation, Action)
 }

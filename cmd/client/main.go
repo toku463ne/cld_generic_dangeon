@@ -77,7 +77,7 @@ func newGame(v *view.View) *game {
 	return &game{v: v, frame: image.NewRGBA(image.Rect(0, 0, w, h)), screen: ebiten.NewImage(w, h)}
 }
 
-const keyHelp = "space pause  right step  up/down speed  [ ] history zoom\nclick follow  f hungriest  t trails"
+const keyHelp = "space pause  right step  up/down speed  [ ] history zoom\nclick follow  f hungriest  t trails\nc play the followed body: wasd move  e eat  r mate"
 
 // Update takes the keys and advances the world.
 func (g *game) Update() error {
@@ -97,11 +97,16 @@ func (g *game) Update() error {
 		v.ShowTrails = !v.ShowTrails
 	case inpututil.IsKeyJustPressed(ebiten.KeyF):
 		v.FollowHungriest()
+	case inpututil.IsKeyJustPressed(ebiten.KeyC):
+		v.Play()
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft):
 		if x, y := ebiten.CursorPosition(); y < v.MapH {
 			v.Pick(x, y)
 		}
 	}
+	d := v.Driver()
+	d.Dx, d.Dy = held(ebiten.KeyD)-held(ebiten.KeyA), held(ebiten.KeyS)-held(ebiten.KeyW)
+	d.Eat, d.Mate = ebiten.IsKeyPressed(ebiten.KeyE), ebiten.IsKeyPressed(ebiten.KeyR)
 	switch {
 	case !g.paused:
 		for i := 0; i < speeds[g.speed]; i++ {
@@ -111,6 +116,14 @@ func (g *game) Update() error {
 		v.Step(true)
 	}
 	return nil
+}
+
+// held is 1 while key k is held down, 0 otherwise.
+func held(k ebiten.Key) int {
+	if ebiten.IsKeyPressed(k) {
+		return 1
+	}
+	return 0
 }
 
 var textBack = color.RGBA{0, 0, 0, 0xa0}
