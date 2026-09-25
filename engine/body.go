@@ -42,6 +42,8 @@ type Body struct {
 	// Parents are the IDs of the two bodies it was born of, -1 for the
 	// first bodies.
 	Parents [2]int64
+	// Build is its own speed, most energy and burn (build.go).
+	Build Build
 }
 
 // ActionKind is what an action does, for counting.
@@ -144,7 +146,7 @@ func (w *World) possibleActions(dst []Action, b *Body) []Action {
 		dst = append(dst, Action{Kind: ActEat})
 	}
 	for d, v := range moveDirs {
-		t := w.tileOf(b.X+v[0]*w.cfg.Speed, b.Y+v[1]*w.cfg.Speed)
+		t := w.tileOf(b.X+v[0]*w.speedOf(b), b.Y+v[1]*w.speedOf(b))
 		if t >= 0 && w.m.Terrain[t] == TerrainLand {
 			dst = append(dst, Action{Kind: ActMove, Dir: d})
 		}
@@ -162,12 +164,12 @@ func (w *World) act(i int, b *Body, a Action) {
 	case ActEat:
 		t := w.tileOf(b.X, b.Y)
 		w.eatFood(w.foodOn(t))
-		b.Energy = math.Min(b.Energy+w.cfg.FoodEnergy, w.cfg.EnergyMax)
+		b.Energy = math.Min(b.Energy+w.cfg.FoodEnergy, w.maxOf(b))
 	case ActMove:
 		from := w.tileOf(b.X, b.Y)
 		v := moveDirs[a.Dir]
-		b.X += v[0] * w.cfg.Speed
-		b.Y += v[1] * w.cfg.Speed
+		b.X += v[0] * w.speedOf(b)
+		b.Y += v[1] * w.speedOf(b)
 		b.Heading = a.Dir
 		w.moved(i, from, w.tileOf(b.X, b.Y))
 	}

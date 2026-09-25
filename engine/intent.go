@@ -90,7 +90,7 @@ func (w *World) goalOf(b *Body, a Action) int {
 	for j, o := range v.Options {
 		if o == a && j < len(v.Plan) && v.Plan[j] >= 0 {
 			f := v.Seen[v.Plan[j]]
-			if v.Arrive[j] < walkTicks(gapTo(b.X, f.X), gapTo(b.Y, f.Y), w.cfg.Speed) {
+			if v.Arrive[j] < walkTicks(gapTo(b.X, f.X), gapTo(b.Y, f.Y), w.speedOf(b)) {
 				return w.m.index(f.X, f.Y)
 			}
 		}
@@ -144,14 +144,15 @@ func (w *World) trigger(b *Body, under bool, saw, mates uint64) Trigger {
 	}
 	if a := b.Intent; a.Kind == ActMove {
 		d := moveDirs[a.Dir]
-		nx, ny := b.X+d[0]*w.cfg.Speed, b.Y+d[1]*w.cfg.Speed
+		speed := w.speedOf(b)
+		nx, ny := b.X+d[0]*speed, b.Y+d[1]*speed
 		next := w.tileOf(nx, ny)
 		if next < 0 || w.m.Terrain[next] != TerrainLand || w.m.Region[next] != w.m.Region[w.tileOf(b.X, b.Y)] {
 			return TriggerStep
 		}
 		if b.Goal >= 0 {
 			gx, gy := b.Goal%w.m.Width, b.Goal/w.m.Width
-			if walkTicks(gapTo(nx, gx), gapTo(ny, gy), w.cfg.Speed) >= walkTicks(gapTo(b.X, gx), gapTo(b.Y, gy), w.cfg.Speed) {
+			if walkTicks(gapTo(nx, gx), gapTo(ny, gy), speed) >= walkTicks(gapTo(b.X, gx), gapTo(b.Y, gy), speed) {
 				return TriggerPath
 			}
 		}

@@ -84,17 +84,17 @@ func (m Map) Validate() error {
 }
 
 // InBounds reports whether (x, y) is a tile of the map.
-func (m Map) InBounds(x, y int) bool {
+func (m *Map) InBounds(x, y int) bool {
 	return x >= 0 && y >= 0 && x < m.Width && y < m.Height
 }
 
-func (m Map) index(x, y int) int { return y*m.Width + x }
+func (m *Map) index(x, y int) int { return y*m.Width + x }
 
 // TerrainAt returns the terrain of tile (x, y), which must be in bounds.
-func (m Map) TerrainAt(x, y int) Terrain { return m.Terrain[m.index(x, y)] }
+func (m *Map) TerrainAt(x, y int) Terrain { return m.Terrain[m.index(x, y)] }
 
 // RegionAt returns the region of tile (x, y), which must be in bounds.
-func (m Map) RegionAt(x, y int) RegionID { return m.Region[m.index(x, y)] }
+func (m *Map) RegionAt(x, y int) RegionID { return m.Region[m.index(x, y)] }
 
 // SetTerrain paints the terrain layer only.
 func (m Map) SetTerrain(x, y int, t Terrain) { m.Terrain[m.index(x, y)] = t }

@@ -49,34 +49,34 @@ func (w *World) TruthTable() TruthTable {
 		Meal:  energyTicks(w.cfg.FoodEnergy, w.cfg.EnergyBurn),
 		Full:  energyTicks(w.cfg.EnergyMax, w.cfg.EnergyBurn),
 		Meet:  make([]float64, len(w.m.RegionFood)),
-		Reach: w.reach(),
+		Reach: w.reach(w.cfg.Speed),
 	}
 	for r := range t.Meet {
-		t.Meet[r] = w.meet(RegionID(r))
+		t.Meet[r] = w.meet(RegionID(r), w.cfg.Speed)
 	}
 	return t
 }
 
-// meet is the third row of the table for region r, read from the food on
-// its ground now.
-func (w *World) meet(r RegionID) float64 {
+// meet is the third row of the table for region r and a body of the given
+// speed, read from the food on its ground now.
+func (w *World) meet(r RegionID, speed float64) float64 {
 	land := len(w.food.regionLand[r])
 	if land == 0 {
 		return 0
 	}
-	return float64(w.food.onGround[r]) / float64(land) * math.Min(w.cfg.Speed, 1)
+	return float64(w.food.onGround[r]) / float64(land) * math.Min(speed, 1)
 }
 
-// reach bounds the ticks it takes to walk onto a unit in sight from where
-// any option can leave the body: the unit is up to Sight tiles from the
-// body's tile on either axis, and a move takes the body up to Speed out of
-// it, so each axis has at most Sight+Speed to cover.
-func (w *World) reach() int {
-	if w.cfg.Sight < 0 || w.cfg.Speed <= 0 {
+// reach bounds the ticks it takes a body of the given speed to walk onto a
+// unit in sight from where any option can leave it: the unit is up to Sight
+// tiles from the body's tile on either axis, and a move takes the body up to
+// speed out of it, so each axis has at most Sight+speed to cover.
+func (w *World) reach(speed float64) int {
+	if w.cfg.Sight < 0 || speed <= 0 {
 		return 0
 	}
-	gap := float64(w.cfg.Sight) + w.cfg.Speed
-	return walkTicks(gap, gap, w.cfg.Speed)
+	gap := float64(w.cfg.Sight) + speed
+	return walkTicks(gap, gap, speed)
 }
 
 // walkTicks is the fewest ticks it takes to cover dx and dy with moves of
@@ -201,18 +201,22 @@ type Valuation struct {
 // TruthTable.
 func (w *World) Value(t TruthTable, survival []Survival, b Body) Valuation {
 	var v Valuation
-	w.valueInto(&v, t.Meal, t.Full, survival[0].Windows, func(r RegionID) Survival { return survival[r] }, b)
+	w.valueInto(&v, t.Meal, t.Full, survival[0].Windows, func(r RegionID) Survival { return survival[r] }, &b)
+	// Value reads the config's build; a body of its own is valued by
+	// decide against tables of its own.
 	return v
 }
 
 // valueInto is Value writing into v's slices, so that deciding every tick
-// does not allocate. alive gives the survival table of a region.
-func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive func(RegionID) Survival, b Body) {
-	v.Options = w.possibleActions(v.Options[:0], &b)
-	v.Seen = w.inSight(v.Seen[:0], &b)
+// does not allocate. meal and full are in ticks of b's own burn, and alive
+// gives the survival table of a region for b's build.
+func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive func(RegionID) Survival, b *Body) {
+	speed, burn := w.speedOf(b), w.burnOf(b)
+	v.Options = w.possibleActions(v.Options[:0], b)
+	v.Seen = w.inSight(v.Seen[:0], b)
 	v.Plan, v.Arrive = v.Plan[:0], v.Arrive[:0]
 	v.Child = v.Child[:0]
-	n := energyTicks(b.Energy, w.cfg.EnergyBurn)
+	n := energyTicks(b.Energy, burn)
 	for len(v.Risk) < len(windows) {
 		v.Risk = append(v.Risk, nil)
 	}
@@ -230,10 +234,10 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			eaten = w.m.index(int(math.Floor(b.X)), int(math.Floor(b.Y)))
 		case ActMove:
 			d := moveDirs[a.Dir]
-			x, y = b.X+d[0]*w.cfg.Speed, b.Y+d[1]*w.cfg.Speed
+			x, y = b.X+d[0]*speed, b.Y+d[1]*speed
 		case ActMate:
 			// Read as agreed: the share paid, and a child.
-			after = energyTicks(b.Energy-w.birthShare(), w.cfg.EnergyBurn) - 1
+			after = energyTicks(b.Energy-w.birthShare(), burn) - 1
 		}
 		child := 0.0
 		if a.Kind == ActMate {
@@ -251,7 +255,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 				if w.m.index(food.X, food.Y) == eaten {
 					continue
 				}
-				k := walkTicks(gapTo(x, food.X), gapTo(y, food.Y), w.cfg.Speed)
+				k := walkTicks(gapTo(x, food.X), gapTo(y, food.Y), speed)
 				r := 1.0
 				if after-k > 0 {
 					r = alive(w.m.RegionAt(food.X, food.Y)).deadIn(win-1-k, min(after-k+meal, full)-1)
@@ -302,14 +306,23 @@ func (w *World) inSight(dst []Food, b *Body) []Food {
 // predictor is what deciding needs to value options against the world's own
 // window: the table's two fixed rows, and one survival table per region for
 // its food on the ground now. A survival table depends on nothing but the
-// region's food count, so each is built once per count and kept. All of it
-// can be rebuilt from the rest of the world.
+// region's food count and the body's build, so each is built once per count
+// and build and kept; the config's build has a fast path (surv, fresh). All
+// of it can be rebuilt from the rest of the world.
 type predictor struct {
 	meal, full int
 	windows    []int
 	surv       []Survival
 	fresh      []bool
-	cache      []map[int]Survival // per region, by food on the ground
+	cache      []map[int]Survival     // per region, config's build, by food on the ground
+	builds     []map[survKey]Survival // per region, other builds
+}
+
+// survKey tells survival tables of one region apart: the food on its
+// ground, and the build of the body, in ticks of its own burn.
+type survKey struct {
+	food, meal, full int
+	speed            float64
 }
 
 // initPredict sets the predictor up for the world's window. With no window
@@ -327,9 +340,11 @@ func (w *World) initPredict() {
 		surv:    make([]Survival, n),
 		fresh:   make([]bool, n),
 		cache:   make([]map[int]Survival, n),
+		builds:  make([]map[survKey]Survival, n),
 	}
 	for r := range w.pred.cache {
 		w.pred.cache[r] = map[int]Survival{}
+		w.pred.builds[r] = map[survKey]Survival{}
 	}
 }
 
@@ -341,20 +356,35 @@ func (w *World) refreshRegion(r RegionID) {
 	}
 }
 
-// survival returns region r's survival table for its food on the ground now.
+// survival returns region r's survival table for its food on the ground now
+// and the config's build.
 func (w *World) survival(r RegionID) Survival {
 	p := &w.pred
 	if !p.fresh[r] {
 		n := w.food.onGround[r]
 		s, ok := p.cache[r][n]
 		if !ok {
-			t := TruthTable{Meal: p.meal, Full: p.full, Reach: w.reach()}
-			s = t.NewSurvival(w.meet(r), p.windows)
+			t := TruthTable{Meal: p.meal, Full: p.full, Reach: w.reach(w.cfg.Speed)}
+			s = t.NewSurvival(w.meet(r, w.cfg.Speed), p.windows)
 			p.cache[r][n] = s
 		}
 		p.surv[r], p.fresh[r] = s, true
 	}
 	return p.surv[r]
+}
+
+// survivalFor returns region r's survival table for its food on the ground
+// now and a build of the given meal, full and speed.
+func (w *World) survivalFor(r RegionID, meal, full int, speed float64) Survival {
+	p := &w.pred
+	k := survKey{food: w.food.onGround[r], meal: meal, full: full, speed: speed}
+	s, ok := p.builds[r][k]
+	if !ok {
+		t := TruthTable{Meal: meal, Full: full, Reach: w.reach(speed)}
+		s = t.NewSurvival(w.meet(r, speed), p.windows)
+		p.builds[r][k] = s
+	}
+	return s
 }
 
 // decide values body b's options and takes the one of least risk. Among
@@ -364,8 +394,12 @@ func (w *World) survival(r RegionID) Survival {
 // the same risk, so the draw is over all of them: the stage 1-1 control.
 func (w *World) decide(b *Body) Action {
 	v := &w.valuation
-	if w.cfg.Window > 0 {
-		w.valueInto(v, w.pred.meal, w.pred.full, w.pred.windows, w.survival, *b)
+	if w.cfg.Window > 0 && b.Build == (Build{}) {
+		w.valueInto(v, w.pred.meal, w.pred.full, w.pred.windows, w.survival, b)
+	} else if w.cfg.Window > 0 {
+		burn, speed := w.burnOf(b), w.speedOf(b)
+		meal, full := energyTicks(w.cfg.FoodEnergy, burn), energyTicks(w.maxOf(b), burn)
+		w.valueInto(v, meal, full, w.pred.windows, func(r RegionID) Survival { return w.survivalFor(r, meal, full, speed) }, b)
 	} else {
 		v.Options = w.possibleActions(v.Options[:0], b)
 		v.Seen, v.Plan, v.Arrive, v.Child = v.Seen[:0], v.Plan[:0], v.Arrive[:0], v.Child[:0]

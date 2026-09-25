@@ -70,8 +70,9 @@ func (w *World) Step() {
 			w.stats.Matured++
 		}
 		w.act(i, b, w.turn(b))
-		b.Energy -= w.cfg.EnergyBurn
-		w.stats.EnergyBurned += w.cfg.EnergyBurn
+		burn := w.burnOf(b)
+		b.Energy -= burn
+		w.stats.EnergyBurned += burn
 	}
 	w.removeDead()
 	w.bodies = append(w.bodies, w.born...)
@@ -147,6 +148,12 @@ func (w *World) Fingerprint() uint64 {
 		putF(b.Y)
 		putF(b.Energy)
 		put(uint64(b.Born))
+		// A build is state only where it is not the config's.
+		if b.Build != (Build{}) {
+			putF(b.Build.Speed)
+			putF(b.Build.EnergyMax)
+			putF(b.Build.EnergyBurn)
+		}
 		// The heading is state only where a rule reads it.
 		if w.cfg.KeepHeading {
 			put(uint64(int64(b.Heading)))
