@@ -192,6 +192,13 @@ type mateTally struct {
 	eChose, eDeclined   float64 // summed energy of those that chose and declined
 	proposals, births   float64 // mate actions carried out, and births
 	riskChose, riskDecl []float64
+	// Dying decisions (the best option other than a mate still at risk 0.5
+	// or more), with no food underfoot or in sight [0] and with some [1]:
+	// how many had a mate offered, and how many took it.
+	dyingOffered, dyingChose [2]float64
+	// The same, dying read from the body's outlook without eating: keeping
+	// on the move through its region, the table's third row alone.
+	starvingOffered, starvingChose [2]float64
 }
 
 // runMate counts, in the base world after tick 5000, the decisions that
@@ -204,6 +211,7 @@ func runMate(cfg engine.Config, m engine.Map, ticks int) (mateTally, error) {
 	if err != nil {
 		return t, err
 	}
+	cache := map[float64]engine.Survival{}
 	w.SetTrace(func(b engine.Body, v engine.Valuation, a engine.Action) {
 		if w.Tick() <= 5000 {
 			return
@@ -220,6 +228,33 @@ func runMate(cfg engine.Config, m engine.Map, ticks int) (mateTally, error) {
 			return
 		}
 		t.offered++
+		if best >= 0.5 {
+			k := 0
+			if len(v.Seen) > 0 {
+				k = 1
+			}
+			t.dyingOffered[k]++
+			if a.Kind == engine.ActMate {
+				t.dyingChose[k]++
+			}
+		}
+		tab := w.TruthTable()
+		q := tab.Meet[m.RegionAt(int(math.Floor(b.X)), int(math.Floor(b.Y)))]
+		sv, ok := cache[q]
+		if !ok {
+			sv = tab.NewSurvival(q, []int{cfg.Window})
+			cache[q] = sv
+		}
+		if sv.Dead(0, int(math.Ceil(b.Energy/cfg.EnergyBurn-1e-9))-1) >= 0.5 {
+			k := 0
+			if len(v.Seen) > 0 {
+				k = 1
+			}
+			t.starvingOffered[k]++
+			if a.Kind == engine.ActMate {
+				t.starvingChose[k]++
+			}
+		}
 		rise := v.Risk[0][mate] - best
 		if a.Kind == engine.ActMate {
 			t.chose++
@@ -276,6 +311,22 @@ func mate(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
 	fmt.Printf("| 選んだ決定の体力の平均 | %s |\n", cell(func(t mateTally) float64 { return t.eChose / t.chose }, 2))
 	fmt.Printf("| 選ばなかった決定の体力の平均 | %s |\n", cell(func(t mateTally) float64 { return t.eDeclined / (t.offered - t.chose) }, 2))
 	fmt.Printf("| 差（選んだ − 選ばなかった） | %s |\n", cell(func(t mateTally) float64 { return t.eChose/t.chose - t.eDeclined/(t.offered-t.chose) }, 2))
+	for k, n := range []string{"食料が見えない", "食料が見える"} {
+		fmt.Printf("| 死にかけ（交配以外の最善の死ぬ確率 0.5 以上）・%sの決定のうち交配を選んだ割合 | %s（1シードあたり %s 決定） |\n", n,
+			cell(func(t mateTally) float64 { return t.dyingChose[k] / t.dyingOffered[k] }, 4),
+			cell(func(t mateTally) float64 { return t.dyingOffered[k] }, 0))
+	}
+	fmt.Printf("| 差（見えない − 見える） | %s |\n", cell(func(t mateTally) float64 {
+		return t.dyingChose[0]/t.dyingOffered[0] - t.dyingChose[1]/t.dyingOffered[1]
+	}, 4))
+	for k, n := range []string{"食料が見えない", "食料が見える"} {
+		fmt.Printf("| 食べなければ死にかけ（地域を動き続ける死ぬ確率 0.5 以上）・%sの決定のうち交配を選んだ割合 | %s（1シードあたり %s 決定） |\n", n,
+			cell(func(t mateTally) float64 { return t.starvingChose[k] / t.starvingOffered[k] }, 4),
+			cell(func(t mateTally) float64 { return t.starvingOffered[k] }, 0))
+	}
+	fmt.Printf("| 差（見えない − 見える） | %s |\n", cell(func(t mateTally) float64 {
+		return t.starvingChose[0]/t.starvingOffered[0] - t.starvingChose[1]/t.starvingOffered[1]
+	}, 4))
 	fmt.Printf("| 出生 1 体あたりの交配の手 | %s |\n", cell(func(t mateTally) float64 { return t.proposals / t.births }, 2))
 	for _, g := range []struct {
 		name string
