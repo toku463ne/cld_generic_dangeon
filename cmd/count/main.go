@@ -35,6 +35,10 @@
 //	       how long it lives after the window, by rank correlation, in the
 //	       blind, restless and base worlds.
 //
+//	shuttle (stage 1-2q) in the base world, bodies that walk one row or
+//	       column back and forth: the share of deaths that end such a walk,
+//	       against the share of the living on one and on an axis heading.
+//
 //	meet   (stage 1-2) in the worlds of the random and base variants, the
 //	       share of tiles a body enters that hold food, against what the
 //	       truth table's third row reads: the food of the region over its land.
@@ -59,7 +63,7 @@ import (
 )
 
 func main() {
-	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage | cycle | explore")
+	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage | cycle | explore | shuttle")
 	mapName := flag.String("map", "", "map (required)")
 	width := flag.Int("w", 0, "map width in tiles (required)")
 	height := flag.Int("h", 0, "map height in tiles (required)")
@@ -69,7 +73,7 @@ func main() {
 	every := flag.Int("every", 50, "split: read the world every this many ticks")
 	flag.Parse()
 
-	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" && *what != "cycle" && *what != "explore" {
+	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" && *what != "cycle" && *what != "explore" && *what != "shuttle" {
 		fail(fmt.Errorf("unknown count %q", *what))
 	}
 	if *seeds <= 0 || *width <= 0 || *height <= 0 || *mapName == "" {
@@ -79,9 +83,13 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" || *what == "cycle" || *what == "explore" {
+	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" || *what == "cycle" || *what == "explore" || *what == "shuttle" {
 		if *ticks <= 0 {
 			fail(fmt.Errorf("-ticks is required for %s", *what))
+		}
+		if *what == "shuttle" {
+			shuttle(m, *mapName, *seeds, *seed0, *ticks)
+			return
 		}
 		if *what == "explore" {
 			explore(m, *mapName, *seeds, *seed0, *ticks)
@@ -1411,4 +1419,157 @@ func explore(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
 		}
 		fmt.Println()
 	}
+}
+
+// shuttleSpan is the path length the shuttle count reads: the ticks a full
+// body takes to starve, so that a body that dies of hunger is read over the
+// whole stretch in which it did not eat.
+func shuttleSpan(cfg engine.Config) int { return energyTicks(cfg) }
+
+// shuttleTrack is the last shuttleSpan positions of one body.
+type shuttleTrack struct {
+	xs, ys []float64
+	n      int // positions recorded so far, up to the span
+	next   int
+}
+
+func (t *shuttleTrack) push(x, y float64) {
+	t.xs[t.next], t.ys[t.next] = x, y
+	t.next = (t.next + 1) % len(t.xs)
+	t.n = min(t.n+1, len(t.xs))
+}
+
+// onLine reports whether the whole recorded span stays within one column or
+// one row: a spread under one tile along either axis. Only a full span
+// counts.
+func (t *shuttleTrack) onLine() bool {
+	if t.n < len(t.xs) {
+		return false
+	}
+	minX, maxX, minY, maxY := math.Inf(1), math.Inf(-1), math.Inf(1), math.Inf(-1)
+	for i := range t.xs {
+		minX, maxX = math.Min(minX, t.xs[i]), math.Max(maxX, t.xs[i])
+		minY, maxY = math.Min(minY, t.ys[i]), math.Max(maxY, t.ys[i])
+	}
+	return maxX-minX < 1 || maxY-minY < 1
+}
+
+// shuttleChecks are the ticks at which the living bodies are read.
+var shuttleChecks = []int{5000, 10000, 20000, 40000}
+
+type shuttleRun struct {
+	deaths, lineDeaths float64 // after shuttleFrom
+	alive, lineAlive   [4]float64
+	axisAlive          [4]float64
+}
+
+// shuttleFrom is where the deaths start to count: past the first two meal
+// waves, where the starting bodies thin out wherever they stand.
+const shuttleFrom = 5000
+
+func runShuttle(cfg engine.Config, m engine.Map, ticks int) (shuttleRun, error) {
+	var r shuttleRun
+	w, err := engine.NewWorld(cfg, m)
+	if err != nil {
+		return r, err
+	}
+	span := shuttleSpan(cfg)
+	tracks := map[int64]*shuttleTrack{}
+	for tick := 1; tick <= ticks; tick++ {
+		w.Step()
+		now := map[int64]bool{}
+		bodies := w.Bodies()
+		for _, b := range bodies {
+			now[b.ID] = true
+			t := tracks[b.ID]
+			if t == nil {
+				t = &shuttleTrack{xs: make([]float64, span), ys: make([]float64, span)}
+				tracks[b.ID] = t
+			}
+			t.push(b.X, b.Y)
+		}
+		for id, t := range tracks {
+			if now[id] {
+				continue
+			}
+			if tick > shuttleFrom {
+				r.deaths++
+				if t.onLine() {
+					r.lineDeaths++
+				}
+			}
+			delete(tracks, id)
+		}
+		for i, c := range shuttleChecks {
+			if tick != c {
+				continue
+			}
+			for _, b := range bodies {
+				r.alive[i]++
+				if tracks[b.ID].onLine() {
+					r.lineAlive[i]++
+				}
+				if b.Heading >= 0 && b.Heading%2 == 0 {
+					r.axisAlive[i]++
+				}
+			}
+		}
+		if len(bodies) == 0 {
+			break
+		}
+	}
+	return r, nil
+}
+
+// shuttle counts bodies that walk one row or column back and forth: a
+// heading along an axis reflects into its own reverse, so a body that
+// keeps it covers a strip three tiles wide and nothing else. It sets the
+// share of deaths that end such a walk against the share of the living on
+// one.
+func shuttle(m engine.Map, name string, seeds int, seed0 int64, ticks int) {
+	cfg0, _ := variant.Config(variant.Base, seed0)
+	fmt.Printf("地図 %s (%dx%d)、%d シード、%d tick、base。直線の往復 ＝ 直前の %d tick の位置の広がりが、x か y のどちらかで 1 タイル未満。死亡は tick %d より後だけ数える。\n\n",
+		name, m.Width, m.Height, seeds, ticks, shuttleSpan(cfg0), shuttleFrom)
+	var runs []shuttleRun
+	for s := 0; s < seeds; s++ {
+		cfg, err := variant.Config(variant.Base, seed0+int64(s))
+		if err != nil {
+			fail(err)
+		}
+		r, err := runShuttle(cfg, m, ticks)
+		if err != nil {
+			fail(err)
+		}
+		runs = append(runs, r)
+	}
+	cell := func(f func(shuttleRun) (float64, bool)) string {
+		var xs []float64
+		for _, r := range runs {
+			if x, ok := f(r); ok {
+				xs = append(xs, x)
+			}
+		}
+		if len(xs) == 0 {
+			return "—"
+		}
+		mm, se := meanSE(xs)
+		if math.IsNaN(se) {
+			return fmt.Sprintf("%.3f", mm)
+		}
+		return fmt.Sprintf("%.3f ± %.3f", mm, se)
+	}
+	fmt.Printf("| 量 | 値（シード平均 ± 標準誤差） |\n| --- | --- |\n")
+	fmt.Printf("| 死亡（1シードあたり） | %s |\n", cell(func(r shuttleRun) (float64, bool) { return r.deaths, true }))
+	fmt.Printf("| 死亡のうち直線の往復で終わった割合 | %s |\n", cell(func(r shuttleRun) (float64, bool) { return r.lineDeaths / r.deaths, r.deaths > 0 }))
+	fmt.Printf("\n| tick | 生きている身体 | 直線の往復をしている割合 | 向きが軸に沿っている割合 |\n| --- | --- | --- | --- |\n")
+	for i, c := range shuttleChecks {
+		if c > ticks {
+			continue
+		}
+		fmt.Printf("| %d | %s | %s | %s |\n", c,
+			cell(func(r shuttleRun) (float64, bool) { return r.alive[i], true }),
+			cell(func(r shuttleRun) (float64, bool) { return r.lineAlive[i] / r.alive[i], r.alive[i] > 0 }),
+			cell(func(r shuttleRun) (float64, bool) { return r.axisAlive[i] / r.alive[i], r.alive[i] > 0 }))
+	}
+	fmt.Println()
 }
