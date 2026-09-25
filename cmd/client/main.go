@@ -5,12 +5,16 @@
 // steady-state tick that cmd/experiment prints, it replays the typical run of
 // an experiment; without -from-tick it shows any world from the start.
 //
+// The picture is drawn by package view; cmd/shot writes the same picture to
+// PNG files where there is no screen.
+//
 // The client imports the engine; the engine knows nothing about drawing.
 package main
 
 import (
 	"flag"
 	"fmt"
+	"image"
 	"image/color"
 	"os"
 	"strings"
@@ -21,36 +25,36 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 
-	"github.com/toku463ne/cld_generic_dangeon/engine"
 	"github.com/toku463ne/cld_generic_dangeon/variant"
+	"github.com/toku463ne/cld_generic_dangeon/view"
 	"github.com/toku463ne/cld_generic_dangeon/worldmap"
 )
 
 func main() {
-	var o options
-	var scale int
-	flag.StringVar(&o.mapName, "map", "", "map: "+strings.Join(worldmap.Names, " | ")+" (required)")
-	flag.IntVar(&o.width, "w", 0, "map width in tiles (required)")
-	flag.IntVar(&o.height, "h", 0, "map height in tiles (required)")
-	flag.StringVar(&o.variant, "variant", variant.Base, "variant: "+strings.Join(variant.Names(), " | "))
-	flag.Int64Var(&o.seed, "seed", 1, "seed of the world")
-	flag.IntVar(&o.fromTick, "from-tick", 0, "run headless up to this tick, then start drawing")
-	flag.IntVar(&scale, "scale", 12, "pixels per tile")
+	var o view.Options
+	flag.StringVar(&o.Map, "map", "", "map: "+strings.Join(worldmap.Names, " | ")+" (required)")
+	flag.IntVar(&o.Width, "w", 0, "map width in tiles (required)")
+	flag.IntVar(&o.Height, "h", 0, "map height in tiles (required)")
+	flag.StringVar(&o.Variant, "variant", variant.Base, "variant: "+strings.Join(variant.Names(), " | "))
+	flag.Int64Var(&o.Seed, "seed", 1, "seed of the world")
+	flag.IntVar(&o.FromTick, "from-tick", 0, "run headless up to this tick, then start drawing")
+	flag.IntVar(&o.Scale, "scale", 12, "pixels per tile")
+	flag.StringVar(&o.Follow, "follow", "", "body to follow: an ID, or \"hungriest\" at -from-tick")
 	flag.Parse()
 
 	start := time.Now()
-	w, err := prepare(o)
+	v, err := view.Prepare(o)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "client:", err)
 		os.Exit(2)
 	}
-	if o.fromTick > 0 {
-		fmt.Fprintf(os.Stderr, "ran %d ticks headless in %v\n", o.fromTick, time.Since(start))
+	if o.FromTick > 0 {
+		fmt.Fprintf(os.Stderr, "ran %d ticks headless in %v\n", o.FromTick, time.Since(start))
 	}
 
-	g := newGame(w, scale)
-	ebiten.SetWindowSize(g.screenW, g.screenH)
-	ebiten.SetWindowTitle(fmt.Sprintf("%s seed %d (%s)", o.mapName, o.seed, o.variant))
+	g := newGame(v)
+	ebiten.SetWindowSize(g.frame.Bounds().Dx(), g.frame.Bounds().Dy())
+	ebiten.SetWindowTitle(fmt.Sprintf("%s seed %d (%s)", o.Map, o.Seed, o.Variant))
 	if err := ebiten.RunGame(g); err != nil {
 		fmt.Fprintln(os.Stderr, "client:", err)
 		os.Exit(1)
@@ -61,90 +65,78 @@ func main() {
 var speeds = []int{1, 2, 4, 8, 16, 32, 64}
 
 type game struct {
-	w     *engine.World
-	scale int
-	// ground is the terrain and region layers, drawn once: they do not
-	// change while the world runs.
-	ground           *ebiten.Image
-	screenW, screenH int
-	speed            int // index into speeds
-	paused           bool
+	v      *view.View
+	frame  *image.RGBA
+	screen *ebiten.Image
+	speed  int // index into speeds
+	paused bool
 }
 
-// regionColors tint the land by region, so that the regions of the
-// constrained map can be told apart. Water is drawn over them.
-var regionColors = []color.RGBA{
-	{0x9c, 0xc0, 0x7a, 0xff},
-	{0xc4, 0xb8, 0x82, 0xff},
-	{0x86, 0xb0, 0x8e, 0xff},
-	{0xb8, 0xa8, 0x9a, 0xff},
+func newGame(v *view.View) *game {
+	w, h := v.Size()
+	return &game{v: v, frame: image.NewRGBA(image.Rect(0, 0, w, h)), screen: ebiten.NewImage(w, h)}
 }
 
-var (
-	waterColor = color.RGBA{0x4a, 0x78, 0xb0, 0xff}
-	foodColor  = color.RGBA{0xe0, 0x50, 0x40, 0xff}
-)
+const keyHelp = "space pause  right step  up/down speed  [ ] history zoom\nclick follow  f hungriest  t trails"
 
-func newGame(w *engine.World, scale int) *game {
-	m := w.Map()
-	g := &game{w: w, scale: scale, screenW: m.Width * scale, screenH: m.Height * scale}
-	g.ground = ebiten.NewImage(g.screenW, g.screenH)
-	s := float32(scale)
-	for y := 0; y < m.Height; y++ {
-		for x := 0; x < m.Width; x++ {
-			c := regionColors[int(m.RegionAt(x, y))%len(regionColors)]
-			if m.TerrainAt(x, y) == engine.TerrainWater {
-				c = waterColor
-			}
-			vector.FillRect(g.ground, float32(x)*s, float32(y)*s, s, s, c, false)
-		}
-	}
-	return g
-}
-
-// Update takes the keys and advances the world: space pauses, the right
-// arrow steps one tick while paused, up and down change the speed.
+// Update takes the keys and advances the world.
 func (g *game) Update() error {
-	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+	v := g.v
+	switch {
+	case inpututil.IsKeyJustPressed(ebiten.KeySpace):
 		g.paused = !g.paused
-	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyArrowUp) && g.speed < len(speeds)-1 {
+	case inpututil.IsKeyJustPressed(ebiten.KeyArrowUp) && g.speed < len(speeds)-1:
 		g.speed++
-	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyArrowDown) && g.speed > 0 {
+	case inpututil.IsKeyJustPressed(ebiten.KeyArrowDown) && g.speed > 0:
 		g.speed--
+	case inpututil.IsKeyJustPressed(ebiten.KeyBracketRight):
+		v.ZoomOut()
+	case inpututil.IsKeyJustPressed(ebiten.KeyBracketLeft):
+		v.ZoomIn()
+	case inpututil.IsKeyJustPressed(ebiten.KeyT):
+		v.ShowTrails = !v.ShowTrails
+	case inpututil.IsKeyJustPressed(ebiten.KeyF):
+		v.FollowHungriest()
+	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft):
+		if x, y := ebiten.CursorPosition(); y < v.MapH {
+			v.Pick(x, y)
+		}
 	}
 	switch {
 	case !g.paused:
 		for i := 0; i < speeds[g.speed]; i++ {
-			g.w.Step()
+			v.Step(true)
 		}
 	case inpututil.IsKeyJustPressed(ebiten.KeyArrowRight):
-		g.w.Step()
+		v.Step(true)
 	}
 	return nil
 }
 
-// Draw paints the ground, the food and the bodies. A body's shade is its
-// energy: white when full, black when about to starve.
+var textBack = color.RGBA{0, 0, 0, 0xa0}
+
+// Draw paints the view, then the text over the map's top left corner on a
+// dark box so that it stays readable over any ground.
 func (g *game) Draw(screen *ebiten.Image) {
-	screen.DrawImage(g.ground, nil)
-	s := float32(g.scale)
-	for _, f := range g.w.Foods() {
-		vector.FillRect(screen, float32(f.X)*s+s/4, float32(f.Y)*s+s/4, s/2, s/2, foodColor, false)
-	}
-	full := g.w.Config().EnergyMax
-	bodies := g.w.Bodies()
-	for _, b := range bodies {
-		v := uint8(255 * min(max(b.Energy/full, 0), 1))
-		vector.FillCircle(screen, float32(b.X)*s, float32(b.Y)*s, s/3, color.RGBA{v, v, v, 0xff}, true)
-	}
+	g.v.Render(g.frame)
+	g.screen.WritePixels(g.frame.Pix)
+	screen.DrawImage(g.screen, nil)
 	state := fmt.Sprintf("x%d", speeds[g.speed])
 	if g.paused {
 		state = "paused"
 	}
-	ebitenutil.DebugPrint(screen, fmt.Sprintf("tick %d  bodies %d  food %d  %s\nspace: pause  right: step  up/down: speed",
-		g.w.Tick(), len(bodies), g.w.FoodLedger().OnGround, state))
+	text := g.v.Status() + "  " + state + "\n" + keyHelp
+	if t := g.v.FollowText(); t != "" {
+		text += "\n" + t
+	}
+	lines := strings.Split(text, "\n")
+	width := 0
+	for _, l := range lines {
+		width = max(width, len(l))
+	}
+	// ebitenutil's debug font is 6 by 16 pixels.
+	vector.FillRect(screen, 0, 0, float32(width*6+6), float32(len(lines)*16+2), textBack, false)
+	ebitenutil.DebugPrintAt(screen, text, 3, 0)
 }
 
-func (g *game) Layout(int, int) (int, int) { return g.screenW, g.screenH }
+func (g *game) Layout(int, int) (int, int) { return g.v.Size() }
