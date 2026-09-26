@@ -620,6 +620,7 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"餓死", 2, func(r result) float64 { return r.starved }},
 		{"体力消耗（合計）", 2, func(r result) float64 { return r.burned }},
 		{"出生", 2, func(r result) float64 { return r.births }},
+		{"成人到達率", 4, func(r result) float64 { return r.adultRate }},
 		{"決定の割合", 4, func(r result) float64 { return r.decided }},
 	}
 	for _, v := range o.variants[1:] {
