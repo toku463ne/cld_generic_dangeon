@@ -85,6 +85,9 @@ type result struct {
 	// every 1000 ticks after tick 5000); edge the mean share of the living
 	// on land tiles next to the map's edge or water, sampled the same.
 	displace, edge float64
+	// back is the share of decisions after tick 5000 that took a move
+	// straight back the way the body last moved.
+	back float64
 	// With Learn: what the living had learned at the end (rows), and, at
 	// every checkpoint after tick 5000, how far off each age band's region
 	// estimates were (learnAge).
@@ -172,6 +175,16 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	known := map[int64]engine.Body{}
 	kids := map[int64]int{}
 	edgeTile := edgeTiles(m)
+	var traced, backs float64
+	w.SetTrace(func(b engine.Body, _ engine.Valuation, a engine.Action) {
+		if w.Tick() <= 5000 {
+			return
+		}
+		traced++
+		if a.Kind == engine.ActMove && b.Heading >= 0 && a.Dir == (b.Heading+4)%8 {
+			backs++
+		}
+	})
 	var was map[int64][2]float64
 	var dSum, dN, eSum, eN float64
 	for _, b := range w.Bodies() {
@@ -276,6 +289,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		}
 	}
 	r.displace, r.edge = dSum/math.Max(dN, 1), eSum/math.Max(eN, 1)
+	r.back = backs / math.Max(traced, 1)
 	if cfg.Learn {
 		r.rows = memRows(w, m)
 	}
@@ -650,7 +664,8 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	p("### 補助の表: 動き方（%s）\n\n", base)
 	p("| 量 | 値 |\n| --- | --- |\n")
 	p("| 1000 tick の変位（タイル、tick 5000 より後） | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.displace }), 2))
-	p("| 縁（地図の端か水の隣のタイル）にいる割合 | %s（縁の面積比 %.4f） |\n\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.edge }), 4), edgeShare(m))
+	p("| 縁（地図の端か水の隣のタイル）にいる割合 | %s（縁の面積比 %.4f） |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.edge }), 4), edgeShare(m))
+	p("| 真後ろへの手（tick 5000 より後の決定のうち） | %s |\n\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.back }), 4))
 
 	p("### 9. 対の差\n\n")
 	if len(o.variants) < 2 {
@@ -670,6 +685,7 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"成人到達率", 4, func(r result) float64 { return r.adultRate }},
 		{"1000 tick の変位（タイル）", 2, func(r result) float64 { return r.displace }},
 		{"縁（地図の端か水の隣）にいる割合", 4, func(r result) float64 { return r.edge }},
+		{"真後ろへの手（決定のうち）", 4, func(r result) float64 { return r.back }},
 		{"決定の割合", 4, func(r result) float64 { return r.decided }},
 	}
 	for _, v := range o.variants[1:] {
