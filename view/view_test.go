@@ -164,3 +164,28 @@ func TestPlayedBodyMovesAsHeld(t *testing.T) {
 		t.Fatalf("follow text does not say the body is played: %q", v.FollowText())
 	}
 }
+
+// -follow median follows a living body of the median speed.
+func TestFollowMedianSpeed(t *testing.T) {
+	o := Options{Map: "flat", Width: 32, Height: 24, Variant: variant.Base, Seed: 3, FromTick: 200, Follow: "median"}
+	v, err := Prepare(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, ok := v.followed()
+	if !ok {
+		t.Fatal("no body followed")
+	}
+	slower, faster := 0, 0
+	for _, o := range v.W.Bodies() {
+		switch {
+		case o.Build.Speed < b.Build.Speed:
+			slower++
+		case o.Build.Speed > b.Build.Speed:
+			faster++
+		}
+	}
+	if n := len(v.W.Bodies()); slower > n/2 || faster > n/2 {
+		t.Fatalf("followed speed %v: %d slower, %d faster of %d", b.Build.Speed, slower, faster, n)
+	}
+}

@@ -19,7 +19,8 @@ type Options struct {
 	// Scale is the pixels per tile; zero is 12.
 	Scale int
 	// Follow is a body ID, "hungriest" for the body with the least energy
-	// at FromTick, or empty for none.
+	// at FromTick, "median" for the body of the median speed at FromTick
+	// (the lower ID among those), or empty for none.
 	Follow string
 }
 
@@ -59,10 +60,12 @@ func Prepare(o Options) (*View, error) {
 	case "":
 	case "hungriest":
 		v.FollowHungriest()
+	case "median":
+		v.FollowMedianSpeed()
 	default:
 		id, err := strconv.ParseInt(o.Follow, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("-follow %q is neither a body ID nor \"hungriest\"", o.Follow)
+			return nil, fmt.Errorf("-follow %q is neither a body ID nor \"hungriest\" nor \"median\"", o.Follow)
 		}
 		v.followID(id)
 	}

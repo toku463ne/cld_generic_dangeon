@@ -52,7 +52,7 @@ go run ./cmd/client -map constrained -w 64 -h 48 -seed 7 -from-tick 840
 | `-seed` | 世界の種（既定 1） |
 | `-from-tick` | この tick まで描画せずに計算し、そこから描画する（既定 0） |
 | `-scale` | 1タイルあたりのピクセル数（既定 12） |
-| `-follow` | 追う個体。ID か `hungriest`（`-from-tick` の時点で体力が一番少ない個体）。既定は追わない |
+| `-follow` | 追う個体。ID か `hungriest`（`-from-tick` の時点で体力が一番少ない個体）か `median`（その時点で速さが中央値の個体）。既定は追わない |
 
 実験のレポートに出た「UI での再生」の行をそのまま叩けば、その実験の典型的な1本を定常化 tick から見られる。
 

@@ -211,6 +211,30 @@ func (v *View) FollowHungriest() {
 	v.followID(best.ID)
 }
 
+// FollowMedianSpeed follows the living body whose speed is the median, the
+// one the player's body is judged by (PARAMETERS.md "速度の分布").
+func (v *View) FollowMedianSpeed() {
+	bodies := v.W.Bodies()
+	if len(bodies) == 0 {
+		v.followID(noBody)
+		return
+	}
+	speed := func(b engine.Body) float64 {
+		if b.Build.Speed > 0 {
+			return b.Build.Speed
+		}
+		return v.W.Config().Speed
+	}
+	sort.SliceStable(bodies, func(i, j int) bool {
+		si, sj := speed(bodies[i]), speed(bodies[j])
+		if si != sj {
+			return si < sj
+		}
+		return bodies[i].ID < bodies[j].ID
+	})
+	v.followID(bodies[len(bodies)/2].ID)
+}
+
 // Pick follows the body nearest to pixel (px, py) of the map, within one
 // tile, or stops following if none is that close.
 func (v *View) Pick(px, py int) {
@@ -369,6 +393,9 @@ func (v *View) FollowText() string {
 	}
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "body #%d  energy %.1f  age %d  heading %s", b.ID, b.Energy, v.W.Tick()-b.Born, dirName(b.Heading))
+	if b.Build.Speed > 0 {
+		fmt.Fprintf(&sb, "  speed %.3f  most %.0f", b.Build.Speed, b.Build.EnergyMax)
+	}
 	if v.drive.ID == b.ID {
 		sb.WriteString("  PLAYED")
 	}
