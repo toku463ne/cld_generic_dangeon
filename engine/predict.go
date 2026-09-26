@@ -19,7 +19,7 @@ import (
 //	(land, wait or move)                 -> energy -EnergyBurn, position moved by Speed
 //	(this region, keep moving)           -> stands on a tile with food, chance p per tile entered
 //	(tile with food in sight, walk to it) -> stands on it after d/Speed ticks
-//	(adult in sight, mate)               -> energy -BirthEnergy/2, a child
+//	(adult in sight, mate)               -> energy -its share, a child
 //
 // The third and fourth rows' outcome is the first row's subject, so they
 // chain into "keep moving -> energy back, chance p per tile" and "walk to
@@ -317,7 +317,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 		case ActMate:
 			// Read as agreed: the share paid, and a child - with the
 			// chance child, and otherwise a tick spent as a wait.
-			after = energyTicks(b.Energy-w.birthShare(), burn) - 1
+			after = energyTicks(b.Energy-w.birthShare(b), burn) - 1
 		}
 		c := 0.0
 		if a.Kind == ActMate {

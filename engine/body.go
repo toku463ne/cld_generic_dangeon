@@ -46,6 +46,9 @@ type Body struct {
 	// Sex is Female or Male, drawn when it comes into the world (with
 	// Sexes); NoSex in a world without sexes.
 	Sex Sex `json:",omitempty"`
+	// Rested is the tick a mother can mate again after a birth (with
+	// FemaleBears); zero for none yet.
+	Rested int64 `json:",omitempty"`
 	// Build is its own speed, most energy and burn (build.go), and Share
 	// the share of its budget it was born with for speed (with Allot).
 	Build Build

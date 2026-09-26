@@ -109,7 +109,7 @@ func TestChildInheritsTheShare(t *testing.T) {
 			}
 		}
 	}
-	if births < 200 {
+	if births < 100 {
 		t.Fatalf("only %d births", births)
 	}
 	if f := float64(moved) / float64(births); f < 0.02 || f > 0.2 {

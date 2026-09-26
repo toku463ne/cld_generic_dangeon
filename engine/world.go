@@ -252,6 +252,9 @@ func (w *World) Fingerprint() uint64 {
 			if w.cfg.Sexes {
 				put(uint64(b.Sex))
 			}
+			if w.bears() {
+				put(uint64(b.Rested))
+			}
 		}
 	}
 	put(uint64(w.nextID))

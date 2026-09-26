@@ -6,12 +6,14 @@ import "math"
 //
 // With Breed set, an adult body may mate with an adult it sees: the action
 // names the partner (ActMate), and it is offered only when paying the
-// body's half of BirthEnergy leaves it energy - dying of the payment is not
-// something a body can do. The partner's energy is not seen. A birth needs
-// both: when a body carries out a mate with a partner whose intent is a
-// mate with it, still in sight, and both can pay, each pays half and a
-// child is born where the body stands, with BirthEnergy, an adult
-// MatureAge ticks later. A mate the partner has not chosen does nothing;
+// body's share leaves it energy - dying of the payment is not something a
+// body can do. The partner's energy is not seen. A birth needs both: when a
+// body carries out a mate with a partner whose intent is a mate with it,
+// still in sight, and both can pay, each pays its share and a child is born
+// where the body stands, with BirthEnergy (what the two paid), an adult
+// MatureAge ticks later. The shares are half each, or with FemaleBears
+// MateEnergy for the father and the rest for the mother, who then rests
+// RecoverTicks before she can mate again. A mate the partner has not chosen does nothing;
 // the tick is spent as a wait.
 //
 // The child currency is valued in the same comparison as survival
@@ -47,11 +49,27 @@ func (w *World) drawSex() Sex {
 	return Female + Sex(w.rng.Intn(2))
 }
 
-// birthShare is the energy each parent pays for a birth.
-func (w *World) birthShare() float64 { return w.cfg.BirthEnergy / 2 }
+// bears reports whether the mother bears the birth (FemaleBears, which
+// needs Sexes).
+func (w *World) bears() bool { return w.cfg.FemaleBears && w.cfg.Sexes }
+
+// birthShare is the energy body b pays for a birth: half of BirthEnergy,
+// or with FemaleBears MateEnergy, and for the mother the rest too.
+func (w *World) birthShare(b *Body) float64 {
+	if !w.bears() {
+		return w.cfg.BirthEnergy / 2
+	}
+	if b.Sex == Female {
+		return w.cfg.BirthEnergy - w.cfg.MateEnergy
+	}
+	return w.cfg.MateEnergy
+}
 
 // canPay reports whether body b can pay its share of a birth and live.
-func (w *World) canPay(b *Body) bool { return b.Energy-w.birthShare() > 0 }
+func (w *World) canPay(b *Body) bool { return b.Energy-w.birthShare(b) > 0 }
+
+// resting reports whether body b is a mother that cannot mate yet.
+func (w *World) resting(b *Body) bool { return w.bears() && w.tick < b.Rested }
 
 // buildGrid puts every body on its tile.
 func (w *World) buildGrid() {
@@ -128,7 +146,7 @@ func (w *World) mates(b *Body, f func(*Body)) {
 			}
 			for _, j := range w.grid[w.m.index(x, y)] {
 				o := &w.bodies[j]
-				if o.ID != b.ID && w.adult(o) && (!w.cfg.Sexes || o.Sex != b.Sex) {
+				if o.ID != b.ID && w.adult(o) && (!w.cfg.Sexes || o.Sex != b.Sex) && !w.resting(o) {
 					f(o)
 				}
 			}
@@ -156,7 +174,7 @@ func mix(x uint64) uint64 {
 // mateOptions appends a mate with every adult body b sees, if b is an adult
 // and can pay.
 func (w *World) mateOptions(dst []Action, b *Body) []Action {
-	if !w.cfg.Breed || !w.adult(b) || !w.canPay(b) {
+	if !w.cfg.Breed || !w.adult(b) || !w.canPay(b) || w.resting(b) {
 		return dst
 	}
 	w.mates(b, func(o *Body) { dst = append(dst, Action{Kind: ActMate, Mate: o.ID}) })
@@ -177,8 +195,15 @@ func (w *World) mate(b *Body, id int64) {
 	if p == nil || p.Intent != (Action{Kind: ActMate, Mate: b.ID}) || !w.canPay(b) || !w.canPay(p) {
 		return
 	}
-	b.Energy -= w.birthShare()
-	p.Energy -= w.birthShare()
+	b.Energy -= w.birthShare(b)
+	p.Energy -= w.birthShare(p)
+	if w.bears() {
+		for _, x := range []*Body{b, p} {
+			if x.Sex == Female {
+				x.Rested = w.tick + int64(w.cfg.RecoverTicks)
+			}
+		}
+	}
 	if w.cfg.Learn {
 		b.Memory.Kids++
 		p.Memory.Kids++

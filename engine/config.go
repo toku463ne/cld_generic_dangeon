@@ -79,8 +79,18 @@ type Config struct {
 	// and the body takes the least. Below 1, life comes before descendants.
 	ChildWorth float64
 	// BirthEnergy is the energy a child is born with; each parent pays
-	// half.
+	// half, or with FemaleBears each pays MateEnergy and the mother the
+	// rest.
 	BirthEnergy float64
+	// FemaleBears has the mother bear the birth (stage 3-2, with Sexes):
+	// both parents pay MateEnergy, the mother pays the rest of BirthEnergy,
+	// and for RecoverTicks after it she can neither mate nor be mated
+	// with. The father pays for the mating only, so that he does not pay
+	// half a birth with every mother he meets. Off: stage 3-1, each pays
+	// half.
+	FemaleBears  bool
+	MateEnergy   float64
+	RecoverTicks int
 	// MatureAge is how many ticks after its birth a child becomes an adult
 	// and may mate.
 	MatureAge int
@@ -226,6 +236,9 @@ func DefaultConfig() Config {
 		HeardLimit:       64,
 		Kin:              true,
 		Sexes:            true,
+		FemaleBears:      true,
+		MateEnergy:       5,
+		RecoverTicks:     400,
 		Collide:          true,
 	}
 }

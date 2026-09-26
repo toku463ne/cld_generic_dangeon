@@ -27,6 +27,9 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Even is stage 3-1: each parent pays half a birth.
+const Even = "even"
+
 // Sexless is stage 2-4: any two adults can mate.
 const Sexless = "sexless"
 
@@ -100,7 +103,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func sexless(c *engine.Config)   { c.Sexes = false }
+func even(c *engine.Config)      { c.FemaleBears = false }
+func sexless(c *engine.Config)   { even(c); c.Sexes = false }
 func aged(c *engine.Config)      { sexless(c); c.PassPath = true }
 func kin(c *engine.Config)       { aged(c); c.AgePath = false }
 func near(c *engine.Config)      { kin(c); c.Kin = false }
@@ -120,6 +124,7 @@ func everytick(c *engine.Config) { nobreed(c); c.Recheck = 0 }
 var rewrites = map[string]func(*engine.Config){
 	Base:         func(*engine.Config) {},
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Even:         even,
 	Sexless:      sexless,
 	Aged:         aged,
 	Kin:          kin,

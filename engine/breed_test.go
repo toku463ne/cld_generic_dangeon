@@ -11,6 +11,7 @@ func pairWorld(t *testing.T, a, b Body) *World {
 	t.Helper()
 	cfg := testConfig(1)
 	cfg.Bodies = 0
+	cfg.FemaleBears = false // each pays half (3-1); TestMotherBears turns it on
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -220,5 +221,49 @@ func TestMatesAreOfTheOtherSex(t *testing.T) {
 		if x.Sex != NoSex {
 			t.Fatalf("without sexes, body %d has sex %d", x.ID, x.Sex)
 		}
+	}
+}
+
+// With FemaleBears both parents pay MateEnergy and the mother the rest of
+// what the child is born with; after the birth she can neither mate nor be
+// mated with for RecoverTicks, and the father can mate again at once.
+func TestMotherBears(t *testing.T) {
+	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 80}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 60})
+	w.cfg.FemaleBears = true
+	mother, father := &w.bodies[0], &w.bodies[1] // pairWorld: Female, then Male
+	if mother.Sex != Female || father.Sex != Male {
+		t.Fatalf("sexes %v %v", mother.Sex, father.Sex)
+	}
+	// A mother who could pay a father's share but not hers is offered no
+	// mate; a father who can pay his is.
+	mother.Energy = w.cfg.MateEnergy + 1
+	if hasMate(w.mateOptions(nil, mother), 1) {
+		t.Fatal("a mother who cannot pay the birth was offered a mate")
+	}
+	father.Energy = w.cfg.MateEnergy + 1
+	if !hasMate(w.mateOptions(nil, father), 0) {
+		t.Fatal("a father who can pay the mating was offered no mate")
+	}
+	mother.Energy, father.Energy = 80, 60
+	mother.Intent = Action{Kind: ActMate, Mate: 1}
+	w.act(1, father, Action{Kind: ActMate, Mate: 0})
+	if len(w.born) != 1 {
+		t.Fatalf("%d children born, want 1", len(w.born))
+	}
+	c := w.born[0]
+	if mother.Energy != 80-(w.cfg.BirthEnergy-w.cfg.MateEnergy) || father.Energy != 60-w.cfg.MateEnergy || c.Energy != w.cfg.BirthEnergy {
+		t.Fatalf("energies after the birth: mother %v father %v child %v", mother.Energy, father.Energy, c.Energy)
+	}
+	if mother.Rested != w.tick+int64(w.cfg.RecoverTicks) || father.Rested != 0 {
+		t.Fatalf("rested: mother %d father %d", mother.Rested, father.Rested)
+	}
+	// Resting, she neither offers nor is offered; he still can with others.
+	if hasMate(w.mateOptions(nil, mother), 1) || hasMate(w.mateOptions(nil, father), 0) {
+		t.Fatal("a resting mother mates")
+	}
+	w.tick += int64(w.cfg.RecoverTicks)
+	mother.Energy = 80 // fed again
+	if !hasMate(w.mateOptions(nil, mother), 1) || !hasMate(w.mateOptions(nil, father), 0) {
+		t.Fatal("rested, the mother still cannot mate")
 	}
 }
