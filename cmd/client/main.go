@@ -39,7 +39,7 @@ func main() {
 	flag.Int64Var(&o.Seed, "seed", 1, "seed of the world")
 	flag.IntVar(&o.FromTick, "from-tick", 0, "run headless up to this tick, then start drawing")
 	flag.IntVar(&o.Scale, "scale", 12, "pixels per tile")
-	flag.StringVar(&o.Follow, "follow", "", "body to follow: an ID, or \"hungriest\" at -from-tick")
+	flag.StringVar(&o.Follow, "follow", "", "body to follow: an ID, \"hungriest\" or \"median\" (speed) at -from-tick")
 	flag.Parse()
 
 	start := time.Now()
