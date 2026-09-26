@@ -26,10 +26,12 @@ import "math"
 
 // Tally counts a row's outcomes: K of N came out one way. N and K are all
 // of it; Heard is the part received from other bodies, by the body that
-// first observed it (provenance.go). The rest the body observed itself.
+// first observed it (provenance.go, tell.go), and HN and HK its sums. The
+// rest, N-HN of it, the body observed itself.
 type Tally struct {
-	N, K  float64         `json:",omitempty"`
-	Heard map[int64]Count `json:",omitempty"`
+	N, K   float64         `json:",omitempty"`
+	Heard  map[int64]Count `json:",omitempty"`
+	HN, HK float64         `json:",omitempty"`
 }
 
 // estimate is the tally's rate pulled toward prior by weight observations.
@@ -47,6 +49,8 @@ type Memory struct {
 	Walked map[int]int64 `json:",omitempty"`
 	// Asks and Kids: mates asked and children had.
 	Asks, Kids float64 `json:",omitempty"`
+	// Met are the bodies it has passed evidence with (tell.go).
+	Met map[int64]bool `json:",omitempty"`
 }
 
 // Belief is what a body's memory makes of the world now, as the trace shows

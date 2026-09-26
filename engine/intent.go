@@ -65,6 +65,7 @@ var TriggerNames = [NumTriggers]string{"everytick", "first", "underfoot", "sight
 func (w *World) turn(b *Body) Action {
 	why := TriggerEveryTick
 	taken := w.takes(b)
+	w.tell(b)
 	if w.cfg.Recheck > 0 {
 		under, saw := w.perceive(b)
 		mates := w.sawMates(b)

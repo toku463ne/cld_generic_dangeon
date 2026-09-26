@@ -5,7 +5,12 @@ import "testing"
 // Without a way for evidence to pass between bodies, every piece of it is
 // its holder's own: none is heard, none is an orphan.
 func TestNoHeardEvidenceWithoutPassing(t *testing.T) {
-	w := newTestWorld(t, 4)
+	cfg := testConfig(4)
+	cfg.Tell = false
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	for i := 0; i < 6; i++ {
 		run(w, 500)
 		for _, rp := range w.Provenance() {
@@ -22,7 +27,12 @@ func TestNoHeardEvidenceWithoutPassing(t *testing.T) {
 // Evidence handed from one body to another counts as heard; once its
 // observer dies it is an orphan, and its age is the ticks since that death.
 func TestOrphanEvidence(t *testing.T) {
-	w := newTestWorld(t, 4)
+	cfg := testConfig(4)
+	cfg.Tell = false // only the evidence handed over below is heard
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	run(w, 300)
 	a, b := &w.bodies[0], &w.bodies[1]
 	aID, bID := a.ID, b.ID
@@ -32,6 +42,7 @@ func TestOrphanEvidence(t *testing.T) {
 	r := &b.Memory.Regions[0]
 	r.N, r.K = r.N+10, r.K+1
 	r.Heard = map[int64]Count{aID: {N: 10, K: 1}}
+	r.HN, r.HK = 10, 1
 	region0 := func() RowProvenance {
 		for _, rp := range w.Provenance() {
 			if rp.Name == "region 0" {

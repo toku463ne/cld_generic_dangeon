@@ -196,12 +196,37 @@ func (w *World) Fingerprint() uint64 {
 		// And what it has learned, where bodies learn.
 		if w.cfg.Learn {
 			mem := &b.Memory
-			for _, t := range mem.Regions {
+			tally := func(t Tally) {
 				putF(t.N)
 				putF(t.K)
+				if !w.cfg.Tell {
+					return
+				}
+				ids := make([]int64, 0, len(t.Heard))
+				for id := range t.Heard {
+					ids = append(ids, id)
+				}
+				sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+				for _, id := range ids {
+					put(uint64(id))
+					putF(t.Heard[id].N)
+					putF(t.Heard[id].K)
+				}
 			}
-			putF(mem.Path.N)
-			putF(mem.Path.K)
+			for _, t := range mem.Regions {
+				tally(t)
+			}
+			tally(mem.Path)
+			if w.cfg.Tell {
+				met := make([]int64, 0, len(mem.Met))
+				for id := range mem.Met {
+					met = append(met, id)
+				}
+				sort.Slice(met, func(i, j int) bool { return met[i] < met[j] })
+				for _, id := range met {
+					put(uint64(id))
+				}
+			}
 			putF(mem.Asks)
 			putF(mem.Kids)
 			tiles := make([]int, 0, len(mem.Walked))

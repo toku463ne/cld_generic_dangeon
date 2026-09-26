@@ -125,6 +125,11 @@ type Config struct {
 	// PriorChild is the chance a body is born expecting a mate to make a
 	// child, worth ChildWeight asks.
 	PriorChild, ChildWeight float64
+	// Tell has bodies pass what they know of the world to the bodies they
+	// meet (tell.go), keeping at most HeardLimit observers' evidence per
+	// row. Off: stage 2-0.
+	Tell       bool
+	HeardLimit int
 	// BeliefStep is the ratio between the chances per tile survival tables
 	// are built for: an estimate is rounded to a power of it, so that
 	// bodies share tables.
@@ -180,6 +185,8 @@ func DefaultConfig() Config {
 		PriorChild:     1,
 		ChildWeight:    2,
 		BeliefStep:     1.1,
+		Tell:           true,
+		HeardLimit:     64,
 		Collide:        true,
 	}
 }
