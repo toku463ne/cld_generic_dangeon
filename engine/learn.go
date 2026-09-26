@@ -24,9 +24,12 @@ import "math"
 // Nothing here reads the food on the ground but through the tile a body
 // steps onto.
 
-// Tally counts a row's outcomes: K of N came out one way.
+// Tally counts a row's outcomes: K of N came out one way. N and K are all
+// of it; Heard is the part received from other bodies, by the body that
+// first observed it (provenance.go). The rest the body observed itself.
 type Tally struct {
-	N, K float64 `json:",omitempty"`
+	N, K  float64         `json:",omitempty"`
+	Heard map[int64]Count `json:",omitempty"`
 }
 
 // estimate is the tally's rate pulled toward prior by weight observations.

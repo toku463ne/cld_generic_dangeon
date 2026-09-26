@@ -40,6 +40,11 @@ type World struct {
 	ties      []int
 	rates     rates // a learning body's estimates, for the decision under way
 
+	// died is the tick each body died, for the provenance instrument
+	// (provenance.go). No rule reads it; it is neither saved nor
+	// fingerprinted.
+	died map[int64]int64
+
 	// chooser, when set, takes the decisions of the bodies it names
 	// (chooser.go).
 	chooser Chooser
@@ -94,6 +99,10 @@ func (w *World) removeDead() {
 	alive := w.bodies[:0]
 	for _, b := range w.bodies {
 		if b.Energy <= 0 {
+			if w.died == nil {
+				w.died = map[int64]int64{}
+			}
+			w.died[b.ID] = w.tick
 			w.stats.Deaths[CauseStarved]++
 			w.stats.BudgetOut += b.Budget
 			if w.tick < b.Mature {

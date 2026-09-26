@@ -88,6 +88,12 @@ type result struct {
 	// back is the share of decisions after tick 5000 that took a move
 	// straight back the way the body last moved.
 	back float64
+	// With Learn: where the evidence the living held came from, summed
+	// over the checkpoints after tick 5000 (prov), and the ages at death
+	// after tick 5000 (deathAges), for the median life to set it against.
+	prov      map[string]*provSum
+	provNames []string
+	deathAges []float64
 	// With Learn: what the living had learned at the end (rows), and, at
 	// every checkpoint after tick 5000, how far off each age band's region
 	// estimates were (learnAge).
@@ -175,6 +181,10 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	known := map[int64]engine.Body{}
 	kids := map[int64]int{}
 	edgeTile := edgeTiles(m)
+	bornAt := map[int64]int64{}
+	for _, b := range w.Bodies() {
+		bornAt[b.ID] = b.Born
+	}
 	var traced, backs float64
 	w.SetTrace(func(b engine.Body, _ engine.Valuation, a engine.Action) {
 		if w.Tick() <= 5000 {
@@ -203,6 +213,24 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		}
 		r.series = append(r.series, int32(len(w.Bodies())))
 		r.valley = math.Min(r.valley, float64(len(w.Bodies())))
+		if cfg.Learn {
+			// Ages at death, for the median life.
+			alive := make(map[int64]bool, len(bornAt))
+			for _, b := range w.Bodies() {
+				alive[b.ID] = true
+				if _, ok := bornAt[b.ID]; !ok {
+					bornAt[b.ID] = b.Born
+				}
+			}
+			for id, born := range bornAt {
+				if !alive[id] {
+					if t > 5000 {
+						r.deathAges = append(r.deathAges, float64(int64(t)-born))
+					}
+					delete(bornAt, id)
+				}
+			}
+		}
 		if cfg.Allot {
 			// Lifetime births by share: credit the parents of the newborn,
 			// and close the lives of the dead.
@@ -239,6 +267,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		}
 		if cfg.Learn && t > 5000 && t%every == 0 {
 			readAges(w, m, &r.learnAge)
+			readProvenance(w, &r)
 		}
 		if t > 5000 && t%1000 == 0 {
 			now := map[int64][2]float64{}
@@ -625,6 +654,8 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		p("| 合成されていない高頻度記憶 | |\n| 合成された高頻度記憶 | |\n| ノード平均が高得点の中間項 | |\n\n")
 	}
 
+	writeProvenance(p, rs)
+
 	p("### 7. スキル別伝承数\n\n")
 	p("| スキル | 伝承された回数 | 保有率 |\n| --- | --- | --- |\n\n")
 
@@ -985,6 +1016,111 @@ func writeMemory(p func(string, ...any), rs []result) {
 			hi = ""
 		}
 		p("| %d〜%s | %s | %s |\n", band[0], hi, fmtMeanSE(errs, 3), fmtMeanSE(tiles, 1))
+	}
+	p("\n")
+}
+
+// provSum sums one row's provenance over checkpoints.
+type provSum struct {
+	held, heard, orphan, hearers, n float64
+	ages                            map[float64]float64
+}
+
+func readProvenance(w *engine.World, r *result) {
+	if r.prov == nil {
+		r.prov = map[string]*provSum{}
+	}
+	for _, rp := range w.Provenance() {
+		ps := r.prov[rp.Name]
+		if ps == nil {
+			ps = &provSum{ages: map[float64]float64{}}
+			r.prov[rp.Name] = ps
+			r.provNames = append(r.provNames, rp.Name)
+		}
+		ps.held += rp.Held
+		ps.heard += rp.Heard
+		ps.orphan += rp.Orphan
+		ps.hearers += rp.Hearers
+		ps.n++
+		for _, a := range rp.Ages {
+			ps.ages[a[0]] += a[1]
+		}
+	}
+}
+
+// weightedQuantile is the q-quantile of values weighted by amounts.
+func weightedQuantile(m map[float64]float64, q float64) float64 {
+	if len(m) == 0 {
+		return math.NaN()
+	}
+	keys := make([]float64, 0, len(m))
+	total := 0.0
+	for k, v := range m {
+		keys = append(keys, k)
+		total += v
+	}
+	sort.Float64s(keys)
+	acc := 0.0
+	for _, k := range keys {
+		acc += m[k]
+		if acc >= q*total {
+			return k
+		}
+	}
+	return keys[len(keys)-1]
+}
+
+// writeProvenance prints where the evidence the living held came from: the
+// provenance instrument of stage 2-0.
+func writeProvenance(p func(string, ...any), rs []result) {
+	if len(rs) == 0 || len(rs[0].provNames) == 0 {
+		return
+	}
+	var lives []float64
+	for _, r := range rs {
+		lives = append(lives, r.deathAges...)
+	}
+	sort.Float64s(lives)
+	median := math.NaN()
+	if len(lives) > 0 {
+		median = lives[len(lives)/2]
+	}
+	p("### 補助の表: 証拠の寿命（計器。tick 5000 より後のチェックポイントの平均）\n\n")
+	p("死んだ身体の死んだ年齢の中央値（tick 5000 より後、全シード）: %.0f tick\n\n", median)
+	p("| 行 | 又聞きの割合 | 孤児の証拠の割合 | 孤児の証拠の年齢（中央値・最大） | 又聞きの保有者の割合 |\n| --- | --- | --- | --- | --- |\n")
+	for _, name := range rs[0].provNames {
+		get := func(f func(*provSum) float64) []float64 {
+			return collectWhere(rs, func(r result) bool { return r.prov[name] != nil }, func(r result) float64 { return f(r.prov[name]) })
+		}
+		ratio := func(num func(*provSum) float64) []float64 {
+			return get(func(ps *provSum) float64 {
+				if ps.held == 0 {
+					return 0
+				}
+				return num(ps) / ps.held
+			})
+		}
+		ages := map[float64]float64{}
+		for _, r := range rs {
+			if ps := r.prov[name]; ps != nil {
+				for k, v := range ps.ages {
+					ages[k] += v
+				}
+			}
+		}
+		age := "—"
+		if len(ages) > 0 {
+			hi := 0.0
+			for k := range ages {
+				hi = math.Max(hi, k)
+			}
+			age = fmt.Sprintf("%.0f・%.0f", weightedQuantile(ages, 0.5), hi)
+		}
+		p("| %s | %s | %s | %s | %s |\n", name,
+			fmtMeanSE(ratio(func(ps *provSum) float64 { return ps.heard }), 4),
+			fmtMeanSE(ratio(func(ps *provSum) float64 { return ps.orphan }), 4),
+			age,
+			fmtMeanSE(get(func(ps *provSum) float64 { return ps.hearers / ps.n }), 4))
 	}
 	p("\n")
 }
