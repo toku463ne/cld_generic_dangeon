@@ -113,3 +113,53 @@ func TestMapWithoutFoodShareIsRejected(t *testing.T) {
 		t.Fatal("NewWorld accepted a map where no region has food")
 	}
 }
+
+// On a map with seasons, food that comes back goes by the season's shares,
+// the food on the ground stays where it is, and the ledger still closes.
+func TestFoodFollowsSeasons(t *testing.T) {
+	m := NewMap(20, 20)
+	m.RegionFood = []float64{1, 1}
+	m.SeasonFood = [][]float64{{1, 0}, {0, 1}}
+	m.SeasonTicks = 100
+	for y := 0; y < m.Height; y++ {
+		for x := 10; x < m.Width; x++ {
+			m.SetRegion(x, y, 1)
+		}
+	}
+	cfg := DefaultConfig()
+	cfg.Bodies, cfg.FoodCap, cfg.FoodReturn = 0, 100, 1
+	w, err := NewWorld(cfg, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := w.food.onGround[1]; got != 0 {
+		t.Fatalf("season 0 started with %d food in region 1, which has no share then", got)
+	}
+	// In season 1 food eaten comes back to region 1 only.
+	w.tick = 100
+	for i := 0; i < 30; i++ {
+		w.eatFood(0)
+	}
+	for i := 0; i < 5; i++ {
+		w.Step()
+		checkFood(t, w)
+	}
+	if w.food.onGround[1] != 30 || w.food.onGround[0] != 70 {
+		t.Fatalf("season 1: region 0 %d, region 1 %d, want 70 and 30", w.food.onGround[0], w.food.onGround[1])
+	}
+	if s := m.Season(399); s != 1 {
+		t.Fatalf("season at tick 399 is %d, want 1", s)
+	}
+}
+
+func TestBadSeasonsAreRejected(t *testing.T) {
+	for _, m := range []Map{
+		func() Map { m := NewMap(4, 4); m.SeasonFood = [][]float64{{1}}; return m }(),                         // no length
+		func() Map { m := NewMap(4, 4); m.SeasonFood, m.SeasonTicks = [][]float64{{1, 1}}, 10; return m }(),   // shares per region
+		func() Map { m := NewMap(4, 4); m.SeasonFood, m.SeasonTicks = [][]float64{{1}, {0}}, 10; return m }(), // a season with no food
+	} {
+		if _, err := NewWorld(DefaultConfig(), m); err == nil {
+			t.Fatalf("NewWorld accepted seasons %v of %d ticks", m.SeasonFood, m.SeasonTicks)
+		}
+	}
+}

@@ -33,6 +33,32 @@ type Map struct {
 	// own: a richer region takes more of the same food, it does not make more.
 	// Only the ratios matter.
 	RegionFood []float64
+
+	// SeasonFood, if not empty, replaces RegionFood season by season: the
+	// world is in season (tick / SeasonTicks) mod len(SeasonFood), and food
+	// that comes back goes to the regions by that season's shares. Food on
+	// the ground stays where it is, so it follows the seasons late. Each
+	// season lists a share per region, as RegionFood does.
+	SeasonFood  [][]float64 `json:",omitempty"`
+	SeasonTicks int         `json:",omitempty"`
+}
+
+// Season returns the index of the season at tick t, and 0 for a map
+// without seasons.
+func (m *Map) Season(t int64) int {
+	if len(m.SeasonFood) == 0 || m.SeasonTicks <= 0 {
+		return 0
+	}
+	return int((t / int64(m.SeasonTicks)) % int64(len(m.SeasonFood)))
+}
+
+// FoodShares returns the regions' shares of the food that comes back at
+// tick t: the season's, or RegionFood.
+func (m *Map) FoodShares(t int64) []float64 {
+	if len(m.SeasonFood) == 0 || m.SeasonTicks <= 0 {
+		return m.RegionFood
+	}
+	return m.SeasonFood[m.Season(t)]
 }
 
 // NewMap returns a map that is all land and all region 0, which takes all of
@@ -80,6 +106,24 @@ func (m Map) Validate() error {
 	if !(sum > 0) {
 		return fmt.Errorf("no region has a food share")
 	}
+	if len(m.SeasonFood) > 0 && m.SeasonTicks <= 0 {
+		return fmt.Errorf("seasons of %d ticks", m.SeasonTicks)
+	}
+	for s, shares := range m.SeasonFood {
+		if len(shares) != len(m.RegionFood) {
+			return fmt.Errorf("season %d has %d shares, want %d", s, len(shares), len(m.RegionFood))
+		}
+		sum := 0.0
+		for r, f := range shares {
+			if !(f >= 0) {
+				return fmt.Errorf("season %d: region %d has food share %v", s, r, f)
+			}
+			sum += f
+		}
+		if !(sum > 0) {
+			return fmt.Errorf("season %d: no region has a food share", s)
+		}
+	}
 	return nil
 }
 
@@ -108,5 +152,9 @@ func (m Map) Clone() Map {
 	c.Terrain = append([]Terrain(nil), m.Terrain...)
 	c.Region = append([]RegionID(nil), m.Region...)
 	c.RegionFood = append([]float64(nil), m.RegionFood...)
+	c.SeasonFood = nil
+	for _, s := range m.SeasonFood {
+		c.SeasonFood = append(c.SeasonFood, append([]float64(nil), s...))
+	}
 	return c
 }

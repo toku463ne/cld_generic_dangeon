@@ -12,7 +12,7 @@ import (
 )
 
 // Names lists the maps Build knows.
-var Names = []string{"flat", "constrained"}
+var Names = []string{"flat", "constrained", "seasons"}
 
 // Build returns the named map at the given size.
 func Build(name string, width, height int) (engine.Map, error) {
@@ -21,6 +21,8 @@ func Build(name string, width, height int) (engine.Map, error) {
 		return Flat(width, height), nil
 	case "constrained":
 		return Constrained(width, height), nil
+	case "seasons":
+		return Seasons(width, height), nil
 	}
 	return engine.Map{}, fmt.Errorf("unknown map %q (known: %v)", name, Names)
 }
@@ -64,5 +66,31 @@ func Constrained(width, height int) engine.Map {
 			m.SetTerrain(x, y, engine.TerrainWater)
 		}
 	}
+	return m
+}
+
+// SeasonTicks is the length of a season on the seasons map: four of them,
+// 4000 ticks, run over three median lives, so that one life cannot see the
+// whole round. Provisional; PARAMETERS.md records it.
+const SeasonTicks = 1000
+
+// Seasons is the constrained map with its food shares moving: each season
+// the shares move on by one region, 0 to 1 to 3 to 2 and round (clockwise
+// through the quadrants), so the richest quadrant goes round the map once
+// every four seasons. Which region will be rich next is a law of the map,
+// not of where bodies are - but one life sees only part of the round.
+func Seasons(width, height int) engine.Map {
+	m := Constrained(width, height)
+	round := []int{0, 1, 3, 2} // the quadrants clockwise
+	for s := range round {
+		shares := make([]float64, len(ConstrainedFood))
+		for i, r := range round {
+			// In season s the quadrant i steps on holds what the one s
+			// steps back held in season 0.
+			shares[r] = ConstrainedFood[round[(i-s+len(round))%len(round)]]
+		}
+		m.SeasonFood = append(m.SeasonFood, shares)
+	}
+	m.SeasonTicks = SeasonTicks
 	return m
 }

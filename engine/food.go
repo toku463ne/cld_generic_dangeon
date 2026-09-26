@@ -7,7 +7,8 @@ package engine
 // vacancy comes back with chance FoodReturn per tick. A region does not make
 // food of its own; it takes its RegionFood share of what comes back. That is
 // what makes the contrast between regions a division of one total rather than
-// new food.
+// new food. On a map with seasons (Map.SeasonFood) the shares are the
+// season's; food on the ground does not move, so it follows the seasons late.
 //
 // The ledger (FoodLedger) counts every unit that appears and every unit that
 // is eaten, so that a test can check the total tick by tick.
@@ -49,7 +50,6 @@ type foodState struct {
 	// regionLand lists each region's land tiles, which is where its food can
 	// appear.
 	regionLand [][]int
-	shareSum   float64
 
 	// onGround is, per region, how many units are on the ground there. It
 	// is all the truth table reads of the food (predict.go).
@@ -68,12 +68,17 @@ func (w *World) initFood() {
 			f.regionLand[r] = append(f.regionLand[r], i)
 		}
 	}
-	f.shareSum = 0
-	for r, s := range w.m.RegionFood {
-		if len(f.regionLand[r]) > 0 {
-			f.shareSum += s
+}
+
+// shareSum is the sum of the shares, now, of the regions with land.
+func (w *World) shareSum(shares []float64) float64 {
+	sum := 0.0
+	for r, s := range shares {
+		if len(w.food.regionLand[r]) > 0 {
+			sum += s
 		}
 	}
+	return sum
 }
 
 // fillFood puts the whole cap on the map, each unit in a region drawn by
@@ -89,9 +94,10 @@ func (w *World) fillFood() {
 // drawRegion picks a region with land, with chance proportional to its share.
 func (w *World) drawRegion() RegionID {
 	f := &w.food
-	x := w.rng.Float64() * f.shareSum
+	shares := w.m.FoodShares(w.tick)
+	x := w.rng.Float64() * w.shareSum(shares)
 	last := RegionID(0)
-	for r, s := range w.m.RegionFood {
+	for r, s := range shares {
 		if len(f.regionLand[r]) == 0 || s == 0 {
 			continue
 		}
@@ -136,14 +142,16 @@ func (w *World) placeFood(r RegionID) bool {
 func (w *World) returnFood() {
 	f := &w.food
 	vacant := w.cfg.FoodCap - len(f.foods)
-	if vacant <= 0 || f.shareSum == 0 {
+	shares := w.m.FoodShares(w.tick)
+	sum := w.shareSum(shares)
+	if vacant <= 0 || sum == 0 {
 		return
 	}
-	for r, s := range w.m.RegionFood {
+	for r, s := range shares {
 		if len(f.regionLand[r]) == 0 || s == 0 {
 			continue
 		}
-		f.owed[r] += w.cfg.FoodReturn * float64(vacant) * s / f.shareSum
+		f.owed[r] += w.cfg.FoodReturn * float64(vacant) * s / sum
 		for f.owed[r] >= 1 && len(f.foods) < w.cfg.FoodCap {
 			if !w.placeFood(RegionID(r)) {
 				break
