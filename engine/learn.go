@@ -325,3 +325,25 @@ func (w *World) keepReading(b *Body, rs *rates, dir int, x, y float64, win, afte
 	read := func(pNone float64) float64 { return pNone*none + (1-pNone)*met }
 	return math.Min(math.Max(base+read(noneHere)-read(noneRegion), 0), 1)
 }
+
+// ValueWith values body b's options as a learning body would, but with the
+// given estimates of food per tile - per region, and of the tiles it walked
+// lately, per region - in place of its own; the chance a mate makes a child
+// stays its own. It is for counts asking what a body would do knowing
+// otherwise; it draws nothing and changes nothing (the survival tables it
+// builds are the ones any body's estimate could ask for).
+func (w *World) ValueWith(b Body, region, path []float64) Valuation {
+	var v Valuation
+	if w.cfg.Window <= 0 {
+		return v
+	}
+	burn, speed := w.burnOf(&b), w.speedOf(&b)
+	meal, full := energyTicks(w.cfg.FoodEnergy, burn), energyTicks(w.maxOf(&b), burn)
+	var rs rates
+	w.ratesOf(&b, &rs)
+	copy(rs.region, region)
+	copy(rs.path, path)
+	alive := func(r RegionID) Survival { return w.rateTable(&rs, r, meal, full, speed) }
+	w.valueInto(&v, meal, full, w.pred.windows, alive, w.childRate(&b), &rs, &b)
+	return v
+}

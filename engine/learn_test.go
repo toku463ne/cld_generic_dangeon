@@ -155,3 +155,35 @@ func TestMateRowCounts(t *testing.T) {
 		t.Fatal("no belief on the trace")
 	}
 }
+
+// Valued with its own estimates, a body's options read as its own decision
+// reads them.
+func TestValueWithOwnEstimates(t *testing.T) {
+	w := newTestWorld(t, 7)
+	run(w, 800)
+	var got Valuation
+	var want Valuation
+	b := w.bodies[0]
+	w.SetTrace(func(tb Body, v Valuation, _ Action) {
+		if tb.ID != b.ID || len(want.Options) > 0 {
+			return
+		}
+		want = v
+		want.Risk = [][]float64{append([]float64(nil), v.Risk[0]...)}
+		want.Options = append([]Action(nil), v.Options...)
+		var rs rates
+		w.ratesOf(&tb, &rs)
+		got = w.ValueWith(tb, rs.region, rs.path)
+	})
+	for i := 0; i < 400 && len(want.Options) == 0; i++ {
+		w.Step()
+	}
+	if len(want.Options) == 0 {
+		t.Skip("the body did not decide")
+	}
+	for j := range want.Options {
+		if got.Options[j] != want.Options[j] || got.Risk[0][j] != want.Risk[0][j] {
+			t.Fatalf("option %d: %v %v, the decision read %v %v", j, got.Options[j], got.Risk[0][j], want.Options[j], want.Risk[0][j])
+		}
+	}
+}
