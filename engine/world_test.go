@@ -236,3 +236,53 @@ func BenchmarkWorldStep(b *testing.B) {
 		w.Step()
 	}
 }
+
+// A loaded world runs on the same whether its tables are built ahead
+// (Warm) or as they are read, and warming builds the tables the saved
+// world was using.
+func TestWarmChangesNothing(t *testing.T) {
+	a := newTestWorld(t, 12)
+	run(a, 3000)
+	var buf bytes.Buffer
+	if err := a.Save(&buf); err != nil {
+		t.Fatal(err)
+	}
+	saved := buf.Bytes()
+	cold, err := Load(bytes.NewReader(saved))
+	if err != nil {
+		t.Fatal(err)
+	}
+	warm, err := Load(bytes.NewReader(saved))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if left := warm.Warm(5); left != len(a.Tables())-5 {
+		t.Fatalf("after warming 5, %d left of %d", left, len(a.Tables()))
+	}
+	if left := warm.Warm(0); left != 0 {
+		t.Fatalf("%d tables left after warming them all", left)
+	}
+	if got, want := warm.Tables(), a.Tables(); len(got) != len(want) {
+		t.Fatalf("warmed %d tables, the saved world had %d", len(got), len(want))
+	}
+	run(a, 1500)
+	run(cold, 1500)
+	run(warm, 1500)
+	if cold.Fingerprint() != a.Fingerprint() || warm.Fingerprint() != a.Fingerprint() {
+		t.Fatal("a loaded world ran differently from the saved one")
+	}
+}
+
+// Tables not read for a while are dropped, so the cache holds what the
+// world reads lately rather than every food count it ever had.
+func TestTablesAreForgotten(t *testing.T) {
+	w := newTestWorld(t, 3)
+	run(w, 5000)
+	for r := range w.pred.cache {
+		for k, tb := range w.pred.cache[r] {
+			if w.tick-tb.used > forgetAfter+forgetEvery {
+				t.Fatalf("region %d table %+v last read at %d, now %d", r, k, tb.used, w.tick)
+			}
+		}
+	}
+}

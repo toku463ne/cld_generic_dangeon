@@ -19,7 +19,7 @@ GOMAXPROCS=1 go run ./cmd/speed
 GOOS=js GOARCH=wasm go build -o speed.wasm ./cmd/speed && node "$(go env GOROOT)/lib/wasm/wasm_exec_node.js" speed.wasm
 ```
 
-世界を `-grow`（既定 20000）tick 育て、次の `-ticks`（既定 10000）tick にかかった秒数と平均の個体数、育った世界をセーブして読み込んだ直後の `-cold`（既定 1000）tick の秒数を出す。`-map`・`-w`・`-h`・`-variant`・`-seed`（既定 5）・`-food`（食料の上限。個体数を揃えるため。0 は条件の値）。何を目標にしているかは `PARAMETERS.md`「性能の上限」。
+世界を `-grow`（既定 20000）tick 育て、次の `-ticks`（既定 10000）tick にかかった秒数と平均の個体数、保持している生存の表の数・ヒープ・セーブの大きさ、育った世界をセーブして読み込み、温めた（`World.Warm`。セーブが名指しした生存の表を先に作る。読み込み画面の役）ときと温めないときの、それぞれ直後の `-cold`（既定 1000）tick の秒数を出す。`-map`・`-w`・`-h`・`-variant`・`-seed`（既定 5）・`-food`（食料の上限。個体数を揃えるため。0 は条件の値）。何を目標にしているかは `PARAMETERS.md`「性能の上限」。
 
 ## 実験
 

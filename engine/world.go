@@ -83,6 +83,7 @@ func (w *World) Step() {
 	w.bodies = append(w.bodies, w.born...)
 	w.born = w.born[:0]
 	w.buildGrid()
+	w.forget()
 }
 
 // removeDead drops the bodies that have run out of energy, keeping the order

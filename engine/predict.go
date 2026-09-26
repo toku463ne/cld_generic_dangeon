@@ -1,6 +1,9 @@
 package engine
 
-import "math"
+import (
+	"math"
+	"sort"
+)
 
 // Prediction and valuation.
 //
@@ -60,11 +63,16 @@ func (w *World) TruthTable() TruthTable {
 // meet is the third row of the table for region r and a body of the given
 // speed, read from the food on its ground now.
 func (w *World) meet(r RegionID, speed float64) float64 {
+	return w.meetAt(r, w.food.onGround[r], speed)
+}
+
+// meetAt is meet with the given food on region r's ground.
+func (w *World) meetAt(r RegionID, food int, speed float64) float64 {
 	land := len(w.food.regionLand[r])
 	if land == 0 {
 		return 0
 	}
-	return float64(w.food.onGround[r]) / float64(land) * math.Min(speed, 1)
+	return float64(food) / float64(land) * math.Min(speed, 1)
 }
 
 // reach bounds the ticks it takes a body of the given speed to walk onto a
@@ -141,7 +149,10 @@ func (t TruthTable) NewSurvival(meet float64, windows []int) Survival {
 	keep(0)
 	for step := 1; step < longest; step++ {
 		next[0] = 1
-		for n := 1; n <= t.Full; n++ {
+		// A body with more ticks of energy than the steps so far cannot be
+		// dead yet: those entries stay 0, as they were made, and are not
+		// worked out. It halves the work and changes no number.
+		for n := 1; n <= min(step, t.Full); n++ {
 			fed := min(n+t.Meal, t.Full) - 1
 			next[n] = meet*cur[fed] + (1-meet)*cur[n-1]
 		}
@@ -310,14 +321,24 @@ func (w *World) inSight(dst []Food, b *Body) []Food {
 // its food on the ground now. A survival table depends on nothing but the
 // region's food count and the body's build, so each is built once per count
 // and build and kept; the config's build has a fast path (surv, fresh). All
-// of it can be rebuilt from the rest of the world.
+// of it can be rebuilt from the rest of the world, and a table is the same
+// whenever it is built: when tables are built, kept or dropped changes no
+// decision, which is what lets the cache forget and a loaded world warm up.
 type predictor struct {
 	meal, full int
 	windows    []int
-	surv       []Survival
+	surv       []*table
 	fresh      []bool
-	cache      []map[int]Survival     // per region, config's build, by food on the ground
-	builds     []map[survKey]Survival // per region, other builds
+	cache      []map[survKey]*table // per region
+	// pending are the tables a saved world was using, to be built by Warm
+	// before they are asked for.
+	pending []TableKey
+}
+
+// table is a survival table and the last tick it was read.
+type table struct {
+	s    Survival
+	used int64
 }
 
 // survKey tells survival tables of one region apart: the food on its
@@ -326,6 +347,25 @@ type survKey struct {
 	food, meal, full int
 	speed            float64
 }
+
+// TableKey names one survival table, for a saved world to say which tables
+// it was using (Warm).
+type TableKey struct {
+	Region, Food, Meal, Full int
+	Speed                    float64
+}
+
+const (
+	// forgetEvery is how often, in ticks, the tables not read for
+	// forgetAfter ticks are dropped. Without it the cache keeps every food
+	// count a region ever had - some 2600 tables and 200 MB after 20000
+	// ticks, most of them from the full map of the first ticks.
+	forgetEvery = 1000
+	forgetAfter = 10000
+	// warmAfter is how lately a table must have been read for a saved
+	// world to name it for warming.
+	warmAfter = 1000
+)
 
 // initPredict sets the predictor up for the world's window. With no window
 // there is nothing to predict.
@@ -339,14 +379,12 @@ func (w *World) initPredict() {
 		meal:    energyTicks(w.cfg.FoodEnergy, w.cfg.EnergyBurn),
 		full:    energyTicks(w.cfg.EnergyMax, w.cfg.EnergyBurn),
 		windows: []int{w.cfg.Window},
-		surv:    make([]Survival, n),
+		surv:    make([]*table, n),
 		fresh:   make([]bool, n),
-		cache:   make([]map[int]Survival, n),
-		builds:  make([]map[survKey]Survival, n),
+		cache:   make([]map[survKey]*table, n),
 	}
 	for r := range w.pred.cache {
-		w.pred.cache[r] = map[int]Survival{}
-		w.pred.builds[r] = map[survKey]Survival{}
+		w.pred.cache[r] = map[survKey]*table{}
 	}
 }
 
@@ -363,30 +401,102 @@ func (w *World) refreshRegion(r RegionID) {
 func (w *World) survival(r RegionID) Survival {
 	p := &w.pred
 	if !p.fresh[r] {
-		n := w.food.onGround[r]
-		s, ok := p.cache[r][n]
-		if !ok {
-			t := TruthTable{Meal: p.meal, Full: p.full, Reach: w.reach(w.cfg.Speed)}
-			s = t.NewSurvival(w.meet(r, w.cfg.Speed), p.windows)
-			p.cache[r][n] = s
-		}
-		p.surv[r], p.fresh[r] = s, true
+		p.surv[r], p.fresh[r] = w.tableFor(r, p.meal, p.full, w.cfg.Speed), true
 	}
-	return p.surv[r]
+	t := p.surv[r]
+	t.used = w.tick
+	return t.s
 }
 
 // survivalFor returns region r's survival table for its food on the ground
 // now and a build of the given meal, full and speed.
 func (w *World) survivalFor(r RegionID, meal, full int, speed float64) Survival {
+	t := w.tableFor(r, meal, full, speed)
+	t.used = w.tick
+	return t.s
+}
+
+// tableFor finds or builds region r's table for its food now and a build.
+func (w *World) tableFor(r RegionID, meal, full int, speed float64) *table {
+	return w.tableAt(r, survKey{food: w.food.onGround[r], meal: meal, full: full, speed: speed})
+}
+
+// tableAt finds or builds region r's table for key k.
+func (w *World) tableAt(r RegionID, k survKey) *table {
 	p := &w.pred
-	k := survKey{food: w.food.onGround[r], meal: meal, full: full, speed: speed}
-	s, ok := p.builds[r][k]
+	t, ok := p.cache[r][k]
 	if !ok {
-		t := TruthTable{Meal: meal, Full: full, Reach: w.reach(speed)}
-		s = t.NewSurvival(w.meet(r, speed), p.windows)
-		p.builds[r][k] = s
+		tt := TruthTable{Meal: k.meal, Full: k.full, Reach: w.reach(k.speed)}
+		t = &table{s: tt.NewSurvival(w.meetAt(r, k.food, k.speed), p.windows), used: w.tick}
+		p.cache[r][k] = t
 	}
-	return s
+	return t
+}
+
+// forget drops the tables not read for forgetAfter ticks, every
+// forgetEvery ticks.
+func (w *World) forget() {
+	p := &w.pred
+	if p.cache == nil || w.tick%forgetEvery != 0 {
+		return
+	}
+	for r := range p.cache {
+		for k, t := range p.cache[r] {
+			if w.tick-t.used > forgetAfter {
+				delete(p.cache[r], k)
+			}
+		}
+		p.fresh[r] = false
+	}
+}
+
+// Tables names the survival tables the world has read in the last
+// warmAfter ticks. A saved world carries them so that a loaded one can
+// build them ahead (Warm); a table read less lately is built when it is
+// next read.
+func (w *World) Tables() []TableKey {
+	var ks []TableKey
+	for r, c := range w.pred.cache {
+		for k, t := range c {
+			if w.tick-t.used > warmAfter {
+				continue
+			}
+			ks = append(ks, TableKey{Region: r, Food: k.food, Meal: k.meal, Full: k.full, Speed: k.speed})
+		}
+	}
+	sort.Slice(ks, func(i, j int) bool {
+		a, b := ks[i], ks[j]
+		switch {
+		case a.Region != b.Region:
+			return a.Region < b.Region
+		case a.Food != b.Food:
+			return a.Food < b.Food
+		case a.Meal != b.Meal:
+			return a.Meal < b.Meal
+		case a.Full != b.Full:
+			return a.Full < b.Full
+		}
+		return a.Speed < b.Speed
+	})
+	return ks
+}
+
+// Warm builds up to n of the tables a loaded world was using when it was
+// saved and returns how many are still to build. A world that is not warmed
+// builds each table the first time it is read, and runs the same; warming
+// moves that work to before play - a loading screen - so that the first
+// ticks run as fast as those of the world that was saved. n <= 0 builds
+// them all.
+func (w *World) Warm(n int) int {
+	p := &w.pred
+	for i := 0; len(p.pending) > 0 && (n <= 0 || i < n); i++ {
+		k := p.pending[0]
+		p.pending = p.pending[1:]
+		if k.Region >= 0 && k.Region < len(p.cache) {
+			w.tableAt(RegionID(k.Region), survKey{food: k.Food, meal: k.Meal, full: k.Full, speed: k.Speed})
+		}
+	}
+	return len(p.pending)
 }
 
 // decide values body b's options and takes the one of least risk. Among

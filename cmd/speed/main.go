@@ -1,8 +1,9 @@
 // Command speed answers, in wall-clock seconds, how long the engine takes
 // to run a world of a given size: it grows a world, then times a stretch of
-// ticks and the first ticks after the grown world is saved and loaded back
-// (a player starts from a saved world, and the survival tables are rebuilt
-// on the way). Run it with GOMAXPROCS=1 for one core, and built with
+// ticks, and the first ticks after the grown world is saved and loaded back
+// - once warmed (World.Warm builds the survival tables the saved world was
+// using, as a loading screen would) and once not (each table is built the
+// first time it is read). A player starts from a saved world. Run it with GOMAXPROCS=1 for one core, and built with
 // GOOS=js GOARCH=wasm under node for the browser (PARAMETERS.md "性能の上限").
 package main
 
@@ -64,18 +65,35 @@ func main() {
 		}
 	}
 	warm := time.Since(start)
-	l, err := engine.Load(&saved)
-	if err != nil {
-		fail(err)
+	var mem runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&mem)
+	heap := float64(mem.HeapInuse) / 1e6
+	tables := len(w.Tables())
+	snapshot := saved.Len()
+	load := func(warm bool) (time.Duration, time.Duration) {
+		start := time.Now()
+		l, err := engine.Load(bytes.NewReader(saved.Bytes()))
+		if err != nil {
+			fail(err)
+		}
+		if warm {
+			l.Warm(0)
+		}
+		loaded := time.Since(start)
+		start = time.Now()
+		for i := 0; i < *cold; i++ {
+			l.Step()
+		}
+		return loaded, time.Since(start)
 	}
-	start = time.Now()
-	for i := 0; i < *cold; i++ {
-		l.Step()
-	}
-	coldT := time.Since(start)
+	loadW, warmT := load(true)
+	loadC, coldT := load(false)
 	fmt.Printf("%s %dx%d %s seed %d, GOMAXPROCS=%d %s/%s\n", *mapName, *width, *height, *v, *seed, runtime.GOMAXPROCS(0), runtime.GOOS, runtime.GOARCH)
 	fmt.Printf("  %d ticks after %d: %.2f s (%.0f us/tick), mean bodies %.0f\n", *ticks, *grow, warm.Seconds(), warm.Seconds()/float64(*ticks)*1e6, bodies/samples)
-	fmt.Printf("  first %d ticks after loading the grown world: %.2f s (%.0f us/tick)\n", *cold, coldT.Seconds(), coldT.Seconds()/float64(*cold)*1e6)
+	fmt.Printf("  holding %d survival tables, heap in use %.0f MB; snapshot %.2f MB\n", tables, heap, float64(snapshot)/1e6)
+	fmt.Printf("  loaded and warmed in %.2f s; first %d ticks then: %.2f s (%.0f us/tick)\n", loadW.Seconds(), *cold, warmT.Seconds(), warmT.Seconds()/float64(*cold)*1e6)
+	fmt.Printf("  loaded without warming in %.2f s; first %d ticks then: %.2f s (%.0f us/tick)\n", loadC.Seconds(), *cold, coldT.Seconds(), coldT.Seconds()/float64(*cold)*1e6)
 }
 
 func fail(err error) {

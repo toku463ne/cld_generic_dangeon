@@ -15,10 +15,12 @@ import (
 //
 // The random source is saved as its seed and the number of draws taken from it
 // (see rng.go). Anything that can be rebuilt from what is saved (which tile
-// holds which food, the land of each region) is rebuilt rather than saved.
+// holds which food, the land of each region, the survival tables) is rebuilt
+// rather than saved; of the survival tables, only which ones were in use is
+// saved, so that a loaded world can build them before play (World.Warm).
 
 // snapshotVersion changes whenever the format does.
-const snapshotVersion = 7
+const snapshotVersion = 8
 
 type snapshot struct {
 	Version int    `json:"version"`
@@ -35,6 +37,11 @@ type snapshot struct {
 	Bodies []Body `json:"bodies"`
 	NextID int64  `json:"nextID"`
 	Stats  Stats  `json:"stats"`
+
+	// Tables are the survival tables the world was reading, for a loaded
+	// world to build ahead (World.Warm). They are the only part of the
+	// cache saved: the tables themselves can be rebuilt from the rest.
+	Tables []TableKey `json:"tables,omitempty"`
 }
 
 // Save writes the whole state of the world.
@@ -52,6 +59,7 @@ func (w *World) Save(out io.Writer) error {
 		Bodies:   w.bodies,
 		NextID:   w.nextID,
 		Stats:    w.stats,
+		Tables:   w.Tables(),
 	})
 }
 
@@ -84,6 +92,7 @@ func Load(in io.Reader) (*World, error) {
 		w.food.onGround[w.m.RegionAt(f.X, f.Y)]++
 	}
 	w.initPredict()
+	w.pred.pending = s.Tables
 	w.buildGrid()
 	return w, nil
 }
