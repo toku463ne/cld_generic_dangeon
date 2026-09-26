@@ -398,8 +398,11 @@ func (v *View) FollowText() string {
 	}
 	if v.W.Config().Learn {
 		bl := v.W.Belief(b)
-		fmt.Fprintf(&sb, "\nbelieves: food/tile here %.4f (%.0f tiles), own path %.4f (%.0f), land %.4f; a mate makes a child %.2f (%.0f asks)",
-			bl.Here, bl.HereN, bl.Path, bl.PathN, bl.Land, bl.Child, bl.Asks)
+		c := v.W.Config()
+		pull := func(weight, n float64) float64 { return weight / (weight + n) }
+		fmt.Fprintf(&sb, "\nbelieves: food/tile here %.4f (%.0f tiles, %.0f%% parent), own path %.4f (%.0f, %.0f%% parent), land %.4f; a mate makes a child %.2f (%.0f asks, %.0f%% prior)",
+			bl.Here, bl.HereN, 100*pull(c.RegionWeight, bl.HereN), bl.Path, bl.PathN, 100*pull(c.PathWeight, bl.PathN), bl.Land,
+			bl.Child, bl.Asks, 100*pull(c.ChildWeight, bl.Asks))
 	}
 	if v.drive.ID == b.ID {
 		sb.WriteString("  PLAYED")
