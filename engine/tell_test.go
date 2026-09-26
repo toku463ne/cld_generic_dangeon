@@ -95,7 +95,8 @@ func TestEvidenceOutlivesObservers(t *testing.T) {
 // follows the region's.
 func TestStableRows(t *testing.T) {
 	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 100}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100})
-	w.cfg.Kin = false // to everyone met (2-1)
+	w.cfg.Kin = false     // to everyone met (2-1)
+	w.cfg.AgePath = false // the path row never ages (2-1, 2-2)
 	a, b := &w.bodies[0], &w.bodies[1]
 	a.Memory.Regions = []Tally{{N: 100, K: 5, T: w.tick}}
 	a.Memory.Path = Tally{N: 2, K: 1} // food twice as often as the region led it to expect
@@ -162,5 +163,27 @@ func TestKinPassesToChildren(t *testing.T) {
 	w.tell(a)
 	if got := b.Memory.Path; got.heard(0).N != 15 {
 		t.Fatalf("a stranger heard: %+v", got)
+	}
+}
+
+// With AgePath the path row ages by EvidenceHalfLife from when it was
+// observed, what a body saw and what it was given alike, and passing it on
+// does not make it new.
+func TestAgePath(t *testing.T) {
+	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 100}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100})
+	a, b := &w.bodies[0], &w.bodies[1]
+	b.Parents = [2]int64{0, -1}
+	a.Memory.Path, a.Memory.Ver = Tally{N: 8, K: 2, T: w.tick}, 1
+	w.tick += int64(w.cfg.EvidenceHalfLife)
+	if got := w.pathTally(a); math.Abs(got.N-4) > 1e-9 || math.Abs(got.K-1) > 1e-9 {
+		t.Fatalf("a's path a half-life on: %+v", got)
+	}
+	w.tell(a)
+	if got := b.Memory.Path; math.Abs(got.N-4) > 1e-9 || math.Abs(got.heard(0).N*got.scale()-4) > 1e-9 {
+		t.Fatalf("b given a's path a half-life old: %+v", got)
+	}
+	w.tick += int64(w.cfg.EvidenceHalfLife)
+	if got := w.pathTally(b); math.Abs(got.N-2) > 1e-9 {
+		t.Fatalf("b's path another half-life on: %+v", got)
 	}
 }

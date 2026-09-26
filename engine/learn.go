@@ -195,23 +195,26 @@ func (w *World) pathRate(b *Body, r RegionID) float64 {
 	return w.pathFrom(w.pathTally(b), w.regionRate(b, r))
 }
 
-// pathTally is body b's path row as it weighs now. With StableRows it does
-// not age: that tiles walked lately hold less than their region is a fact
-// that does not change as the world does.
+// pathTally is body b's path row as it weighs now. With StableRows and
+// without AgePath it does not age (stage 2-2): that tiles walked lately
+// hold less than their region was taken for a fact that does not change.
 func (w *World) pathTally(b *Body) Tally {
-	if w.cfg.StableRows {
+	if !w.pathAges() {
 		return b.Memory.Path
 	}
 	return w.Fresh(b.Memory.Path)
 }
 
-// PathTally is body b's path row as it weighs now (it does not age with
-// StableRows), for reports.
+// pathAges reports whether the path row ages: always without StableRows,
+// with it only by AgePath.
+func (w *World) pathAges() bool { return !w.cfg.StableRows || w.cfg.AgePath }
+
+// PathTally is body b's path row as it weighs now, for reports.
 func (w *World) PathTally(b Body) Tally { return w.pathTally(&b) }
 
 // agePath ages a path row, where it ages.
 func (w *World) agePath(t *Tally) {
-	if !w.cfg.StableRows {
+	if w.pathAges() {
 		w.age(t)
 	}
 }

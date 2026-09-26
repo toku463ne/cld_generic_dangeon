@@ -53,7 +53,7 @@ func (w *World) Provenance() []RowProvenance {
 				continue
 			}
 			f := w.decay(t.T) // what the evidence weighs now
-			if w.cfg.StableRows && name == "path" {
+			if name == "path" && !w.pathAges() {
 				f = 1 // the path row does not age
 			}
 			fe := f * t.scale()

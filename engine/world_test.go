@@ -85,8 +85,24 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0xc2470db84a940725)
+	const want = uint64(0x7adba2aacb1d8238)
 	w := newTestWorld(t, 1)
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// With the path row never ageing, the world is stage 2-2: its fingerprint
+// is the one pinned then.
+func TestKinIsStage22(t *testing.T) {
+	const want = uint64(0xc2470db84a940725)
+	cfg := testConfig(1)
+	cfg.AgePath = false
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
 		t.Fatalf("fingerprint = %#x, want %#x", got, want)
@@ -98,7 +114,7 @@ func TestFingerprint(t *testing.T) {
 func TestNearIsThird21(t *testing.T) {
 	const want = uint64(0x93985c1a1c5ca120)
 	cfg := testConfig(1)
-	cfg.Kin = false
+	cfg.Kin, cfg.AgePath = false, false
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)

@@ -137,6 +137,11 @@ type Config struct {
 	// the regions' rows, how much food a region holds now, age and are not
 	// passed. Off: both kinds pass and age (the second run of 2-1).
 	StableRows bool
+	// AgePath has the path row age as well with StableRows, by
+	// EvidenceHalfLife from when each piece was observed, received or not
+	// (stage 2-3): evidence many lives old otherwise outweighs all a body
+	// sees itself. Off: stage 2-2, where the path row never ages.
+	AgePath bool
 	// Tell has bodies pass what they know of the world to the bodies they
 	// meet (tell.go), keeping at most HeardLimit observers' evidence per
 	// row. Off: stage 2-0.
@@ -205,6 +210,7 @@ func DefaultConfig() Config {
 		BeliefStep:       1.1,
 		Tell:             true,
 		StableRows:       true,
+		AgePath:          true,
 		EvidenceHalfLife: 1200,
 		HeardLimit:       64,
 		Kin:              true,
