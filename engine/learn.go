@@ -87,6 +87,10 @@ type Memory struct {
 	Asks, Kids float64 `json:",omitempty"`
 	// Met are the bodies it has passed evidence with (tell.go).
 	Met map[int64]bool `json:",omitempty"`
+	// Ver counts the changes to the rows it can pass on; Told holds, for
+	// each child, Ver when it last passed them to it (tell.go, with Kin).
+	Ver  int64           `json:",omitempty"`
+	Told map[int64]int64 `json:",omitempty"`
 }
 
 // Belief is what a body's memory makes of the world now, as the trace shows
@@ -346,6 +350,9 @@ func (w *World) stepped(b *Body, from, to int) {
 			mem.Regions[r].N++
 			mem.Regions[r].K += food
 			w.regionRow(r).Learned++
+			if !w.cfg.StableRows {
+				mem.Ver++ // the regions' rows pass too
+			}
 			if w.walked(b, t) {
 				w.stats.PathRow.Learned++
 				w.agePath(&mem.Path)
@@ -356,6 +363,7 @@ func (w *World) stepped(b *Body, from, to int) {
 					mem.Path.N++
 				}
 				mem.Path.K += food
+				mem.Ver++
 			}
 		}
 	}

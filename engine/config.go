@@ -142,6 +142,12 @@ type Config struct {
 	// row. Off: stage 2-0.
 	Tell       bool
 	HeardLimit int
+	// Kin has evidence pass only from a parent to its own children in its
+	// sight, whenever the parent holds some it has not passed to that child
+	// (tell.go): a parent has a reason to tell, the worth of a child, where
+	// a body telling everyone it meets has none. Off: every two bodies pass
+	// to each other once, when they first meet (stage 2-1).
+	Kin bool
 	// BeliefStep is the ratio between the chances per tile survival tables
 	// are built for: an estimate is rounded to a power of it, so that
 	// bodies share tables.
@@ -201,6 +207,7 @@ func DefaultConfig() Config {
 		StableRows:       true,
 		EvidenceHalfLife: 1200,
 		HeardLimit:       64,
+		Kin:              true,
 		Collide:          true,
 	}
 }

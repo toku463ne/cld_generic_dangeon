@@ -27,6 +27,10 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Near is stage 2-1 as closed: every two bodies pass evidence to each
+// other once, when they first meet.
+const Near = "near"
+
 // Mixed is the second run of stage 2-1: every row of the world passes and
 // ages, the regions' and the path's alike.
 const Mixed = "mixed"
@@ -85,7 +89,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func mixed(c *engine.Config)     { c.StableRows = false }
+func near(c *engine.Config)      { c.Kin = false }
+func mixed(c *engine.Config)     { near(c); c.StableRows = false }
 func undecayed(c *engine.Config) { mixed(c); c.EvidenceHalfLife = 0 }
 func untold(c *engine.Config)    { undecayed(c); c.Tell = false }
 func truth(c *engine.Config)     { untold(c); c.Learn = false }
@@ -101,6 +106,7 @@ func everytick(c *engine.Config) { nobreed(c); c.Recheck = 0 }
 var rewrites = map[string]func(*engine.Config){
 	Base:         func(*engine.Config) {},
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Near:         near,
 	Mixed:        mixed,
 	Pathless:     func(c *engine.Config) { mixed(c); c.PathAhead = 0 },
 	Undecayed:    undecayed,

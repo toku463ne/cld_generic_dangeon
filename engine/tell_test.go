@@ -13,6 +13,7 @@ func tallyOf(n, k float64) Tally { return Tally{N: n, K: k} }
 func TestTellPassesOnce(t *testing.T) {
 	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 100}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100})
 	w.cfg.StableRows = false // regions pass too
+	w.cfg.Kin = false        // to everyone met (2-1)
 	a, b := &w.bodies[0], &w.bodies[1]
 	a.Memory.Regions = []Tally{tallyOf(100, 5)}
 	a.Memory.Path = tallyOf(10, 0)
@@ -94,6 +95,7 @@ func TestEvidenceOutlivesObservers(t *testing.T) {
 // follows the region's.
 func TestStableRows(t *testing.T) {
 	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 100}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100})
+	w.cfg.Kin = false // to everyone met (2-1)
 	a, b := &w.bodies[0], &w.bodies[1]
 	a.Memory.Regions = []Tally{{N: 100, K: 5, T: w.tick}}
 	a.Memory.Path = Tally{N: 2, K: 1} // food twice as often as the region led it to expect
@@ -121,5 +123,44 @@ func TestStableRows(t *testing.T) {
 	// No evidence: a walked tile reads as any tile of its region.
 	if got := w.pathFrom(Tally{}, 0.01); got != 0.01 {
 		t.Fatalf("no evidence: %v", got)
+	}
+}
+
+// With Kin, a parent passes its evidence to its child in sight whenever it
+// holds some it has not passed to it; the child passes nothing back, and a
+// body passes nothing to a body not its child.
+func TestKinPassesToChildren(t *testing.T) {
+	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 100}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100})
+	a, b := &w.bodies[0], &w.bodies[1]
+	b.Parents = [2]int64{0, -1}
+	a.Memory.Path, a.Memory.Ver = tallyOf(10, 1), 1
+	b.Memory.Path, b.Memory.Ver = tallyOf(4, 0), 1
+	w.tell(b) // a is not b's child
+	if got := a.Memory.Path; got.N != 10 || len(got.Heard) != 0 {
+		t.Fatalf("a child passed to its parent: %+v", got)
+	}
+	w.tell(a)
+	if got := b.Memory.Path; got.N != 14 || got.heard(0) != (Heard{0, 10, 1}) {
+		t.Fatalf("child after its parent told it: %+v", got)
+	}
+	// Nothing new: nothing passes.
+	w.tell(a)
+	if st := w.Stats(); st.PathRow.Passed != 1 {
+		t.Fatalf("passed %d times with nothing new", st.PathRow.Passed)
+	}
+	// The parent learns more: it passes again, the larger copy kept.
+	a.Memory.Path.N, a.Memory.Path.K = 15, 2
+	a.Memory.Ver++
+	w.tell(a)
+	if got := b.Memory.Path; got.N != 19 || got.heard(0) != (Heard{0, 15, 2}) {
+		t.Fatalf("child after its parent learned more: %+v", got)
+	}
+	// A body not its child hears nothing.
+	b.Parents = [2]int64{-1, -1}
+	a.Memory.Path.N++
+	a.Memory.Ver++
+	w.tell(a)
+	if got := b.Memory.Path; got.heard(0).N != 15 {
+		t.Fatalf("a stranger heard: %+v", got)
 	}
 }

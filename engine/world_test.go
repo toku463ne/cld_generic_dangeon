@@ -85,8 +85,24 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0x93985c1a1c5ca120)
+	const want = uint64(0xc2470db84a940725)
 	w := newTestWorld(t, 1)
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// Passing to everyone met, the world is the third run of stage 2-1: its
+// fingerprint is the one pinned then.
+func TestNearIsThird21(t *testing.T) {
+	const want = uint64(0x93985c1a1c5ca120)
+	cfg := testConfig(1)
+	cfg.Kin = false
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
 		t.Fatalf("fingerprint = %#x, want %#x", got, want)
@@ -98,7 +114,7 @@ func TestFingerprint(t *testing.T) {
 func TestMixedIsSecond21(t *testing.T) {
 	const want = uint64(0xc91b803c2f04cb5a)
 	cfg := testConfig(1)
-	cfg.StableRows = false
+	cfg.StableRows, cfg.Kin = false, false
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -114,7 +130,7 @@ func TestMixedIsSecond21(t *testing.T) {
 func TestUndecayedIsFirst21(t *testing.T) {
 	const want = uint64(0xbaee248a8a9a5bc)
 	cfg := testConfig(1)
-	cfg.EvidenceHalfLife, cfg.StableRows = 0, false
+	cfg.EvidenceHalfLife, cfg.StableRows, cfg.Kin = 0, false, false
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)

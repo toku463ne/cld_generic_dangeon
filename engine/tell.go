@@ -40,6 +40,10 @@ func (w *World) tell(b *Body) {
 			}
 			for _, j := range w.grid[w.m.index(x, y)] {
 				o := &w.bodies[j]
+				if w.cfg.Kin {
+					w.tellChild(b, o)
+					continue
+				}
 				if o.ID == b.ID || b.Memory.Met[o.ID] {
 					continue
 				}
@@ -57,6 +61,26 @@ func (w *World) tell(b *Body) {
 				}
 			}
 		}
+	}
+}
+
+// tellChild passes body b's evidence to body o if o is b's child and b
+// holds some it has not passed to it.
+func (w *World) tellChild(b, o *Body) {
+	if o.Parents[0] != b.ID && o.Parents[1] != b.ID {
+		return
+	}
+	m := &b.Memory
+	if m.Ver == 0 || m.Told[o.ID] == m.Ver {
+		return
+	}
+	if m.Told == nil {
+		m.Told = map[int64]int64{}
+	}
+	m.Told[o.ID] = m.Ver
+	w.pass(b, o)
+	if w.onMeet != nil {
+		w.onMeet(*b, *o)
 	}
 }
 
@@ -83,6 +107,7 @@ func (w *World) pass(from, to *Body) {
 		w.stats.PathRow.Passed++
 	}
 	w.passTally(&to.Memory.Path, from.Memory.Path, from.ID, to.ID)
+	to.Memory.Ver++
 }
 
 // passTally merges tally src, held by body srcID, into dst, held by dstID:
