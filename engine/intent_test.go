@@ -17,6 +17,9 @@ func TestFollowsIntentBetweenDecisions(t *testing.T) {
 		clear(decided)
 		w.Step()
 		for _, b := range w.Bodies() {
+			if b.Born == w.Tick() {
+				continue // born this tick, at its end: it has not had a turn
+			}
 			if w.Tick()-b.Decided >= int64(w.cfg.Recheck) {
 				t.Fatalf("tick %d body %d: last decided at %d", w.Tick(), b.ID, b.Decided)
 			}

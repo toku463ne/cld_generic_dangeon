@@ -154,38 +154,54 @@ func (w *World) rateTable(rs *rates, r RegionID, meal, full int, speed float64) 
 }
 
 // stepped records what body b learns stepping from tile from onto tile to:
-// whether it holds food, as a tile of its region and, if the body left it
-// within PathRecall ticks, as a tile of its path. The tile left joins the
-// path. Only a step of keeping on the move is evidence: the rows say what
-// keeping on the move meets, and a step of a walk to food in sight (Goal)
-// meets food because the body saw it there - counted, it made every region
-// read two or three times as rich as it was.
+// what comes into view. Each tile within Sight of the new tile and not of
+// the old is one tile of evidence of its region - food on it or not - and,
+// if the body left it within PathRecall ticks, of its path too. The tile
+// left joins the path.
+//
+// What comes into view is the evidence because nothing the body chose
+// selected it. The tiles a body steps onto are not: counting them, a walk
+// to food in sight made regions read two or three times as rich as they
+// were, and leaving the walks out made them read three times as poor (food
+// ahead is seen, and walked to, before it is stepped on).
 func (w *World) stepped(b *Body, from, to int) {
-	if !w.cfg.Learn || from == to || to < 0 {
+	if !w.cfg.Learn || from == to || to < 0 || w.cfg.Sight < 0 {
 		return
 	}
 	mem := &b.Memory
 	if mem.Walked == nil {
 		mem.Walked = map[int]int64{}
 	}
-	if b.Goal >= 0 {
-		if from >= 0 {
-			mem.Walked[from] = w.tick
+	s := w.cfg.Sight
+	tx, ty := to%w.m.Width, to/w.m.Width
+	fx, fy := -1<<20, -1<<20
+	if from >= 0 {
+		fx, fy = from%w.m.Width, from/w.m.Width
+	}
+	for y := ty - s; y <= ty+s; y++ {
+		for x := tx - s; x <= tx+s; x++ {
+			if !w.m.InBounds(x, y) || w.m.TerrainAt(x, y) != TerrainLand {
+				continue
+			}
+			if abs(x-fx) <= s && abs(y-fy) <= s {
+				continue // in view before the step
+			}
+			t := w.m.index(x, y)
+			food := 0.0
+			if w.foodOn(t) >= 0 {
+				food = 1
+			}
+			r := w.m.Region[t]
+			for int(r) >= len(mem.Regions) {
+				mem.Regions = append(mem.Regions, Tally{})
+			}
+			mem.Regions[r].N++
+			mem.Regions[r].K += food
+			if w.walked(b, t) {
+				mem.Path.N++
+				mem.Path.K += food
+			}
 		}
-		return
-	}
-	food := 0.0
-	if w.foodOn(to) >= 0 {
-		food = 1
-	}
-	r := w.m.Region[to]
-	for int(r) >= len(mem.Regions) {
-		mem.Regions = append(mem.Regions, Tally{})
-	}
-	mem.Regions[r].N += 1
-	mem.Regions[r].K += food
-	if when, ok := mem.Walked[to]; ok && w.tick-when <= int64(w.cfg.PathRecall) {
-		mem.Path.N, mem.Path.K = mem.Path.N+1, mem.Path.K+food
 	}
 	if from >= 0 {
 		mem.Walked[from] = w.tick
@@ -198,6 +214,13 @@ func (w *World) stepped(b *Body, from, to int) {
 			}
 		}
 	}
+}
+
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
 
 // walked reports whether body b left tile t within PathRecall ticks.

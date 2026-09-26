@@ -20,9 +20,10 @@ func TestNewbornReadsPriors(t *testing.T) {
 	}
 }
 
-// Stepping onto a tile is one tile of its region's evidence, food or not;
-// stepping back onto a tile left lately is one of the path's too; and the
-// estimates move from the priors toward what was seen.
+// Stepping to a new tile, the tiles that come into view are evidence of
+// their region, food or not; those the body left lately are evidence of
+// its path too; and the estimates move from the priors toward what was
+// seen.
 func TestSteppingTeaches(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.Bodies, cfg.FoodCap = 0, 0
@@ -30,31 +31,44 @@ func TestSteppingTeaches(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	w.food.foods = append(w.food.foods, Food{X: 3, Y: 2})
-	w.food.foodAt[w.m.index(3, 2)] = 1
+	// Food at (4,2), which comes into view stepping east from (2,2) to (3,2).
+	w.food.foods = append(w.food.foods, Food{X: 4, Y: 2})
+	w.food.foodAt[w.m.index(4, 2)] = 1
 	b := &Body{Goal: -1}
 	a, c := w.m.index(2, 2), w.m.index(3, 2)
-	w.stepped(b, a, c) // onto food
-	w.tick++
-	w.stepped(b, c, a) // back onto the tile it left: no food, and its path
+	w.stepped(b, a, c)
 	r := b.Memory.Regions[0]
-	if r.N != 2 || r.K != 1 || b.Memory.Path.N != 1 || b.Memory.Path.K != 0 {
-		t.Fatalf("region %+v path %+v, want 2/1 and 1/0", r, b.Memory.Path)
+	if r.N != 3 || r.K != 1 || b.Memory.Path.N != 0 {
+		t.Fatalf("stepping east: region %+v path %+v, want 3 tiles with 1 food and no path", r, b.Memory.Path)
 	}
-	// A step of a walk to food in sight is no evidence.
-	b.Goal = c
+	// Back west: the column x=1 comes into view; none of it was walked.
+	w.tick++
+	w.stepped(b, c, a)
+	if r := b.Memory.Regions[0]; r.N != 6 || b.Memory.Path.N != 0 {
+		t.Fatalf("stepping back: region %+v path %+v", r, b.Memory.Path)
+	}
+	// East again: (4,*) comes into view again, and (3,2), left a tick ago,
+	// is not new; but (4,2) was never walked. Walk it, then come back.
 	w.tick++
 	w.stepped(b, a, c)
-	if r := b.Memory.Regions[0]; r.N != 2 {
-		t.Fatalf("a step of a walk to food counted: %+v", r)
+	w.tick++
+	w.stepped(b, c, w.m.index(4, 2))
+	w.tick++
+	w.stepped(b, w.m.index(4, 2), c)
+	w.tick++
+	w.stepped(b, c, a)
+	w.tick++
+	before := b.Memory.Path.N
+	w.stepped(b, a, c) // (4,*) comes into view; (4,2) was left 2 ticks ago
+	if b.Memory.Path.N != before+1 || b.Memory.Path.K != 1 {
+		t.Fatalf("path %+v after seeing a tile it walked, with food, again", b.Memory.Path)
 	}
-	b.Goal = -1
 	// Far more evidence than the weights pulls the estimate to the rate seen.
 	b.Memory.Regions[0] = Tally{N: 1e6, K: 3e5}
 	if got := w.regionRate(b, 0); math.Abs(got-0.3) > 1e-3 {
 		t.Fatalf("region estimate %v after 1e6 tiles at 0.3", got)
 	}
-	// Leaving a tile beyond PathRecall ticks does not make it a path tile.
+	// A tile left beyond PathRecall ticks no longer reads as walked.
 	w.tick += int64(cfg.PathRecall) + 1
 	if w.walked(b, a) {
 		t.Fatal("a tile left too long ago still reads as walked")

@@ -380,13 +380,6 @@ func TestInSight(t *testing.T) {
 	}
 }
 
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
 // The trace is handed the numbers the choice was made from: they are the
 // ones Value gives for the same body at the same moment, and the action taken
 // is one of the options of the least risk.
