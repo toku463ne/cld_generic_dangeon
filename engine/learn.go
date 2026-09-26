@@ -345,7 +345,9 @@ func (w *World) stepped(b *Body, from, to int) {
 			w.age(&mem.Regions[r])
 			mem.Regions[r].N++
 			mem.Regions[r].K += food
+			w.regionRow(r).Learned++
 			if w.walked(b, t) {
+				w.stats.PathRow.Learned++
 				w.agePath(&mem.Path)
 				if w.cfg.StableRows {
 					// Against what the region was believed to hold.

@@ -111,10 +111,16 @@ type Stats struct {
 	// BudgetIn and BudgetOut are the budgets brought in by the born and
 	// taken out by the dead (BudgetLedger).
 	BudgetIn, BudgetOut float64
-	// Passed counts the times a body gave another evidence it held (tell.go),
-	// by row: the regions' and the path's.
-	PassedRegion, PassedPath int64
+	// RegionRows (indexed by RegionID), PathRow and MateRow count, for
+	// each learned row, what bodies learned themselves and passed on.
+	RegionRows       []RowCount `json:",omitempty"`
+	PathRow, MateRow RowCount
 }
+
+// RowCount counts, for one learned row, the observations bodies added to it
+// themselves (Learned: tiles come into view, or mates asked) and the times a
+// body gave another the evidence it held for it (Passed, tell.go).
+type RowCount struct{ Learned, Passed int64 }
 
 // tileOf returns the index of the tile under (x, y), or -1 off the map.
 func (w *World) tileOf(x, y float64) int {
@@ -181,6 +187,7 @@ func (w *World) act(i int, b *Body, a Action) {
 	case ActMate:
 		if w.cfg.Learn {
 			b.Memory.Asks++
+			w.stats.MateRow.Learned++
 		}
 		w.mate(b, a.Mate)
 	case ActEat:
@@ -205,4 +212,16 @@ func (w *World) Bodies() []Body {
 }
 
 // Stats returns what has happened since the world was built.
-func (w *World) Stats() Stats { return w.stats }
+func (w *World) Stats() Stats {
+	s := w.stats
+	s.RegionRows = append([]RowCount(nil), s.RegionRows...)
+	return s
+}
+
+// regionRow returns the counts of region r's row, growing the list to it.
+func (w *World) regionRow(r RegionID) *RowCount {
+	for int(r) >= len(w.stats.RegionRows) {
+		w.stats.RegionRows = append(w.stats.RegionRows, RowCount{})
+	}
+	return &w.stats.RegionRows[r]
+}

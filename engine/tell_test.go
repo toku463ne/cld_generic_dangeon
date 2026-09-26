@@ -27,6 +27,9 @@ func TestTellPassesOnce(t *testing.T) {
 	if got := b.Memory.Path; got.N != 10 || got.heard(0) != (Heard{0, 10, 0}) {
 		t.Fatalf("b's path: %+v", got)
 	}
+	if st := w.Stats(); st.RegionRows[0].Passed != 2 || st.PathRow.Passed != 1 {
+		t.Fatalf("passes counted: region %+v, path %+v", st.RegionRows[0], st.PathRow)
+	}
 	// Still in sight: nothing passes again.
 	a.Memory.Regions[0].N += 50
 	w.tell(a)

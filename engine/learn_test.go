@@ -43,6 +43,9 @@ func TestSteppingTeaches(t *testing.T) {
 	if r.N != 3 || r.K != 1 || b.Memory.Path.N != 0 {
 		t.Fatalf("stepping east: region %+v path %+v, want 3 tiles with 1 food and no path", r, b.Memory.Path)
 	}
+	if st := w.Stats(); st.RegionRows[0].Learned != 3 || st.PathRow.Learned != 0 {
+		t.Fatalf("learned counted: region %+v path %+v", st.RegionRows[0], st.PathRow)
+	}
 	// Back west: the column x=1 comes into view; none of it was walked.
 	w.tick++
 	w.stepped(b, c, a)
@@ -64,6 +67,9 @@ func TestSteppingTeaches(t *testing.T) {
 	w.stepped(b, a, c) // (4,*) comes into view; (4,2) was left 2 ticks ago
 	if b.Memory.Path.N != before+1 || b.Memory.Path.K != 1 {
 		t.Fatalf("path %+v after seeing a tile it walked, with food, again", b.Memory.Path)
+	}
+	if st := w.Stats(); st.PathRow.Learned != int64(b.Memory.Path.N) {
+		t.Fatalf("path learned %d, path evidence %v", st.PathRow.Learned, b.Memory.Path.N)
 	}
 	// Far more evidence than the weights pulls the estimate to the rate seen.
 	b.Memory.Regions[0] = Tally{N: 1e6, K: 3e5}

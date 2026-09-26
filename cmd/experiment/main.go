@@ -94,8 +94,6 @@ type result struct {
 	prov      map[string]*provSum
 	provNames []string
 	deathAges []float64
-	// Evidence passed between bodies, by row (tell.go), per run.
-	passedRegion, passedPath float64
 	// With Learn: what the living had learned at the end (rows), and, at
 	// every checkpoint after tick 5000, how far off each age band's region
 	// estimates were (learnAge).
@@ -321,10 +319,10 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	}
 	r.displace, r.edge = dSum/math.Max(dN, 1), eSum/math.Max(eN, 1)
 	r.back = backs / math.Max(traced, 1)
+	st := w.Stats()
 	if cfg.Learn {
 		r.rows = memRows(w, m)
 	}
-	st := w.Stats()
 	r.starved = float64(st.Deaths[engine.CauseStarved])
 	r.burned = st.EnergyBurned
 	total := 0.0
@@ -349,7 +347,10 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		r.decided = decisions / total
 	}
 	r.births = float64(st.Births)
-	r.passedRegion, r.passedPath = float64(st.PassedRegion), float64(st.PassedPath)
+	for i := range r.rows {
+		c := rowCount(st, r.rows[i].key)
+		r.rows[i].learned, r.rows[i].passed = float64(c.Learned), float64(c.Passed)
+	}
 	r.adultRate = math.NaN()
 	if n := st.Matured + st.DiedYoung; n > 0 {
 		r.adultRate = float64(st.Matured) / float64(n)
@@ -661,28 +662,9 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 
 	p("### 7. スキル別伝承数\n\n")
 	if baseCfg, _ := variant.Config(base, o.seed0); baseCfg.Learn && baseCfg.Tell {
-		p("スキルはまだ無い。伝承されるのは学んだ行なので、行ごとに出す。伝承された回数は、身体が持っていた証拠を出会った身体に渡した回数（1シードあたり）、保有率は受け取った証拠を持つ生きている身体の割合（tick 5000 より後のチェックポイントの平均）。\n\n")
-		p("| 行 | 伝承された回数 | 保有率 |\n| --- | --- | --- |\n")
-		holders := func(match func(string) bool) []float64 {
-			return collectWhere(rs, func(r result) bool { return len(r.provNames) > 0 }, func(r result) float64 {
-				x, n := 0.0, 0.0
-				for _, name := range r.provNames {
-					if match(name) {
-						ps := r.prov[name]
-						x += ps.hearers / ps.n
-						n++
-					}
-				}
-				return x / math.Max(n, 1)
-			})
-		}
-		p("| 地域の行（全地域） | %s | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.passedRegion }), 1),
-			fmtMeanSE(holders(func(n string) bool { return strings.HasPrefix(n, "region") }), 4))
-		p("| 通ったタイルの行 | %s | %s |\n\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.passedPath }), 1),
-			fmtMeanSE(holders(func(n string) bool { return n == "path" }), 4))
-	} else {
-		p("| スキル | 伝承された回数 | 保有率 |\n| --- | --- | --- |\n\n")
+		p("スキルはまだ無い。学んだ行（記憶）が伝達された回数は §6 の「伝達された回数の上位10」。\n\n")
 	}
+	p("| スキル | 伝承された回数 | 保有率 |\n| --- | --- | --- |\n\n")
 
 	p("### 8. 死因別死亡数（%s）\n\n", base)
 	p("| 死因 | 回数 | 割合 |\n| --- | --- | --- |\n")
@@ -906,8 +888,12 @@ func edgeShare(m engine.Map) float64 {
 // memRow is one learned row as the living held it at the end of a run.
 type memRow struct {
 	name     string
+	key      string  // the name Provenance and rowCount know it by
 	holders  float64 // share of the living with any evidence for it
 	estimate float64 // mean estimate among them
+	spread   float64 // standard deviation of the estimate among them
+	learned  float64 // observations the bodies added to it themselves, per run
+	passed   float64 // times a body gave another its evidence for it, per run
 	evidence float64 // mean evidence among them (tiles or asks)
 	truth    float64 // what the world had (NaN where it is not one number)
 }
@@ -932,7 +918,7 @@ func memRows(w *engine.World, m engine.Map) []memRow {
 	}
 	var rows []memRow
 	for r := range m.RegionFood {
-		row := memRow{name: fmt.Sprintf("地域 %d の食料 / タイル", r), truth: food[r] / land[r]}
+		row := memRow{name: fmt.Sprintf("地域 %d の食料 / タイル", r), key: fmt.Sprintf("region %d", r), truth: food[r] / land[r]}
 		for _, b := range bs {
 			if r >= len(b.Memory.Regions) || b.Memory.Regions[r].N == 0 {
 				continue
@@ -940,12 +926,14 @@ func memRows(w *engine.World, m engine.Map) []memRow {
 			t := w.Fresh(b.Memory.Regions[r])
 			row.holders++
 			row.evidence += t.N
-			row.estimate += (t.K + w.Config().RegionWeight*w.Belief(b).Land) / (t.N + w.Config().RegionWeight)
+			e := (t.K + w.Config().RegionWeight*w.Belief(b).Land) / (t.N + w.Config().RegionWeight)
+			row.estimate += e
+			row.spread += e * e
 		}
 		rows = append(rows, row)
 	}
-	path := memRow{name: "自分が通ったタイルの食料 / タイル（証拠はタイルに直した数）", truth: math.NaN()}
-	mate := memRow{name: "交配の申し出が子になる割合", truth: math.NaN()}
+	path := memRow{name: "自分が通ったタイルの食料 / タイル（証拠はタイルに直した数）", key: "path", truth: math.NaN()}
+	mate := memRow{name: "交配の申し出が子になる割合", key: "mate", truth: math.NaN()}
 	for _, b := range bs {
 		bl := w.Belief(b)
 		if pt := w.PathTally(b); pt.N > 0 {
@@ -956,22 +944,40 @@ func memRows(w *engine.World, m engine.Map) []memRow {
 			}
 			path.evidence += n
 			path.estimate += bl.Path
+			path.spread += bl.Path * bl.Path
 		}
 		if b.Memory.Asks > 0 {
 			mate.holders++
 			mate.evidence += b.Memory.Asks
 			mate.estimate += bl.Child
+			mate.spread += bl.Child * bl.Child
 		}
 	}
 	rows = append(rows, path, mate)
 	for i := range rows {
-		if rows[i].holders > 0 {
-			rows[i].estimate /= rows[i].holders
-			rows[i].evidence /= rows[i].holders
+		if h := rows[i].holders; h > 0 {
+			rows[i].estimate /= h
+			rows[i].evidence /= h
+			rows[i].spread = math.Sqrt(math.Max(rows[i].spread/h-rows[i].estimate*rows[i].estimate, 0))
 		}
 		rows[i].holders /= n
 	}
 	return rows
+}
+
+// rowCount returns the counts of the learned row named key (memRow.key).
+func rowCount(st engine.Stats, key string) engine.RowCount {
+	switch key {
+	case "path":
+		return st.PathRow
+	case "mate":
+		return st.MateRow
+	}
+	var r int
+	if n, _ := fmt.Sscanf(key, "region %d", &r); n == 1 && r < len(st.RegionRows) {
+		return st.RegionRows[r]
+	}
+	return engine.RowCount{}
 }
 
 // ageBands are the age bands, in ticks, the learning delay is read in.
@@ -1014,12 +1020,25 @@ func readAges(w *engine.World, m engine.Map, st *[len(ageBands)]ageStat) {
 // writeMemory prints section 6 for a world that learns: the rows the living
 // held at the end, and how far off the region estimates were by age.
 func writeMemory(p func(string, ...any), rs []result) {
-	p("合成されていない記憶（学んだ行。終わりに生きている身体。合成と中間項はまだ無い）\n\n")
-	p("| 行 | 持っている割合 | 推定の平均 | 証拠の平均 | 世界の値（終わり） |\n| --- | --- | --- | --- | --- |\n")
 	if len(rs) == 0 || len(rs[0].rows) == 0 {
-		p("\n")
+		p("学んだ行が無い。\n\n")
 		return
 	}
+	p("世の中の記憶。合成されていない記憶（学んだ行）だけで、合成と中間項はまだ無い。回数は1シードあたりの実験全体の合計、推定は終わりに生きている身体の平均と、身体どうしのばらつき（標準偏差）。\n\n")
+	writeTop(p, rs, "新規で学習された回数の上位10", "学習された回数", "持っている割合",
+		func(m memRow) float64 { return m.learned },
+		func(r result, m memRow) (float64, bool) { return m.holders, true })
+	writeTop(p, rs, "伝達された回数の上位10", "伝達された回数", "受け取った証拠を持つ割合",
+		func(m memRow) float64 { return m.passed },
+		func(r result, m memRow) (float64, bool) {
+			ps := r.prov[m.key]
+			if ps == nil || ps.n == 0 {
+				return 0, false
+			}
+			return ps.hearers / ps.n, true
+		})
+	p("#### 補助の表: 推定と世界の値\n\n")
+	p("| 行 | 持っている割合 | 推定の平均 | 証拠の平均 | 世界の値（終わり） |\n| --- | --- | --- | --- | --- |\n")
 	for i := range rs[0].rows {
 		get := func(f func(memRow) float64) []float64 {
 			return collectWhere(rs, func(r result) bool { return i < len(r.rows) }, func(r result) float64 { return f(r.rows[i]) })
@@ -1045,6 +1064,57 @@ func writeMemory(p func(string, ...any), rs []result) {
 			hi = ""
 		}
 		p("| %d〜%s | %s | %s |\n", band[0], hi, fmtMeanSE(errs, 3), fmtMeanSE(tiles, 1))
+	}
+	p("\n")
+}
+
+// writeTop prints the learned rows ranked by count, the mean over seeds,
+// highest first, leaving out those never counted: with the share of the
+// living that share gives and their estimate.
+func writeTop(p func(string, ...any), rs []result, title, countName, shareName string,
+	count func(memRow) float64, share func(result, memRow) (float64, bool)) {
+	get := func(i int, f func(result, memRow) (float64, bool)) []float64 {
+		var xs []float64
+		for _, r := range rs {
+			if i < len(r.rows) {
+				if x, ok := f(r, r.rows[i]); ok {
+					xs = append(xs, x)
+				}
+			}
+		}
+		return xs
+	}
+	counts := func(i int) []float64 {
+		return get(i, func(_ result, m memRow) (float64, bool) { return count(m), true })
+	}
+	var order []int
+	for i := range rs[0].rows {
+		if m, _ := meanSE(counts(i)); m > 0 {
+			order = append(order, i)
+		}
+	}
+	sort.SliceStable(order, func(a, b int) bool {
+		ma, _ := meanSE(counts(order[a]))
+		mb, _ := meanSE(counts(order[b]))
+		return ma > mb
+	})
+	if len(order) > 10 {
+		order = order[:10]
+	}
+	p("#### %s\n\n", title)
+	if len(order) == 0 {
+		p("無い。\n\n")
+		return
+	}
+	p("| 順位 | 記憶 | %s | %s | 推定の平均 | 推定のばらつき（身体どうし） |\n| --- | --- | --- | --- | --- | --- |\n", countName, shareName)
+	for k, i := range order {
+		sh := "—"
+		if xs := get(i, share); len(xs) > 0 {
+			sh = fmtMeanSE(xs, 3)
+		}
+		p("| %d | %s | %s | %s | %s | %s |\n", k+1, rs[0].rows[i].name, fmtMeanSE(counts(i), 1), sh,
+			fmtMeanSE(get(i, func(_ result, m memRow) (float64, bool) { return m.estimate, m.holders > 0 }), 4),
+			fmtMeanSE(get(i, func(_ result, m memRow) (float64, bool) { return m.spread, m.holders > 0 }), 4))
 	}
 	p("\n")
 }

@@ -73,14 +73,14 @@ func (w *World) pass(from, to *Body) {
 		w.age(&from.Memory.Regions[r])
 		w.age(&to.Memory.Regions[r])
 		if from.Memory.Regions[r].N > 0 {
-			w.stats.PassedRegion++
+			w.regionRow(RegionID(r)).Passed++
 		}
 		w.passTally(&to.Memory.Regions[r], from.Memory.Regions[r], from.ID, to.ID)
 	}
 	w.agePath(&from.Memory.Path)
 	w.agePath(&to.Memory.Path)
 	if from.Memory.Path.N > 0 {
-		w.stats.PassedPath++
+		w.stats.PathRow.Passed++
 	}
 	w.passTally(&to.Memory.Path, from.Memory.Path, from.ID, to.ID)
 }
