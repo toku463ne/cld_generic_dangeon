@@ -27,6 +27,10 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Pathless is the base world with the path row read nowhere: evidence
+// passes and ages, but keeping on the move is read by the region alone.
+const Pathless = "pathless"
+
 // Undecayed is the first run of stage 2-1: evidence passes between bodies
 // and keeps its full weight however old.
 const Undecayed = "undecayed"
@@ -92,6 +96,7 @@ func everytick(c *engine.Config) { nobreed(c); c.Recheck = 0 }
 var rewrites = map[string]func(*engine.Config){
 	Base:         func(*engine.Config) {},
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Pathless:     func(c *engine.Config) { c.PathAhead = 0 },
 	Undecayed:    undecayed,
 	Alone:        func(c *engine.Config) { c.Tell = false },
 	Untold:       untold,
