@@ -39,18 +39,16 @@ func main() {
 	var o options
 	var names string
 	flag.StringVar(&names, "variants", variant.Base, "comma-separated variants; the first is the base")
-	// Seeds and ticks are the provisional values stage 1-2 settled on
-	// (PARAMETERS.md); stage 1-5 fixes them. The map size has no default:
+	// Seeds and ticks are the values stage 1-5 fixed (PARAMETERS.md). The map size has no default:
 	// it is part of choosing the map.
-	flag.IntVar(&o.seeds, "seeds", 12, "number of seeds (provisional default, PARAMETERS.md)")
+	flag.IntVar(&o.seeds, "seeds", 12, "number of seeds (fixed at stage 1-5, PARAMETERS.md)")
 	flag.Int64Var(&o.seed0, "seed0", 1, "first seed")
-	flag.IntVar(&o.ticks, "ticks", 40000, "ticks per run (provisional default, PARAMETERS.md)")
+	flag.IntVar(&o.ticks, "ticks", 40000, "ticks per run (fixed at stage 1-5, PARAMETERS.md)")
 	flag.StringVar(&o.mapName, "map", "", "map: "+strings.Join(worldmap.Names, " | ")+" (required)")
 	flag.IntVar(&o.width, "w", 0, "map width in tiles (required)")
 	flag.IntVar(&o.height, "h", 0, "map height in tiles (required)")
-	// The collapse floor is the provisional value stage 1-3 settled on
-	// (PARAMETERS.md); stage 1-5 fixes it.
-	flag.IntVar(&o.floor, "floor", 20, "collapse floor: a seed whose population falls to this or below stops (provisional default, PARAMETERS.md)")
+	// The collapse floor is the value stage 1-5 fixed (PARAMETERS.md).
+	flag.IntVar(&o.floor, "floor", 20, "collapse floor: a seed whose population falls to this or below stops (fixed at stage 1-5, PARAMETERS.md)")
 	flag.Parse()
 	o.variants = strings.Split(names, ",")
 
