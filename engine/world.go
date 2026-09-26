@@ -25,7 +25,8 @@ type World struct {
 	nextID int64
 	stats  Stats
 
-	// grid lists the bodies on each tile (breed.go), and born the children
+	// grid lists the bodies on each tile (breed.go; with Breed or Collide),
+	// and born the children
 	// born this tick, who join the world at its end.
 	grid [][]int32
 	born []Body

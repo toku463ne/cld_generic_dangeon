@@ -19,7 +19,8 @@ import "math"
 // of a child, 1 for a mate and 0 for anything else.
 //
 // Who stands where is kept per tile (grid) so that a body finds the adults
-// in sight without looking at every body; it is rebuilt at the end of every
+// in sight, and a step finds whether its tile is taken (Collide), without
+// looking at every body; it is rebuilt at the end of every
 // tick, when the dead leave and the born join, and kept up to date as bodies
 // move. It can be rebuilt from the bodies, so it is neither saved nor
 // fingerprinted.
@@ -35,7 +36,7 @@ func (w *World) canPay(b *Body) bool { return b.Energy-w.birthShare() > 0 }
 
 // buildGrid puts every body on its tile.
 func (w *World) buildGrid() {
-	if !w.cfg.Breed {
+	if !w.gridded() {
 		return
 	}
 	if len(w.grid) != len(w.m.Terrain) {
@@ -51,10 +52,34 @@ func (w *World) buildGrid() {
 	}
 }
 
+// gridded reports whether a rule reads who stands where.
+func (w *World) gridded() bool { return w.cfg.Breed || w.cfg.Collide }
+
+// occupied reports whether a body other than b stands on tile t.
+func (w *World) occupied(t int, b *Body) bool {
+	for _, j := range w.grid[t] {
+		if w.bodies[j].ID != b.ID {
+			return true
+		}
+	}
+	return false
+}
+
+// blocks reports whether a step of body b onto (x, y) is into a tile
+// another body stands on: with Collide, a step within its own tile never
+// is, and a step into another occupied tile always is.
+func (w *World) blocks(b *Body, x, y float64) bool {
+	if !w.cfg.Collide || w.grid == nil {
+		return false
+	}
+	to := w.tileOf(x, y)
+	return to >= 0 && to != w.tileOf(b.X, b.Y) && w.occupied(to, b)
+}
+
 // moved keeps the grid up to date after body i went from tile from to tile
 // to.
 func (w *World) moved(i, from, to int) {
-	if !w.cfg.Breed || i < 0 || from == to {
+	if !w.gridded() || i < 0 || from == to {
 		return
 	}
 	g := w.grid[from]

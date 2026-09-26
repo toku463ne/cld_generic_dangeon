@@ -92,6 +92,13 @@ type Config struct {
 	// times (2 x share) to this power, so an even split buys the config's
 	// values, and below 1 each further share buys less.
 	AllotCurve float64
+
+	// Collide keeps a body from stepping into a tile another body stands
+	// on (breed.go keeps who stands where): the move is not among its
+	// options, and a body whose intent would take it there decides again
+	// (trigger blocked). Bodies already on one tile - a child and the
+	// parent it was born beside - may stay. Off: stage 1-4.
+	Collide bool
 }
 
 // DefaultConfig returns the rules the measurements run under unless a
@@ -120,5 +127,6 @@ func DefaultConfig() Config {
 		AllotSpread:    0.25,
 		AllotLevels:    11,
 		AllotCurve:     0.5,
+		Collide:        true,
 	}
 }

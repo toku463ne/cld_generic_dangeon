@@ -27,6 +27,9 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Overlap is stage 1-4: bodies walk through each other.
+const Overlap = "overlap"
+
 // Fixed is stage 1-3: every body has the config's build.
 const Fixed = "fixed"
 
@@ -40,21 +43,25 @@ const Everytick = "everytick"
 // possible action is equally likely.
 const Random = "random"
 
+// Each stage's variant is the next stage's with one more rule taken out,
+// so a rule added later is off in every earlier stage by construction.
+func overlap(c *engine.Config)   { c.Collide = false }
+func fixed(c *engine.Config)     { overlap(c); c.Allot = false }
+func nobreed(c *engine.Config)   { fixed(c); c.Breed = false }
+func everytick(c *engine.Config) { nobreed(c); c.Recheck = 0 }
+
 // rewrites maps a variant name to the rewrite of the default config it
 // stands for.
 var rewrites = map[string]func(*engine.Config){
-	Base:      func(*engine.Config) {},
-	Fixed:     func(c *engine.Config) { c.Allot = false },
-	Nobreed:   func(c *engine.Config) { c.Breed, c.Allot = false, false },
-	Everytick: func(c *engine.Config) { c.Recheck, c.Breed, c.Allot = 0, false, false },
-	Random: func(c *engine.Config) {
-		c.Window, c.KeepHeading, c.Recheck, c.Breed, c.Allot = 0, false, 0, false, false
-	},
-	Blind: func(c *engine.Config) {
-		c.Sight, c.KeepHeading, c.Recheck, c.Breed, c.Allot = -1, false, 0, false, false
-	},
-	Restless:     func(c *engine.Config) { c.KeepHeading, c.Recheck, c.Breed, c.Allot = false, 0, false, false },
-	Straightback: func(c *engine.Config) { c.TurnOffReverse, c.Recheck, c.Breed, c.Allot = false, 0, false, false },
+	Base:         func(*engine.Config) {},
+	Overlap:      overlap,
+	Fixed:        fixed,
+	Nobreed:      nobreed,
+	Everytick:    everytick,
+	Straightback: func(c *engine.Config) { everytick(c); c.TurnOffReverse = false },
+	Restless:     func(c *engine.Config) { everytick(c); c.KeepHeading = false },
+	Blind:        func(c *engine.Config) { everytick(c); c.KeepHeading, c.Sight = false, -1 },
+	Random:       func(c *engine.Config) { everytick(c); c.KeepHeading, c.Window = false, 0 },
 }
 
 // Config returns the default config rewritten by the named variant, with the

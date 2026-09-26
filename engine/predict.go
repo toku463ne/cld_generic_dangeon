@@ -198,12 +198,14 @@ type Valuation struct {
 
 // Value predicts and values every option body b has now. survival is the
 // table of chances per region, built by NewSurvival from the same
-// TruthTable.
+// TruthTable. The table is the config's (TruthTable), so b is valued as a
+// body of the config's build, whatever its own; decide values a body of its
+// own build against tables of its own.
 func (w *World) Value(t TruthTable, survival []Survival, b Body) Valuation {
 	var v Valuation
+	b.Build = Build{}
+	b.Energy = math.Min(b.Energy, w.cfg.EnergyMax)
 	w.valueInto(&v, t.Meal, t.Full, survival[0].Windows, func(r RegionID) Survival { return survival[r] }, &b)
-	// Value reads the config's build; a body of its own is valued by
-	// decide against tables of its own.
 	return v
 }
 

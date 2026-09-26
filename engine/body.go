@@ -11,7 +11,8 @@ import "math"
 // path: without it every body would only run down.
 //
 // Which actions a body can take is a matter of what is possible, not of a
-// judgement: a move onto water or off the map is not offered at all.
+// judgement: a move onto water or off the map, or into a tile another body
+// stands on (Collide), is not offered at all.
 
 // Body is one individual.
 type Body struct {
@@ -151,8 +152,9 @@ func (w *World) possibleActions(dst []Action, b *Body) []Action {
 		dst = append(dst, Action{Kind: ActEat})
 	}
 	for d, v := range moveDirs {
-		t := w.tileOf(b.X+v[0]*w.speedOf(b), b.Y+v[1]*w.speedOf(b))
-		if t >= 0 && w.m.Terrain[t] == TerrainLand {
+		x, y := b.X+v[0]*w.speedOf(b), b.Y+v[1]*w.speedOf(b)
+		t := w.tileOf(x, y)
+		if t >= 0 && w.m.Terrain[t] == TerrainLand && !w.blocks(b, x, y) {
 			dst = append(dst, Action{Kind: ActMove, Dir: d})
 		}
 	}

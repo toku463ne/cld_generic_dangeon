@@ -15,6 +15,8 @@ import "math"
 //	partner    the adults in sight changed (with Breed, breed.go)
 //	step       the next step of the intent leaves the land or the map, or
 //	           enters another region
+//	blocked    the next step of the intent is into a tile another body
+//	           stands on (with Collide)
 //	path       walking to food, the next step no longer takes a tick off
 //	           the walk as the valuation counts it (walkTicks): the food
 //	           is level with it on one axis, or reached
@@ -42,6 +44,7 @@ const (
 	TriggerSight
 	TriggerPartner
 	TriggerStep
+	TriggerBlocked
 	TriggerPath
 	TriggerRecheck
 	TriggerWaited
@@ -55,7 +58,7 @@ const (
 )
 
 // TriggerNames name the triggers for reports, in order.
-var TriggerNames = [NumTriggers]string{"everytick", "first", "underfoot", "sight", "partner", "step", "path", "recheck", "waited", "outside"}
+var TriggerNames = [NumTriggers]string{"everytick", "first", "underfoot", "sight", "partner", "step", "blocked", "path", "recheck", "waited", "outside"}
 
 // turn returns the action body b takes this tick: its intent, or a new
 // decision when a trigger is true.
@@ -162,6 +165,9 @@ func (w *World) trigger(b *Body, under bool, saw, mates uint64) Trigger {
 		next := w.tileOf(nx, ny)
 		if next < 0 || w.m.Terrain[next] != TerrainLand || w.m.Region[next] != w.m.Region[w.tileOf(b.X, b.Y)] {
 			return TriggerStep
+		}
+		if w.blocks(b, nx, ny) {
+			return TriggerBlocked
 		}
 		if b.Goal >= 0 {
 			gx, gy := b.Goal%w.m.Width, b.Goal/w.m.Width
