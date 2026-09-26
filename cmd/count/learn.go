@@ -145,9 +145,16 @@ func runLearn(cfg engine.Config, m engine.Map, ticks int) (learnTally, error) {
 			}
 			tx, ty := int(b.X), int(b.Y)
 			tile := ty*m.Width + tx
-			if tile != lb.tile {
-				// Entered a tile: an observation of its region's rate, and
-				// a return to a tile it may have seen empty.
+			if tile != lb.tile && b.Goal >= 0 {
+				// A step of a walk to food in sight: not evidence of what
+				// keeping on the move meets.
+				if lb.tile >= 0 {
+					lb.walked[lb.tile] = now
+				}
+				lb.tile = tile
+			} else if tile != lb.tile {
+				// Entered a tile keeping on the move: an observation of its
+				// region's rate, and a return to a tile it may have left.
 				r := m.RegionAt(tx, ty)
 				lb.n[r]++
 				if now > 5000 {

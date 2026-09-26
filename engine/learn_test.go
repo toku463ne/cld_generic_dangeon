@@ -32,7 +32,7 @@ func TestSteppingTeaches(t *testing.T) {
 	}
 	w.food.foods = append(w.food.foods, Food{X: 3, Y: 2})
 	w.food.foodAt[w.m.index(3, 2)] = 1
-	b := &Body{}
+	b := &Body{Goal: -1}
 	a, c := w.m.index(2, 2), w.m.index(3, 2)
 	w.stepped(b, a, c) // onto food
 	w.tick++
@@ -41,6 +41,14 @@ func TestSteppingTeaches(t *testing.T) {
 	if r.N != 2 || r.K != 1 || b.Memory.Path.N != 1 || b.Memory.Path.K != 0 {
 		t.Fatalf("region %+v path %+v, want 2/1 and 1/0", r, b.Memory.Path)
 	}
+	// A step of a walk to food in sight is no evidence.
+	b.Goal = c
+	w.tick++
+	w.stepped(b, a, c)
+	if r := b.Memory.Regions[0]; r.N != 2 {
+		t.Fatalf("a step of a walk to food counted: %+v", r)
+	}
+	b.Goal = -1
 	// Far more evidence than the weights pulls the estimate to the rate seen.
 	b.Memory.Regions[0] = Tally{N: 1e6, K: 3e5}
 	if got := w.regionRate(b, 0); math.Abs(got-0.3) > 1e-3 {

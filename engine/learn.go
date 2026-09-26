@@ -156,12 +156,24 @@ func (w *World) rateTable(rs *rates, r RegionID, meal, full int, speed float64) 
 // stepped records what body b learns stepping from tile from onto tile to:
 // whether it holds food, as a tile of its region and, if the body left it
 // within PathRecall ticks, as a tile of its path. The tile left joins the
-// path.
+// path. Only a step of keeping on the move is evidence: the rows say what
+// keeping on the move meets, and a step of a walk to food in sight (Goal)
+// meets food because the body saw it there - counted, it made every region
+// read two or three times as rich as it was.
 func (w *World) stepped(b *Body, from, to int) {
 	if !w.cfg.Learn || from == to || to < 0 {
 		return
 	}
 	mem := &b.Memory
+	if mem.Walked == nil {
+		mem.Walked = map[int]int64{}
+	}
+	if b.Goal >= 0 {
+		if from >= 0 {
+			mem.Walked[from] = w.tick
+		}
+		return
+	}
 	food := 0.0
 	if w.foodOn(to) >= 0 {
 		food = 1
@@ -174,9 +186,6 @@ func (w *World) stepped(b *Body, from, to int) {
 	mem.Regions[r].K += food
 	if when, ok := mem.Walked[to]; ok && w.tick-when <= int64(w.cfg.PathRecall) {
 		mem.Path.N, mem.Path.K = mem.Path.N+1, mem.Path.K+food
-	}
-	if mem.Walked == nil {
-		mem.Walked = map[int]int64{}
 	}
 	if from >= 0 {
 		mem.Walked[from] = w.tick
