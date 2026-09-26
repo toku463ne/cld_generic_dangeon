@@ -51,6 +51,8 @@ type Body struct {
 	// inherits; Budget is the size of its budget (Config.Budget for now).
 	Level  int     `json:",omitempty"`
 	Budget float64 `json:",omitempty"`
+	// Memory is what it has learned (learn.go), with Learn.
+	Memory Memory
 }
 
 // ActionKind is what an action does, for counting.
@@ -174,6 +176,9 @@ func (w *World) act(i int, b *Body, a Action) {
 	w.stats.Actions[a.Kind]++
 	switch a.Kind {
 	case ActMate:
+		if w.cfg.Learn {
+			b.Memory.Asks++
+		}
 		w.mate(b, a.Mate)
 	case ActEat:
 		t := w.tileOf(b.X, b.Y)
@@ -185,7 +190,9 @@ func (w *World) act(i int, b *Body, a Action) {
 		b.X += v[0] * w.speedOf(b)
 		b.Y += v[1] * w.speedOf(b)
 		b.Heading = a.Dir
-		w.moved(i, from, w.tileOf(b.X, b.Y))
+		to := w.tileOf(b.X, b.Y)
+		w.moved(i, from, to)
+		w.stepped(b, from, to)
 	}
 }
 

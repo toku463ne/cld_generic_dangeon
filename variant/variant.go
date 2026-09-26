@@ -27,6 +27,9 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Truth is the world before stage 1-6: bodies read the truth table.
+const Truth = "truth"
+
 // Bounced is stage 1-5: a body whose heading is blocked or worse than the
 // best bounces off it, turning 45 degrees where that would be straight
 // back.
@@ -63,7 +66,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func bounced(c *engine.Config)   { c.Bounce = true }
+func truth(c *engine.Config)     { c.Learn = false }
+func bounced(c *engine.Config)   { truth(c); c.Bounce = true }
 func drawn(c *engine.Config)     { bounced(c); c.AllotInherit = false }
 func overlap(c *engine.Config)   { drawn(c); c.Collide = false }
 func fixed(c *engine.Config)     { overlap(c); c.Allot = false }
@@ -75,6 +79,7 @@ func everytick(c *engine.Config) { nobreed(c); c.Recheck = 0 }
 var rewrites = map[string]func(*engine.Config){
 	Base:         func(*engine.Config) {},
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Truth:        truth,
 	Bounced:      bounced,
 	DrawReverse:  func(c *engine.Config) { bounced(c); c.DrawOffReverse = true },
 	Drawn:        drawn,

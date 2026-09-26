@@ -396,6 +396,11 @@ func (v *View) FollowText() string {
 	if b.Build.Speed > 0 {
 		fmt.Fprintf(&sb, "  speed %.3f  most %.0f", b.Build.Speed, b.Build.EnergyMax)
 	}
+	if v.W.Config().Learn {
+		bl := v.W.Belief(b)
+		fmt.Fprintf(&sb, "\nbelieves: food/tile here %.4f (%.0f tiles), own path %.4f (%.0f), land %.4f; a mate makes a child %.2f (%.0f asks)",
+			bl.Here, bl.HereN, bl.Path, bl.PathN, bl.Land, bl.Child, bl.Asks)
+	}
 	if v.drive.ID == b.ID {
 		sb.WriteString("  PLAYED")
 	}

@@ -85,6 +85,11 @@ type result struct {
 	// every 1000 ticks after tick 5000); edge the mean share of the living
 	// on land tiles next to the map's edge or water, sampled the same.
 	displace, edge float64
+	// With Learn: what the living had learned at the end (rows), and, at
+	// every checkpoint after tick 5000, how far off each age band's region
+	// estimates were (learnAge).
+	rows     []memRow
+	learnAge [len(ageBands)]ageStat
 	// With Allot: per share of the budget for speed, the bodies born
 	// after the first quarter of the run that died before its end, and
 	// the children they had; and the mean share of the living at tick 0
@@ -219,6 +224,9 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		if t%every == 0 {
 			record()
 		}
+		if cfg.Learn && t > 5000 && t%every == 0 {
+			readAges(w, m, &r.learnAge)
+		}
 		if t > 5000 && t%1000 == 0 {
 			now := map[int64][2]float64{}
 			bs := w.Bodies()
@@ -268,6 +276,9 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		}
 	}
 	r.displace, r.edge = dSum/math.Max(dN, 1), eSum/math.Max(eN, 1)
+	if cfg.Learn {
+		r.rows = memRows(w, m)
+	}
 	st := w.Stats()
 	r.starved = float64(st.Deaths[engine.CauseStarved])
 	r.burned = st.EnergyBurned
@@ -593,8 +604,12 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	p("\n")
 
 	p("### 6. 記憶\n\n")
-	p("| 種別 | 上位10 |\n| --- | --- |\n")
-	p("| 合成されていない高頻度記憶 | |\n| 合成された高頻度記憶 | |\n| ノード平均が高得点の中間項 | |\n\n")
+	if baseCfg, _ := variant.Config(base, o.seed0); baseCfg.Learn {
+		writeMemory(p, rs)
+	} else {
+		p("| 種別 | 上位10 |\n| --- | --- |\n")
+		p("| 合成されていない高頻度記憶 | |\n| 合成された高頻度記憶 | |\n| ノード平均が高得点の中間項 | |\n\n")
+	}
 
 	p("### 7. スキル別伝承数\n\n")
 	p("| スキル | 伝承された回数 | 保有率 |\n| --- | --- | --- |\n\n")
@@ -814,4 +829,146 @@ func edgeShare(m engine.Map) float64 {
 		}
 	}
 	return n / land
+}
+
+// memRow is one learned row as the living held it at the end of a run.
+type memRow struct {
+	name     string
+	holders  float64 // share of the living with any evidence for it
+	estimate float64 // mean estimate among them
+	evidence float64 // mean evidence among them (tiles or asks)
+	truth    float64 // what the world had (NaN where it is not one number)
+}
+
+// memRows reads the rows the living had learned: each region's food per
+// tile, the food of their own path, the chance a mate makes a child.
+func memRows(w *engine.World, m engine.Map) []memRow {
+	bs := w.Bodies()
+	n := float64(len(bs))
+	if n == 0 {
+		return nil
+	}
+	land := make([]float64, len(m.RegionFood))
+	for i, t := range m.Terrain {
+		if t == engine.TerrainLand {
+			land[m.Region[i]]++
+		}
+	}
+	food := make([]float64, len(m.RegionFood))
+	for _, f := range w.Foods() {
+		food[m.RegionAt(f.X, f.Y)]++
+	}
+	var rows []memRow
+	for r := range m.RegionFood {
+		row := memRow{name: fmt.Sprintf("地域 %d の食料 / タイル", r), truth: food[r] / land[r]}
+		for _, b := range bs {
+			if r >= len(b.Memory.Regions) || b.Memory.Regions[r].N == 0 {
+				continue
+			}
+			t := b.Memory.Regions[r]
+			row.holders++
+			row.evidence += t.N
+			row.estimate += (t.K + w.Config().RegionWeight*w.Belief(b).Land) / (t.N + w.Config().RegionWeight)
+		}
+		rows = append(rows, row)
+	}
+	path := memRow{name: "自分が通ったタイルの食料 / タイル", truth: math.NaN()}
+	mate := memRow{name: "交配の申し出が子になる割合", truth: math.NaN()}
+	for _, b := range bs {
+		bl := w.Belief(b)
+		if b.Memory.Path.N > 0 {
+			path.holders++
+			path.evidence += b.Memory.Path.N
+			path.estimate += bl.Path
+		}
+		if b.Memory.Asks > 0 {
+			mate.holders++
+			mate.evidence += b.Memory.Asks
+			mate.estimate += bl.Child
+		}
+	}
+	rows = append(rows, path, mate)
+	for i := range rows {
+		if rows[i].holders > 0 {
+			rows[i].estimate /= rows[i].holders
+			rows[i].evidence /= rows[i].holders
+		}
+		rows[i].holders /= n
+	}
+	return rows
+}
+
+// ageBands are the age bands, in ticks, the learning delay is read in.
+var ageBands = [...][2]int64{{0, 250}, {250, 500}, {500, 1000}, {1000, 2000}, {2000, 1 << 40}}
+
+// ageStat sums, over the bodies of one age band read at checkpoints, how
+// far their estimate of their own region was from the region's food per
+// tile then (relative error), and the tiles behind it.
+type ageStat struct{ err, tiles, n float64 }
+
+func readAges(w *engine.World, m engine.Map, st *[len(ageBands)]ageStat) {
+	land := make([]float64, len(m.RegionFood))
+	for i, t := range m.Terrain {
+		if t == engine.TerrainLand {
+			land[m.Region[i]]++
+		}
+	}
+	food := make([]float64, len(m.RegionFood))
+	for _, f := range w.Foods() {
+		food[m.RegionAt(f.X, f.Y)]++
+	}
+	now := w.Tick()
+	for _, b := range w.Bodies() {
+		r := m.RegionAt(int(b.X), int(b.Y))
+		truth := food[r] / land[r]
+		if truth <= 0 {
+			continue
+		}
+		bl := w.Belief(b)
+		for i, band := range ageBands {
+			if age := now - b.Born; age >= band[0] && age < band[1] {
+				st[i].err += math.Abs(bl.Here-truth) / truth
+				st[i].tiles += bl.HereN
+				st[i].n++
+			}
+		}
+	}
+}
+
+// writeMemory prints section 6 for a world that learns: the rows the living
+// held at the end, and how far off the region estimates were by age.
+func writeMemory(p func(string, ...any), rs []result) {
+	p("合成されていない記憶（学んだ行。終わりに生きている身体。合成と中間項はまだ無い）\n\n")
+	p("| 行 | 持っている割合 | 推定の平均 | 証拠の平均 | 世界の値（終わり） |\n| --- | --- | --- | --- | --- |\n")
+	if len(rs) == 0 || len(rs[0].rows) == 0 {
+		p("\n")
+		return
+	}
+	for i := range rs[0].rows {
+		get := func(f func(memRow) float64) []float64 {
+			return collectWhere(rs, func(r result) bool { return i < len(r.rows) }, func(r result) float64 { return f(r.rows[i]) })
+		}
+		truth := "—"
+		if t := get(func(m memRow) float64 { return m.truth }); len(t) > 0 && !math.IsNaN(t[0]) {
+			truth = fmtMeanSE(t, 4)
+		}
+		p("| %s | %s | %s | %s | %s |\n", rs[0].rows[i].name,
+			fmtMeanSE(get(func(m memRow) float64 { return m.holders }), 3),
+			fmtMeanSE(get(func(m memRow) float64 { return m.estimate }), 4),
+			fmtMeanSE(get(func(m memRow) float64 { return m.evidence }), 1),
+			truth)
+	}
+	p("\n自力で学ぶ遅れ: 年齢ごとの、今いる地域の食料 / タイルの推定の相対誤差（tick 5000 より後のチェックポイント）\n\n")
+	p("| 年齢 | 相対誤差 | 今いる地域で入ったタイル |\n| --- | --- | --- |\n")
+	for i, band := range ageBands {
+		ok := func(r result) bool { return r.learnAge[i].n > 0 }
+		errs := collectWhere(rs, ok, func(r result) float64 { return r.learnAge[i].err / r.learnAge[i].n })
+		tiles := collectWhere(rs, ok, func(r result) float64 { return r.learnAge[i].tiles / r.learnAge[i].n })
+		hi := fmt.Sprint(band[1])
+		if band[1] > 1<<30 {
+			hi = ""
+		}
+		p("| %d〜%s | %s | %s |\n", band[0], hi, fmtMeanSE(errs, 3), fmtMeanSE(tiles, 1))
+	}
+	p("\n")
 }

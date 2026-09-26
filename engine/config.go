@@ -107,6 +107,28 @@ type Config struct {
 	// AllotMutation is the chance it then moves one level.
 	AllotInherit  bool
 	AllotMutation float64
+	// Learn has bodies read their own memory instead of the world's true
+	// rules about the world (learn.go): the food of a region, of the tiles
+	// they walked lately, and the chance a mate becomes a child. Off, they
+	// read the truth table: the world before stage 1-6.
+	Learn bool
+	// PriorFood is the chance per tile of food a body is born expecting,
+	// and PriorWeight how many tiles of evidence that expectation is worth
+	// against the body's own (the land's pull).
+	PriorFood, PriorWeight float64
+	// RegionWeight is how many tiles pull a region's estimate toward the
+	// land's, and PathWeight how many pull the path's toward its region's.
+	RegionWeight, PathWeight float64
+	// PathRecall is how many ticks a body remembers a tile it left, and
+	// PathAhead how many tiles along a heading it reads for them.
+	PathRecall, PathAhead int
+	// PriorChild is the chance a body is born expecting a mate to make a
+	// child, worth ChildWeight asks.
+	PriorChild, ChildWeight float64
+	// BeliefStep is the ratio between the chances per tile survival tables
+	// are built for: an estimate is rounded to a power of it, so that
+	// bodies share tables.
+	BeliefStep float64
 	// Budget is the size of every body's budget. The budget ledger
 	// (BudgetLedger) accounts for it.
 	Budget float64
@@ -148,6 +170,16 @@ func DefaultConfig() Config {
 		AllotInherit:   true,
 		AllotMutation:  0.1,
 		Budget:         1,
+		Learn:          true,
+		PriorFood:      0.01,
+		PriorWeight:    50,
+		RegionWeight:   50,
+		PathWeight:     20,
+		PathRecall:     200,
+		PathAhead:      8,
+		PriorChild:     1,
+		ChildWeight:    2,
+		BeliefStep:     1.1,
 		Collide:        true,
 	}
 }

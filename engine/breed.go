@@ -160,6 +160,10 @@ func (w *World) mate(b *Body, id int64) {
 	}
 	b.Energy -= w.birthShare()
 	p.Energy -= w.birthShare()
+	if w.cfg.Learn {
+		b.Memory.Kids++
+		p.Memory.Kids++
+	}
 	b.Intent, p.Intent = Action{Kind: ActWait}, Action{Kind: ActWait}
 	child := Body{
 		ID:      w.nextID,

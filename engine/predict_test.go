@@ -198,7 +198,7 @@ func TestWalksToFoodInSight(t *testing.T) {
 func TestKeepsHeading(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.Bodies, cfg.FoodCap = 0, 0
-	cfg.Bounce = true
+	cfg.Bounce, cfg.Learn = true, false
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -310,7 +310,7 @@ func TestBounce(t *testing.T) {
 func TestBouncesOffPoorerRegion(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.Bodies, cfg.FoodCap = 0, 0
-	cfg.Bounce = true // the rule of stages 1-2q to 1-5
+	cfg.Bounce, cfg.Learn = true, false // the rule of stages 1-2q to 1-5
 	m := NewMap(12, 9)
 	m.RegionFood = []float64{1, 1}
 	for y := 0; y < m.Height; y++ {
@@ -393,7 +393,7 @@ func abs(x int) int {
 func TestTraceIsTheChoice(t *testing.T) {
 	// Value reads the config's build, so every body here has it.
 	cfg := testConfig(4)
-	cfg.Allot = false
+	cfg.Allot, cfg.Learn = false, false
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)

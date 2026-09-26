@@ -5,6 +5,7 @@ import (
 	"hash/fnv"
 	"math"
 	"math/rand"
+	"sort"
 )
 
 // World is the whole simulation. It knows nothing about drawing, networking,
@@ -37,6 +38,7 @@ type World struct {
 	// valuation is scratch space for the decision of the body acting now.
 	valuation Valuation
 	ties      []int
+	rates     rates // a learning body's estimates, for the decision under way
 
 	// chooser, when set, takes the decisions of the bodies it names
 	// (chooser.go).
@@ -181,6 +183,29 @@ func (w *World) Fingerprint() uint64 {
 		// And the age of coming of age, where bodies breed.
 		if w.cfg.Allot && w.cfg.AllotInherit {
 			put(uint64(b.Level))
+		}
+		// And what it has learned, where bodies learn.
+		if w.cfg.Learn {
+			mem := &b.Memory
+			for _, t := range mem.Regions {
+				putF(t.N)
+				putF(t.K)
+			}
+			putF(mem.Path.N)
+			putF(mem.Path.K)
+			putF(mem.Asks)
+			putF(mem.Kids)
+			tiles := make([]int, 0, len(mem.Walked))
+			for tl, when := range mem.Walked {
+				if w.tick-when <= int64(w.cfg.PathRecall) {
+					tiles = append(tiles, tl)
+				}
+			}
+			sort.Ints(tiles)
+			for _, tl := range tiles {
+				put(uint64(tl))
+				put(uint64(mem.Walked[tl]))
+			}
 		}
 		if w.cfg.Breed {
 			put(uint64(b.Mature))

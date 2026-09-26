@@ -44,6 +44,8 @@ type TruthTable struct {
 	// Reach is the most ticks the fourth row can take to walk to a unit in
 	// sight; survival tables keep the shorter windows the walk leaves.
 	Reach int
+	// Extra are more window lengths a survival table keeps (learn.go).
+	Extra []int
 }
 
 // TruthTable reads the true rules and the food on the ground now.
@@ -138,6 +140,11 @@ func (t TruthTable) NewSurvival(meet float64, windows []int) Survival {
 			want[l] = true
 		}
 	}
+	for _, l := range t.Extra {
+		if l >= 1 && l <= longest {
+			want[l] = true
+		}
+	}
 	cur := make([]float64, t.Full+1)
 	next := make([]float64, t.Full+1)
 	cur[0] = 1
@@ -198,13 +205,17 @@ type Valuation struct {
 	Options []Action
 	Risk    [][]float64 // Risk[window][option]
 	// Child is each option's chance of a child, the second currency
-	// (breed.go): 1 for a mate, 0 otherwise. Score is what the choice is
-	// made on, the first window's risk minus ChildWorth times Child.
+	// (breed.go): for a mate the chance it makes a child (1 read from the
+	// truth table, learned with Learn), 0 otherwise. Score is what the
+	// choice is made on, the first window's risk minus ChildWorth times
+	// Child.
 	Child  []float64
 	Score  []float64
 	Seen   []Food
 	Plan   []int
 	Arrive []int
+	// Belief is what the body's memory made of the world (with Learn).
+	Belief Belief
 }
 
 // Value predicts and values every option body b has now. survival is the
@@ -216,14 +227,17 @@ func (w *World) Value(t TruthTable, survival []Survival, b Body) Valuation {
 	var v Valuation
 	b.Build = Build{}
 	b.Energy = math.Min(b.Energy, w.cfg.EnergyMax)
-	w.valueInto(&v, t.Meal, t.Full, survival[0].Windows, func(r RegionID) Survival { return survival[r] }, &b)
+	w.valueInto(&v, t.Meal, t.Full, survival[0].Windows, func(r RegionID) Survival { return survival[r] }, 1, nil, &b)
 	return v
 }
 
 // valueInto is Value writing into v's slices, so that deciding every tick
 // does not allocate. meal and full are in ticks of b's own burn, and alive
-// gives the survival table of a region for b's build.
-func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive func(RegionID) Survival, b *Body) {
+// gives the survival table of a region for b's build. child is the chance
+// a mate makes a child; path reads keeping on the move with the path row
+// (learn.go).
+func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive func(RegionID) Survival, child float64, rs *rates, b *Body) {
+	path := rs != nil
 	speed, burn := w.speedOf(b), w.burnOf(b)
 	v.Options = w.possibleActions(v.Options[:0], b)
 	v.Seen = w.inSight(v.Seen[:0], b)
@@ -237,6 +251,58 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 	for i := range v.Risk {
 		v.Risk[i] = v.Risk[i][:0]
 	}
+	// read is the risk of an option that leaves the body at (x, y) with
+	// after ticks of energy, a unit eaten on tile eaten (or -1), in window
+	// win: the better of keeping on the move and walking to a unit in
+	// sight, and which it was.
+	read := func(a Action, x, y float64, after, eaten, win int) (float64, int, int) {
+		region := w.m.RegionAt(int(math.Floor(x)), int(math.Floor(y)))
+		// Keep moving through the region.
+		s := alive(region)
+		risk, plan, arrive := s.deadIn(win, after), -1, 0
+		if path {
+			// A move keeps on its own heading. An option that stays keeps
+			// on afterwards as the best of the moves open now would, each
+			// read from where that move leaves the body - so that staying
+			// reads no better than moving the best way at once (read from
+			// here instead, it did by a step, and a body waited tick after
+			// tick for a start it never made).
+			if a.Kind == ActMove {
+				risk = w.keepReading(b, rs, a.Dir, x, y, win, after, meal, full, s, risk)
+			} else {
+				best := math.Inf(1)
+				for _, o := range v.Options {
+					if o.Kind != ActMove {
+						continue
+					}
+					d := moveDirs[o.Dir]
+					mx, my := b.X+d[0]*speed, b.Y+d[1]*speed
+					ms := alive(w.m.RegionAt(int(math.Floor(mx)), int(math.Floor(my))))
+					best = math.Min(best, w.keepReading(b, rs, o.Dir, mx, my, win, after, meal, full, ms, ms.deadIn(win, after)))
+				}
+				if !math.IsInf(best, 1) {
+					risk = best
+				}
+			}
+		}
+		// Or walk to a unit in sight: k ticks of walking, then a tick
+		// of eating, leave win-2-k ticks of the window, which is a
+		// window of win-1-k from the energy after the meal.
+		for f, food := range v.Seen {
+			if w.m.index(food.X, food.Y) == eaten {
+				continue
+			}
+			k := walkTicks(gapTo(x, food.X), gapTo(y, food.Y), speed)
+			r := 1.0
+			if after-k > 0 {
+				r = alive(w.m.RegionAt(food.X, food.Y)).deadIn(win-1-k, min(after-k+meal, full)-1)
+			}
+			if r < risk {
+				risk, plan, arrive = r, f, k
+			}
+		}
+		return risk, plan, arrive
+	}
 	for _, a := range v.Options {
 		// Where the option leaves the body, and with how much energy.
 		x, y, after := b.X, b.Y, n-1
@@ -249,33 +315,20 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			d := moveDirs[a.Dir]
 			x, y = b.X+d[0]*speed, b.Y+d[1]*speed
 		case ActMate:
-			// Read as agreed: the share paid, and a child.
+			// Read as agreed: the share paid, and a child - with the
+			// chance child, and otherwise a tick spent as a wait.
 			after = energyTicks(b.Energy-w.birthShare(), burn) - 1
 		}
-		child := 0.0
+		c := 0.0
 		if a.Kind == ActMate {
-			child = 1
+			c = child
 		}
-		v.Child = append(v.Child, child)
-		region := w.m.RegionAt(int(math.Floor(x)), int(math.Floor(y)))
+		v.Child = append(v.Child, c)
 		for i, win := range windows {
-			// Keep moving through the region.
-			risk, plan, arrive := alive(region).deadIn(win, after), -1, 0
-			// Or walk to a unit in sight: k ticks of walking, then a tick
-			// of eating, leave win-2-k ticks of the window, which is a
-			// window of win-1-k from the energy after the meal.
-			for f, food := range v.Seen {
-				if w.m.index(food.X, food.Y) == eaten {
-					continue
-				}
-				k := walkTicks(gapTo(x, food.X), gapTo(y, food.Y), speed)
-				r := 1.0
-				if after-k > 0 {
-					r = alive(w.m.RegionAt(food.X, food.Y)).deadIn(win-1-k, min(after-k+meal, full)-1)
-				}
-				if r < risk {
-					risk, plan, arrive = r, f, k
-				}
+			risk, plan, arrive := read(a, x, y, after, eaten, win)
+			if a.Kind == ActMate && c < 1 {
+				unpaid, _, _ := read(a, x, y, n-1, eaten, win)
+				risk = c*risk + (1-c)*unpaid
 			}
 			v.Risk[i] = append(v.Risk[i], risk)
 			if i == 0 {
@@ -330,6 +383,9 @@ type predictor struct {
 	surv       []*table
 	fresh      []bool
 	cache      []map[survKey]*table // per region
+	// learned are the tables of bodies that learn (learn.go), by a
+	// believed chance per tile (its level, in survKey.food) and build.
+	learned map[survKey]*table
 	// pending are the tables a saved world was using, to be built by Warm
 	// before they are asked for.
 	pending []TableKey
@@ -382,6 +438,7 @@ func (w *World) initPredict() {
 		surv:    make([]*table, n),
 		fresh:   make([]bool, n),
 		cache:   make([]map[survKey]*table, n),
+		learned: map[survKey]*table{},
 	}
 	for r := range w.pred.cache {
 		w.pred.cache[r] = map[survKey]*table{}
@@ -448,6 +505,11 @@ func (w *World) forget() {
 		}
 		p.fresh[r] = false
 	}
+	for k, t := range p.learned {
+		if w.tick-t.used > forgetAfter {
+			delete(p.learned, k)
+		}
+	}
 }
 
 // Tables names the survival tables the world has read in the last
@@ -462,6 +524,11 @@ func (w *World) Tables() []TableKey {
 				continue
 			}
 			ks = append(ks, TableKey{Region: r, Food: k.food, Meal: k.meal, Full: k.full, Speed: k.speed})
+		}
+	}
+	for k, t := range w.pred.learned {
+		if w.tick-t.used <= warmAfter {
+			ks = append(ks, TableKey{Region: -1, Food: k.food, Meal: k.meal, Full: k.full, Speed: k.speed})
 		}
 	}
 	sort.Slice(ks, func(i, j int) bool {
@@ -492,7 +559,10 @@ func (w *World) Warm(n int) int {
 	for i := 0; len(p.pending) > 0 && (n <= 0 || i < n); i++ {
 		k := p.pending[0]
 		p.pending = p.pending[1:]
-		if k.Region >= 0 && k.Region < len(p.cache) {
+		switch {
+		case k.Region == -1 && p.learned != nil:
+			w.learnedTable(w.levelRate(k.Food), k.Meal, k.Full, k.Speed)
+		case k.Region >= 0 && k.Region < len(p.cache):
 			w.tableAt(RegionID(k.Region), survKey{food: k.Food, meal: k.Meal, full: k.Full, speed: k.Speed})
 		}
 	}
@@ -506,13 +576,22 @@ func (w *World) Warm(n int) int {
 // the same risk, so the draw is over all of them: the stage 1-1 control.
 func (w *World) decide(b *Body) Action {
 	v := &w.valuation
-	if w.cfg.Window > 0 && b.Build == (Build{}) {
-		w.valueInto(v, w.pred.meal, w.pred.full, w.pred.windows, w.survival, b)
-	} else if w.cfg.Window > 0 {
+	switch {
+	case w.cfg.Window > 0 && w.cfg.Learn:
 		burn, speed := w.burnOf(b), w.speedOf(b)
 		meal, full := energyTicks(w.cfg.FoodEnergy, burn), energyTicks(w.maxOf(b), burn)
-		w.valueInto(v, meal, full, w.pred.windows, func(r RegionID) Survival { return w.survivalFor(r, meal, full, speed) }, b)
-	} else {
+		rs := &w.rates
+		w.ratesOf(b, rs)
+		alive := func(r RegionID) Survival { return w.rateTable(rs, r, meal, full, speed) }
+		w.valueInto(v, meal, full, w.pred.windows, alive, w.childRate(b), rs, b)
+		v.Belief = w.belief(b)
+	case w.cfg.Window > 0 && b.Build == (Build{}):
+		w.valueInto(v, w.pred.meal, w.pred.full, w.pred.windows, w.survival, 1, nil, b)
+	case w.cfg.Window > 0:
+		burn, speed := w.burnOf(b), w.speedOf(b)
+		meal, full := energyTicks(w.cfg.FoodEnergy, burn), energyTicks(w.maxOf(b), burn)
+		w.valueInto(v, meal, full, w.pred.windows, func(r RegionID) Survival { return w.survivalFor(r, meal, full, speed) }, 1, nil, b)
+	default:
 		v.Options = w.possibleActions(v.Options[:0], b)
 		v.Seen, v.Plan, v.Arrive, v.Child = v.Seen[:0], v.Plan[:0], v.Arrive[:0], v.Child[:0]
 		if cap(v.Risk) == 0 {
