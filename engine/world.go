@@ -49,6 +49,10 @@ type World struct {
 	// (chooser.go).
 	chooser Chooser
 
+	// meet, when set, is shown every meeting at which bodies pass evidence
+	// (tell.go).
+	onMeet func(a, b Body)
+
 	// trace, when set, is shown every decision as it is made.
 	trace func(Body, Valuation, Action)
 }

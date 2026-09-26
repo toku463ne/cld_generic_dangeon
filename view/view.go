@@ -46,6 +46,9 @@ type View struct {
 
 	// drive plays a body, when its ID is set (drive.go).
 	drive Driver
+
+	// meetings are the recent meetings at which bodies passed evidence.
+	meetings []meeting
 }
 
 const (
@@ -61,7 +64,13 @@ const (
 // faster than a column shows as a band instead of a slow false wave.
 var ticksPerPixel = []int{1, 4, 16, 64, 256}
 
-type sample struct{ bodies, food int32 }
+// A sample is one tick of the history: the bodies, the food on the ground,
+// and the share of the living's path evidence whose observers are dead, in
+// thousandths (-1 where there is none to read).
+type sample struct {
+	bodies, food int32
+	culture      int16
+}
 
 type trail struct {
 	pts  [trailLen][2]float32
@@ -109,6 +118,7 @@ var (
 	panelColor  = color.RGBA{0x18, 0x18, 0x20, 0xff}
 	gridColor   = color.RGBA{0x38, 0x38, 0x48, 0xff}
 	bodiesLine  = color.RGBA{0xf0, 0xf0, 0xf0, 0xff}
+	meetColor   = color.RGBA{0x40, 0xd0, 0xe0, 0xff}
 )
 
 func New(w *engine.World, scale int) *View {
@@ -133,6 +143,7 @@ func New(w *engine.World, scale int) *View {
 	}
 	w.SetTrace(v.trace)
 	w.SetChooser(&v.drive)
+	w.SetMeet(v.meet)
 	v.observe(true)
 	return v
 }
@@ -149,7 +160,14 @@ func (v *View) Step(trails bool) {
 
 func (v *View) observe(trails bool) {
 	bodies := v.W.Bodies()
-	v.hist = append(v.hist, sample{int32(len(bodies)), int32(v.W.FoodLedger().OnGround)})
+	keep := v.meetings[:0]
+	for _, m := range v.meetings {
+		if v.W.Tick()-m.tick < meetShown {
+			keep = append(keep, m)
+		}
+	}
+	v.meetings = keep
+	v.hist = append(v.hist, sample{int32(len(bodies)), int32(v.W.FoodLedger().OnGround), v.culture()})
 	if !trails {
 		return
 	}
@@ -167,6 +185,41 @@ func (v *View) observe(trails bool) {
 			delete(v.trails, id)
 		}
 	}
+}
+
+// cultureEvery is how often, in ticks, the history reads where the path
+// evidence came from; between reads it repeats the last.
+const cultureEvery = 10
+
+// culture reads the share of the living's path evidence whose observers
+// are dead, in thousandths, every cultureEvery ticks.
+func (v *View) culture() int16 {
+	c := v.W.Config()
+	if !c.Learn || !c.Tell {
+		return -1
+	}
+	if v.W.Tick()%cultureEvery != 0 && len(v.hist) > 0 {
+		return v.hist[len(v.hist)-1].culture
+	}
+	for _, rp := range v.W.Provenance() {
+		if rp.Name == "path" && rp.Held > 0 {
+			return int16(math.Round(1000 * rp.Orphan / rp.Held))
+		}
+	}
+	return -1
+}
+
+// meeting is two bodies that passed evidence, and when.
+type meeting struct {
+	a, b int64
+	tick int64
+}
+
+// meetShown is how many ticks a meeting's line stays on the map.
+const meetShown = 30
+
+func (v *View) meet(a, b engine.Body) {
+	v.meetings = append(v.meetings, meeting{a.ID, b.ID, v.W.Tick()})
 }
 
 func (v *View) trace(b engine.Body, val engine.Valuation, a engine.Action) {
@@ -299,6 +352,21 @@ func (v *View) Render(dst *image.RGBA) {
 		}
 	}
 
+	// Meetings at which bodies passed evidence, lately.
+	if len(v.meetings) > 0 {
+		at := map[int64][2]float64{}
+		for _, b := range v.W.Bodies() {
+			at[b.ID] = [2]float64{b.X, b.Y}
+		}
+		for _, m := range v.meetings {
+			pa, oka := at[m.a]
+			pb, okb := at[m.b]
+			if oka && okb {
+				line(dst, px(pa[0]), px(pa[1]), px(pb[0]), px(pb[1]), meetColor)
+			}
+		}
+	}
+
 	full := v.W.Config().EnergyMax
 	rad := max(v.scale/3, 1)
 	for _, b := range v.W.Bodies() {
@@ -340,6 +408,7 @@ func (v *View) renderPanel(dst *image.RGBA) {
 	}
 	ceil := panelCeil(v.hist[max(top0, 0):end])
 	yOf := func(n int32) int { return top + panelH - 1 - int(float64(n)*float64(panelH-4)/float64(ceil)) }
+	yShare := yShareAt(top)
 	for col := 0; col < v.mapW; col++ {
 		lo, hi := top0+col*tpp, top0+(col+1)*tpp
 		if hi <= 0 {
@@ -352,7 +421,29 @@ func (v *View) renderPanel(dst *image.RGBA) {
 		bmin, bmax, fmin, fmax := envelope(v.hist[lo:hi])
 		vline(dst, col, yOf(fmax), yOf(fmin), foodColor)
 		vline(dst, col, yOf(bmax), yOf(bmin), bodiesLine)
+		if cmin, cmax, ok := cultureEnvelope(v.hist[lo:hi]); ok {
+			vline(dst, col, yShare(cmax), yShare(cmin), meetColor)
+		}
 	}
+}
+
+// yShare places a share in thousandths on the panel: 0 at the bottom, all
+// at the top.
+func yShareAt(top int) func(int16) int {
+	return func(c int16) int { return top + panelH - 1 - int(float64(c)*float64(panelH-4)/1000) }
+}
+
+// cultureEnvelope is the least and most of the culture share over s, if
+// any tick of it has one.
+func cultureEnvelope(s []sample) (lo, hi int16, ok bool) {
+	lo, hi = math.MaxInt16, -1
+	for _, x := range s {
+		if x.culture < 0 {
+			continue
+		}
+		lo, hi, ok = min(lo, x.culture), max(hi, x.culture), true
+	}
+	return
 }
 
 // panelCeil is the top of the panel's scale: the most of either count in
@@ -377,8 +468,12 @@ func envelope(s []sample) (bmin, bmax, fmin, fmax int32) {
 func (v *View) Status() string {
 	h := v.hist[len(v.hist)-1]
 	tpp := ticksPerPixel[v.zoom]
-	return fmt.Sprintf("tick %d  bodies %d  food %d  history: %d ticks (%d/px, grid %s)",
-		v.W.Tick(), h.bodies, h.food, v.mapW*tpp, tpp, map[bool]string{true: "10000", false: "1000"}[tpp > 16])
+	culture := ""
+	if h.culture >= 0 {
+		culture = fmt.Sprintf("  path knowledge from the dead %.0f%%", float64(h.culture)/10)
+	}
+	return fmt.Sprintf("tick %d  bodies %d  food %d%s  history: %d ticks (%d/px, grid %s)",
+		v.W.Tick(), h.bodies, h.food, culture, v.mapW*tpp, tpp, map[bool]string{true: "10000", false: "1000"}[tpp > 16])
 }
 
 // FollowText describes the followed body and its last decision, with the
@@ -396,16 +491,11 @@ func (v *View) FollowText() string {
 	if b.Build.Speed > 0 {
 		fmt.Fprintf(&sb, "  speed %.3f  most %.0f", b.Build.Speed, b.Build.EnergyMax)
 	}
-	if v.W.Config().Learn {
-		bl := v.W.Belief(b)
-		c := v.W.Config()
-		pull := func(weight, n float64) float64 { return weight / (weight + n) }
-		fmt.Fprintf(&sb, "\nbelieves: food/tile here %.4f (%.0f tiles, %.0f%% parent), own path %.4f (%.0f, %.0f%% parent), land %.4f; a mate makes a child %.2f (%.0f asks, %.0f%% prior)",
-			bl.Here, bl.HereN, 100*pull(c.RegionWeight, bl.HereN), bl.Path, bl.PathN, 100*pull(c.PathWeight, bl.PathN), bl.Land,
-			bl.Child, bl.Asks, 100*pull(c.ChildWeight, bl.Asks))
-	}
 	if v.drive.ID == b.ID {
 		sb.WriteString("  PLAYED")
+	}
+	if v.W.Config().Learn {
+		sb.WriteString(v.beliefText(b))
 	}
 	if v.W.Config().Recheck > 0 && b.Decided >= 0 {
 		intent := actionName(b.Intent)
@@ -448,6 +538,46 @@ func (v *View) FollowText() string {
 		fmt.Fprintf(&sb, "\n  %-8s risk %.4f  via %s", actionName(d.opts[j]), d.risk[j], via)
 	}
 	return sb.String()
+}
+
+// beliefText is the followed body's beliefs: each estimate, the evidence
+// behind it, how far it still leans on its parent, and for the path how
+// much of its evidence came from other bodies and from dead ones.
+func (v *View) beliefText(b engine.Body) string {
+	c := v.W.Config()
+	bl := v.W.Belief(b)
+	pull := func(weight, n float64) float64 { return 100 * weight / (weight + n) }
+	path := b.Memory.Path
+	// Evidence in tiles: the stable path row counts what the region was
+	// believed to hold, a fraction of a tile each.
+	tiles, weight := path.N, c.PathWeight
+	if c.StableRows && bl.Here > 0 {
+		tiles, weight = path.N/bl.Here, c.PathWeight*bl.Here
+	}
+	heard, dead := 0.0, 0.0
+	if path.N > 0 {
+		alive := map[int64]bool{}
+		for _, o := range v.W.Bodies() {
+			alive[o.ID] = true
+		}
+		scale := path.S
+		if scale == 0 {
+			scale = 1
+		}
+		for _, h := range path.Heard {
+			heard += scale * h.N
+			if !alive[h.ID] {
+				dead += scale * h.N
+			}
+		}
+		heard, dead = 100*heard/path.N, 100*dead/path.N
+	}
+	return fmt.Sprintf("\nbelieves: food/tile here %.4f (%.0f tiles, %.0f%% parent), land %.4f"+
+		"\n  walked tiles hold x%.2f of it (evidence ~%.0f tiles, %.0f%% parent; %.0f%% heard, %.0f%% from the dead)"+
+		"\n  a mate makes a child %.2f (%.0f asks, %.0f%% prior)",
+		bl.Here, bl.HereN, pull(c.RegionWeight, bl.HereN), bl.Land,
+		bl.PathRatio, tiles, pull(weight, path.N), heard, dead,
+		bl.Child, bl.Asks, pull(c.ChildWeight, bl.Asks))
 }
 
 func optionIndex(opts []engine.Action, a engine.Action) int {

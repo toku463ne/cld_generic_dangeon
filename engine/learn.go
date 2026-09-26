@@ -93,6 +93,9 @@ type Memory struct {
 // it: each estimate and the evidence behind it.
 type Belief struct {
 	Land, Here, Path, Child float64
+	// PathRatio is Path over Here: how much of its region's food a tile
+	// walked lately is believed to hold.
+	PathRatio float64
 	// HereN and PathN are the tiles behind Here (the region the body stands
 	// in) and Path; Asks the mates behind Child.
 	HereN, PathN, Asks float64
@@ -234,8 +237,13 @@ func (w *World) Belief(b Body) Belief { return w.belief(&b) }
 // belief reads a body's memory for the trace.
 func (w *World) belief(b *Body) Belief {
 	r := w.m.RegionAt(int(math.Floor(b.X)), int(math.Floor(b.Y)))
+	here, path := w.regionRate(b, r), w.pathRate(b, r)
+	ratio := 1.0
+	if here > 0 {
+		ratio = path / here
+	}
 	return Belief{
-		Land: w.land(b), Here: w.regionRate(b, r), Path: w.pathRate(b, r), Child: w.childRate(b),
+		Land: w.land(b), Here: here, Path: path, PathRatio: ratio, Child: w.childRate(b),
 		HereN: w.Fresh(b.Memory.region(r)).N, PathN: w.pathTally(b).N, Asks: b.Memory.Asks,
 	}
 }

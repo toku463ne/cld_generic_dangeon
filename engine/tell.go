@@ -52,6 +52,9 @@ func (w *World) tell(b *Body) {
 				b.Memory.Met[o.ID], o.Memory.Met[b.ID] = true, true
 				w.pass(o, b)
 				w.pass(b, o)
+				if w.onMeet != nil {
+					w.onMeet(*b, *o)
+				}
 			}
 		}
 	}
@@ -147,3 +150,8 @@ func (w *World) passTally(dst *Tally, src Tally, srcID, dstID int64) {
 	dst.Heard = out
 	dst.resum(ownN, ownK)
 }
+
+// SetMeet sets a function shown every meeting at which two bodies pass
+// evidence (after they have). It draws nothing and changes nothing; nil
+// turns it off.
+func (w *World) SetMeet(f func(a, b Body)) { w.onMeet = f }
