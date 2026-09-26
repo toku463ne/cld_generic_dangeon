@@ -74,6 +74,10 @@
 //	       table, how much evidence a life gathers, how late a body could
 //	       learn its region, and how much food the tiles it saw empty hold.
 //
+//	room   (stage 1-6) in the base world, how many decisions the rows 1-6
+//	       learns could reorder: the tiles walked lately, read per heading,
+//	       and the chance a mate offer becomes a child.
+//
 //	meet   (stage 1-2) in the worlds of the random and base variants, the
 //	       share of tiles a body enters that hold food, against what the
 //	       truth table's third row reads: the food of the region over its land.
@@ -98,7 +102,7 @@ import (
 )
 
 func main() {
-	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage | cycle | explore | shuttle | change | breed | mate | turnover | invade | collide | generations | learn")
+	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage | cycle | explore | shuttle | change | breed | mate | turnover | invade | collide | generations | learn | room")
 	mapName := flag.String("map", "", "map (required)")
 	width := flag.Int("w", 0, "map width in tiles (required)")
 	height := flag.Int("h", 0, "map height in tiles (required)")
@@ -108,7 +112,7 @@ func main() {
 	every := flag.Int("every", 50, "split: read the world every this many ticks")
 	flag.Parse()
 
-	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" && *what != "cycle" && *what != "explore" && *what != "shuttle" && *what != "change" && *what != "breed" && *what != "mate" && *what != "turnover" && *what != "invade" && *what != "collide" && *what != "generations" && *what != "learn" {
+	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" && *what != "cycle" && *what != "explore" && *what != "shuttle" && *what != "change" && *what != "breed" && *what != "mate" && *what != "turnover" && *what != "invade" && *what != "collide" && *what != "generations" && *what != "learn" && *what != "room" {
 		fail(fmt.Errorf("unknown count %q", *what))
 	}
 	if *seeds <= 0 || *width <= 0 || *height <= 0 || *mapName == "" {
@@ -118,9 +122,13 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" || *what == "cycle" || *what == "explore" || *what == "shuttle" || *what == "change" || *what == "breed" || *what == "mate" || *what == "turnover" || *what == "invade" || *what == "collide" || *what == "generations" || *what == "learn" {
+	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" || *what == "cycle" || *what == "explore" || *what == "shuttle" || *what == "change" || *what == "breed" || *what == "mate" || *what == "turnover" || *what == "invade" || *what == "collide" || *what == "generations" || *what == "learn" || *what == "room" {
 		if *ticks <= 0 {
 			fail(fmt.Errorf("-ticks is required for %s", *what))
+		}
+		if *what == "room" {
+			room(m, *mapName, *seeds, *seed0, *ticks)
+			return
 		}
 		if *what == "learn" {
 			learn(m, *mapName, *seeds, *seed0, *ticks)
