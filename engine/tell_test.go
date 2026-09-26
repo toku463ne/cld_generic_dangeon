@@ -14,6 +14,7 @@ func TestTellPassesOnce(t *testing.T) {
 	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 100}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100})
 	w.cfg.StableRows = false // regions pass too
 	w.cfg.Kin = false        // to everyone met (2-1)
+	w.cfg.PassPath = true    // the path row too (2-1 to 2-3)
 	a, b := &w.bodies[0], &w.bodies[1]
 	a.Memory.Regions = []Tally{tallyOf(100, 5)}
 	a.Memory.Path = tallyOf(10, 0)
@@ -77,7 +78,12 @@ func TestHeardLimitAndEstimate(t *testing.T) {
 
 // In a world where bodies pass evidence, evidence outlives its observers.
 func TestEvidenceOutlivesObservers(t *testing.T) {
-	w := newTestWorld(t, 4)
+	cfg := testConfig(4)
+	cfg.PassPath = true // the path row passes (2-3); by default nothing does
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	orphans := 0.0
 	for i := 0; i < 8; i++ {
 		run(w, 500)
@@ -97,6 +103,7 @@ func TestStableRows(t *testing.T) {
 	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 100}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100})
 	w.cfg.Kin = false     // to everyone met (2-1)
 	w.cfg.AgePath = false // the path row never ages (2-1, 2-2)
+	w.cfg.PassPath = true // and passes (2-1 to 2-3)
 	a, b := &w.bodies[0], &w.bodies[1]
 	a.Memory.Regions = []Tally{{N: 100, K: 5, T: w.tick}}
 	a.Memory.Path = Tally{N: 2, K: 1} // food twice as often as the region led it to expect
@@ -132,6 +139,7 @@ func TestStableRows(t *testing.T) {
 // body passes nothing to a body not its child.
 func TestKinPassesToChildren(t *testing.T) {
 	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 100}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100})
+	w.cfg.PassPath = true // the path row passes (2-2)
 	a, b := &w.bodies[0], &w.bodies[1]
 	b.Parents = [2]int64{0, -1}
 	a.Memory.Path, a.Memory.Ver = tallyOf(10, 1), 1
@@ -171,6 +179,7 @@ func TestKinPassesToChildren(t *testing.T) {
 // does not make it new.
 func TestAgePath(t *testing.T) {
 	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 100}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100})
+	w.cfg.PassPath = true // the path row passes (2-3)
 	a, b := &w.bodies[0], &w.bodies[1]
 	b.Parents = [2]int64{0, -1}
 	a.Memory.Path, a.Memory.Ver = Tally{N: 8, K: 2, T: w.tick}, 1
@@ -185,5 +194,25 @@ func TestAgePath(t *testing.T) {
 	w.tick += int64(w.cfg.EvidenceHalfLife)
 	if got := w.pathTally(b); math.Abs(got.N-2) > 1e-9 {
 		t.Fatalf("b's path another half-life on: %+v", got)
+	}
+}
+
+// Without PassPath the path row is each body's own: a parent passes none of
+// it to its child, nor do bodies that meet.
+func TestPathIsOwn(t *testing.T) {
+	for _, kin := range []bool{true, false} {
+		w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 100}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100})
+		w.cfg.Kin = kin
+		a, b := &w.bodies[0], &w.bodies[1]
+		b.Parents = [2]int64{0, -1}
+		a.Memory.Path, a.Memory.Ver = Tally{N: 8, K: 2, T: w.tick}, 1
+		w.tell(a)
+		w.tell(b)
+		if got := b.Memory.Path; got.N != 0 || len(got.Heard) != 0 {
+			t.Fatalf("kin %v: the path row passed: %+v", kin, got)
+		}
+		if st := w.Stats(); st.PathRow.Passed != 0 {
+			t.Fatalf("kin %v: path passes counted: %d", kin, st.PathRow.Passed)
+		}
 	}
 }

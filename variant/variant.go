@@ -27,6 +27,10 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Aged is stage 2-3: the path row passes from parent to child, ageing
+// from when each piece was observed.
+const Aged = "aged"
+
 // Kin is stage 2-2: evidence passes from parent to child, and the path
 // row never ages.
 const Kin = "kin"
@@ -93,7 +97,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func kin(c *engine.Config)       { c.AgePath = false }
+func aged(c *engine.Config)      { c.PassPath = true }
+func kin(c *engine.Config)       { aged(c); c.AgePath = false }
 func near(c *engine.Config)      { kin(c); c.Kin = false }
 func mixed(c *engine.Config)     { near(c); c.StableRows = false }
 func undecayed(c *engine.Config) { mixed(c); c.EvidenceHalfLife = 0 }
@@ -111,6 +116,7 @@ func everytick(c *engine.Config) { nobreed(c); c.Recheck = 0 }
 var rewrites = map[string]func(*engine.Config){
 	Base:         func(*engine.Config) {},
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Aged:         aged,
 	Kin:          kin,
 	Near:         near,
 	Mixed:        mixed,

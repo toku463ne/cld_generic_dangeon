@@ -142,6 +142,12 @@ type Config struct {
 	// (stage 2-3): evidence many lives old otherwise outweighs all a body
 	// sees itself. Off: stage 2-2, where the path row never ages.
 	AgePath bool
+	// PassPath lets the path row pass between bodies (stages 2-1 to 2-3).
+	// Off, it is each body's own: how much food tiles walked lately hold is
+	// a fact of how their holder moves - bodies that avoid them find them
+	// poorer, bodies that do not find them no poorer - not of the world,
+	// and passed on it hands one body's way of moving to others.
+	PassPath bool
 	// Tell has bodies pass what they know of the world to the bodies they
 	// meet (tell.go), keeping at most HeardLimit observers' evidence per
 	// row. Off: stage 2-0.

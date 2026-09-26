@@ -366,7 +366,9 @@ func (w *World) stepped(b *Body, from, to int) {
 					mem.Path.N++
 				}
 				mem.Path.K += food
-				mem.Ver++
+				if w.cfg.PassPath {
+					mem.Ver++
+				}
 			}
 		}
 	}
