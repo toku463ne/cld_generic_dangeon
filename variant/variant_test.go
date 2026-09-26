@@ -33,6 +33,7 @@ func TestEarlierStagesLackLaterRules(t *testing.T) {
 		name                            string
 		collide, allot, breed, onEvents bool
 	}{
+		{Bounced, true, true, true, true},
 		{Drawn, true, true, true, true},
 		{Overlap, false, true, true, true},
 		{Fixed, false, false, true, true},
@@ -46,6 +47,9 @@ func TestEarlierStagesLackLaterRules(t *testing.T) {
 		cfg, err := Config(c.name, 1)
 		if err != nil {
 			t.Fatal(err)
+		}
+		if !cfg.Bounce {
+			t.Errorf("%s: an earlier stage without the bounce", c.name)
 		}
 		if cfg.Collide != c.collide || cfg.Allot != c.allot || cfg.Breed != c.breed || (cfg.Recheck > 0) != c.onEvents {
 			t.Errorf("%s: collide %v allot %v breed %v recheck %d", c.name, cfg.Collide, cfg.Allot, cfg.Breed, cfg.Recheck)

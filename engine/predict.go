@@ -550,7 +550,7 @@ func (w *World) decide(b *Body) Action {
 		h := b.Heading
 		switch {
 		case best(h):
-		case w.cfg.DrawAtWall:
+		case !w.cfg.Bounce:
 			draw = true
 		default:
 			h = bounce(h, best)

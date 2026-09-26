@@ -41,28 +41,28 @@ type Config struct {
 	// the tile it stands on only; a negative Sight sees nothing.
 	Sight int
 	// KeepHeading breaks ties by the body's last move: when the options of
-	// least risk include moving the way it last moved - reflected, where the
-	// land ends that way - it moves that way, and it draws at random among
-	// them only otherwise. It makes "keep
-	// moving enters new tiles" (the table's third row) near true of the
-	// body's own walk.
+	// least risk include moving the way it last moved, it moves that way,
+	// and it draws at random among them otherwise - where the land ends,
+	// water or another body stands, or the way has become worse, that move
+	// is simply not among them. It makes "keep moving enters new tiles"
+	// (the table's third row) near true of the body's own walk.
 	KeepHeading bool
-	// TurnOffReverse, with KeepHeading, keeps a bounce from sending a body
+	// Bounce, with KeepHeading, reflects the heading off whatever makes it
+	// worse than the best instead of drawing (bounce, stages 1-2q to 1-5):
+	// an axis whose step alone is not among the options of least risk is
+	// turned back. Off since 2026-09-26: a rule made to walk well, which
+	// memory is to replace (docs/history/20260926.md).
+	Bounce bool
+	// TurnOffReverse, with Bounce, keeps a bounce from sending a body
 	// straight back the way it came: where the reflected heading is the
 	// reverse of the last move, the body turns 45 degrees off it to either
 	// side instead (drawn at random if both are among the options of least
 	// risk). Without it a heading along an axis reflects into its own
 	// reverse and the body walks one row or column back and forth.
 	TurnOffReverse bool
-	// DrawAtWall, with KeepHeading, replaces the bounce: where moving the
-	// way the body last moved is not among the options of least risk, it
-	// draws among them at random, as a body with no heading does. (Stage
-	// 1-2q tried it first and bodies circled the edges they had eaten
-	// bare; it is kept to compare.)
-	DrawAtWall bool
-	// DrawOffReverse, with TurnOffReverse, draws among the options of
-	// least risk at random where the bounce would send the body straight
-	// back, instead of turning 45 degrees off it.
+	// DrawOffReverse, with Bounce and TurnOffReverse, draws among the
+	// options of least risk at random where the bounce would send the body
+	// straight back, instead of turning 45 degrees off it.
 	DrawOffReverse bool
 	// Recheck is the most ticks a body follows the action it last chose
 	// before it decides again when nothing has happened (intent.go). Other

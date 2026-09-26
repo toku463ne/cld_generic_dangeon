@@ -198,6 +198,7 @@ func TestWalksToFoodInSight(t *testing.T) {
 func TestKeepsHeading(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.Bodies, cfg.FoodCap = 0, 0
+	cfg.Bounce = true
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -309,6 +310,7 @@ func TestBounce(t *testing.T) {
 func TestBouncesOffPoorerRegion(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.Bodies, cfg.FoodCap = 0, 0
+	cfg.Bounce = true // the rule of stages 1-2q to 1-5
 	m := NewMap(12, 9)
 	m.RegionFood = []float64{1, 1}
 	for y := 0; y < m.Height; y++ {
@@ -500,13 +502,13 @@ func BenchmarkSurvival1000(b *testing.B) {
 }
 
 // Drawing instead of bouncing: at the water, a body heading east draws
-// once among the options of least risk, whichever mode draws - at every
-// blocked heading, or only where the bounce would go straight back.
+// once among the options of least risk, whether it has no bounce at all
+// (the default) or bounces but draws where that would go straight back.
 func TestDrawInsteadOfBounce(t *testing.T) {
 	for _, mode := range []string{"wall", "reverse"} {
 		cfg := testConfig(1)
 		cfg.Bodies, cfg.FoodCap = 0, 0
-		cfg.DrawAtWall = mode == "wall"
+		cfg.Bounce = mode == "reverse"
 		cfg.DrawOffReverse = mode == "reverse"
 		w, err := NewWorld(cfg, testMap())
 		if err != nil {

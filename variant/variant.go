@@ -27,13 +27,13 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
-// DrawWall is the base world where a body whose heading is blocked, or
-// worse than the best, draws among the best at random instead of bouncing.
-const DrawWall = "drawwall"
+// Bounced is stage 1-5: a body whose heading is blocked or worse than the
+// best bounces off it, turning 45 degrees where that would be straight
+// back.
+const Bounced = "bounce"
 
-// DrawReverse is the base world where a bounce that would send a body
-// straight back draws among the best at random instead of turning 45
-// degrees off.
+// DrawReverse is stage 1-5 where a bounce that would send a body straight
+// back draws among the best at random instead of turning 45 degrees off.
 const DrawReverse = "drawreverse"
 
 // Tight is the base world with the top of the budget pinched harder: the
@@ -63,7 +63,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func drawn(c *engine.Config)     { c.AllotInherit = false }
+func bounced(c *engine.Config)   { c.Bounce = true }
+func drawn(c *engine.Config)     { bounced(c); c.AllotInherit = false }
 func overlap(c *engine.Config)   { drawn(c); c.Collide = false }
 func fixed(c *engine.Config)     { overlap(c); c.Allot = false }
 func nobreed(c *engine.Config)   { fixed(c); c.Breed = false }
@@ -74,8 +75,8 @@ func everytick(c *engine.Config) { nobreed(c); c.Recheck = 0 }
 var rewrites = map[string]func(*engine.Config){
 	Base:         func(*engine.Config) {},
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
-	DrawWall:     func(c *engine.Config) { c.DrawAtWall = true },
-	DrawReverse:  func(c *engine.Config) { c.DrawOffReverse = true },
+	Bounced:      bounced,
+	DrawReverse:  func(c *engine.Config) { bounced(c); c.DrawOffReverse = true },
 	Drawn:        drawn,
 	Overlap:      overlap,
 	Fixed:        fixed,
