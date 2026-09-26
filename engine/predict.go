@@ -544,15 +544,28 @@ func (w *World) decide(b *Body) Action {
 		}
 	}
 	var a Action
-	if w.cfg.KeepHeading && b.Heading >= 0 {
+	draw := !w.cfg.KeepHeading || b.Heading < 0
+	if !draw {
 		best := func(d int) bool { return w.tied(Action{Kind: ActMove, Dir: d}) }
-		h := bounce(b.Heading, best)
-		if w.cfg.TurnOffReverse && h == (b.Heading+4)%8 {
-			h = w.turnOff(b.Heading, h, best)
+		h := b.Heading
+		switch {
+		case best(h):
+		case w.cfg.DrawAtWall:
+			draw = true
+		default:
+			h = bounce(h, best)
+			if w.cfg.TurnOffReverse && h == (b.Heading+4)%8 {
+				if w.cfg.DrawOffReverse {
+					draw = true
+				} else {
+					h = w.turnOff(b.Heading, h, best)
+				}
+			}
 		}
 		a = Action{Kind: ActMove, Dir: h}
+		draw = draw || !w.tied(a)
 	}
-	if !w.cfg.KeepHeading || b.Heading < 0 || !w.tied(a) {
+	if draw {
 		a = v.Options[w.ties[w.rng.Intn(len(w.ties))]]
 	}
 	return a

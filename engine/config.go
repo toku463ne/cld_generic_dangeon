@@ -54,6 +54,16 @@ type Config struct {
 	// risk). Without it a heading along an axis reflects into its own
 	// reverse and the body walks one row or column back and forth.
 	TurnOffReverse bool
+	// DrawAtWall, with KeepHeading, replaces the bounce: where moving the
+	// way the body last moved is not among the options of least risk, it
+	// draws among them at random, as a body with no heading does. (Stage
+	// 1-2q tried it first and bodies circled the edges they had eaten
+	// bare; it is kept to compare.)
+	DrawAtWall bool
+	// DrawOffReverse, with TurnOffReverse, draws among the options of
+	// least risk at random where the bounce would send the body straight
+	// back, instead of turning 45 degrees off it.
+	DrawOffReverse bool
 	// Recheck is the most ticks a body follows the action it last chose
 	// before it decides again when nothing has happened (intent.go). Other
 	// than that it decides only when something it perceives changes, or

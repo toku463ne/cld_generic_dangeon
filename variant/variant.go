@@ -27,6 +27,15 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// DrawWall is the base world where a body whose heading is blocked, or
+// worse than the best, draws among the best at random instead of bouncing.
+const DrawWall = "drawwall"
+
+// DrawReverse is the base world where a bounce that would send a body
+// straight back draws among the best at random instead of turning 45
+// degrees off.
+const DrawReverse = "drawreverse"
+
 // Tight is the base world with the top of the budget pinched harder: the
 // diminishing return of AllotCurve halved, 0.5 to 0.25 (stage 1-5 asks
 // whether speed can be held down for free).
@@ -65,6 +74,8 @@ func everytick(c *engine.Config) { nobreed(c); c.Recheck = 0 }
 var rewrites = map[string]func(*engine.Config){
 	Base:         func(*engine.Config) {},
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	DrawWall:     func(c *engine.Config) { c.DrawAtWall = true },
+	DrawReverse:  func(c *engine.Config) { c.DrawOffReverse = true },
 	Drawn:        drawn,
 	Overlap:      overlap,
 	Fixed:        fixed,

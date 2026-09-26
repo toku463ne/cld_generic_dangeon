@@ -80,6 +80,11 @@ type result struct {
 	adultRate float64   // matured over matured and died young; NaN with neither
 	regions   []float64 // regions with a body in them, at tick 0 and each checkpoint
 	valley    float64   // fewest bodies at any tick after tick 0
+	// displace is the mean straight-line distance, in tiles, a body gets
+	// from where it was 1000 ticks before (over bodies alive at both ends,
+	// every 1000 ticks after tick 5000); edge the mean share of the living
+	// on land tiles next to the map's edge or water, sampled the same.
+	displace, edge float64
 	// With Allot: per share of the budget for speed, the bodies born
 	// after the first quarter of the run that died before its end, and
 	// the children they had; and the mean share of the living at tick 0
@@ -161,6 +166,9 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	}
 	known := map[int64]engine.Body{}
 	kids := map[int64]int{}
+	edgeTile := edgeTiles(m)
+	var was map[int64][2]float64
+	var dSum, dN, eSum, eN float64
 	for _, b := range w.Bodies() {
 		known[b.ID] = b
 	}
@@ -211,6 +219,26 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		if t%every == 0 {
 			record()
 		}
+		if t > 5000 && t%1000 == 0 {
+			now := map[int64][2]float64{}
+			bs := w.Bodies()
+			on := 0.0
+			for _, b := range bs {
+				now[b.ID] = [2]float64{b.X, b.Y}
+				if p, ok := was[b.ID]; ok {
+					dSum += math.Hypot(b.X-p[0], b.Y-p[1])
+					dN++
+				}
+				if edgeTile[int(b.Y)*m.Width+int(b.X)] {
+					on++
+				}
+			}
+			if len(bs) > 0 {
+				eSum += on / float64(len(bs))
+				eN++
+			}
+			was = now
+		}
 		if len(w.Bodies()) <= floor {
 			// Early termination: this seed stops, the run goes on for
 			// the others. The remaining checkpoints are not surviving.
@@ -239,6 +267,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 			r.regionOf[i] /= sampled
 		}
 	}
+	r.displace, r.edge = dSum/math.Max(dN, 1), eSum/math.Max(eN, 1)
 	st := w.Stats()
 	r.starved = float64(st.Deaths[engine.CauseStarved])
 	r.burned = st.EnergyBurned
@@ -603,6 +632,11 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	}
 	p("\n")
 
+	p("### 補助の表: 動き方（%s）\n\n", base)
+	p("| 量 | 値 |\n| --- | --- |\n")
+	p("| 1000 tick の変位（タイル、tick 5000 より後） | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.displace }), 2))
+	p("| 縁（地図の端か水の隣のタイル）にいる割合 | %s（縁の面積比 %.4f） |\n\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.edge }), 4), edgeShare(m))
+
 	p("### 9. 対の差\n\n")
 	if len(o.variants) < 2 {
 		p("（比較対象なし）\n")
@@ -619,6 +653,8 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"体力消耗（合計）", 2, func(r result) float64 { return r.burned }},
 		{"出生", 2, func(r result) float64 { return r.births }},
 		{"成人到達率", 4, func(r result) float64 { return r.adultRate }},
+		{"1000 tick の変位（タイル）", 2, func(r result) float64 { return r.displace }},
+		{"縁（地図の端か水の隣）にいる割合", 4, func(r result) float64 { return r.edge }},
 		{"決定の割合", 4, func(r result) float64 { return r.decided }},
 	}
 	for _, v := range o.variants[1:] {
@@ -742,4 +778,40 @@ func shareStatsOf(bs []engine.Body, speed float64) shareStats {
 	sort.Float64s(speeds)
 	st.slowest, st.median, st.fastest = speeds[0], speeds[len(speeds)/2], speeds[len(speeds)-1]
 	return st
+}
+
+// edgeTiles marks the land tiles with the map's edge or water among the
+// eight around them.
+func edgeTiles(m engine.Map) []bool {
+	e := make([]bool, m.Width*m.Height)
+	for y := 0; y < m.Height; y++ {
+		for x := 0; x < m.Width; x++ {
+			if m.TerrainAt(x, y) != engine.TerrainLand {
+				continue
+			}
+			for dy := -1; dy <= 1; dy++ {
+				for dx := -1; dx <= 1; dx++ {
+					if !m.InBounds(x+dx, y+dy) || m.TerrainAt(x+dx, y+dy) != engine.TerrainLand {
+						e[y*m.Width+x] = true
+					}
+				}
+			}
+		}
+	}
+	return e
+}
+
+// edgeShare is the share of the land that edgeTiles marks.
+func edgeShare(m engine.Map) float64 {
+	e := edgeTiles(m)
+	n, land := 0.0, 0.0
+	for i, t := range m.Terrain {
+		if t == engine.TerrainLand {
+			land++
+			if e[i] {
+				n++
+			}
+		}
+	}
+	return n / land
 }

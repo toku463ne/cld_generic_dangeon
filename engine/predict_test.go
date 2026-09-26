@@ -498,3 +498,36 @@ func BenchmarkSurvival1000(b *testing.B) {
 		tab.NewSurvival(0.02, []int{1000})
 	}
 }
+
+// Drawing instead of bouncing: at the water, a body heading east draws
+// once among the options of least risk, whichever mode draws - at every
+// blocked heading, or only where the bounce would go straight back.
+func TestDrawInsteadOfBounce(t *testing.T) {
+	for _, mode := range []string{"wall", "reverse"} {
+		cfg := testConfig(1)
+		cfg.Bodies, cfg.FoodCap = 0, 0
+		cfg.DrawAtWall = mode == "wall"
+		cfg.DrawOffReverse = mode == "reverse"
+		w, err := NewWorld(cfg, testMap())
+		if err != nil {
+			t.Fatal(err)
+		}
+		seen := map[Action]bool{}
+		for i := 0; i < 60; i++ {
+			b := Body{X: 6.9, Y: 2.5, Energy: 50, Heading: 0}
+			draws := w.Draws()
+			a := w.decide(&b)
+			if w.Draws() != draws+1 {
+				t.Fatalf("%s: %d draws, want one", mode, w.Draws()-draws)
+			}
+			if !w.tied(a) {
+				t.Fatalf("%s: took %v, not an option of least risk", mode, a)
+			}
+			seen[a] = true
+		}
+		// East is out; the draw is over wait and the seven other moves.
+		if len(seen) < 5 {
+			t.Fatalf("%s: drew only %v", mode, seen)
+		}
+	}
+}
