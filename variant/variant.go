@@ -27,6 +27,11 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Tight is the base world with the top of the budget pinched harder: the
+// diminishing return of AllotCurve halved, 0.5 to 0.25 (stage 1-5 asks
+// whether speed can be held down for free).
+const Tight = "tight"
+
 // Drawn is the world before stage 1-5: every body draws its share of the
 // budget afresh (with collisions).
 const Drawn = "drawn"
@@ -59,6 +64,7 @@ func everytick(c *engine.Config) { nobreed(c); c.Recheck = 0 }
 // stands for.
 var rewrites = map[string]func(*engine.Config){
 	Base:         func(*engine.Config) {},
+	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
 	Drawn:        drawn,
 	Overlap:      overlap,
 	Fixed:        fixed,
