@@ -85,8 +85,24 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0x6b3c0afd0521ffad)
+	const want = uint64(0x8b3ca5a0fba68811)
 	w := newTestWorld(t, 1)
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// Without sexes, the world is stage 2-4: its fingerprint is the one pinned
+// then.
+func TestSexlessIsStage24(t *testing.T) {
+	const want = uint64(0x6b3c0afd0521ffad)
+	cfg := testConfig(1)
+	cfg.Sexes = false
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
 		t.Fatalf("fingerprint = %#x, want %#x", got, want)
@@ -98,6 +114,7 @@ func TestFingerprint(t *testing.T) {
 func TestAgedIsStage23(t *testing.T) {
 	const want = uint64(0x7adba2aacb1d8238)
 	cfg := testConfig(1)
+	cfg.Sexes = false // before stage 3-1
 	cfg.PassPath = true
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
@@ -114,6 +131,7 @@ func TestAgedIsStage23(t *testing.T) {
 func TestKinIsStage22(t *testing.T) {
 	const want = uint64(0xc2470db84a940725)
 	cfg := testConfig(1)
+	cfg.Sexes = false // before stage 3-1
 	cfg.AgePath, cfg.PassPath = false, true
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
@@ -130,6 +148,7 @@ func TestKinIsStage22(t *testing.T) {
 func TestNearIsThird21(t *testing.T) {
 	const want = uint64(0x93985c1a1c5ca120)
 	cfg := testConfig(1)
+	cfg.Sexes = false // before stage 3-1
 	cfg.Kin, cfg.AgePath, cfg.PassPath = false, false, true
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
@@ -146,6 +165,7 @@ func TestNearIsThird21(t *testing.T) {
 func TestMixedIsSecond21(t *testing.T) {
 	const want = uint64(0xc91b803c2f04cb5a)
 	cfg := testConfig(1)
+	cfg.Sexes = false // before stage 3-1
 	cfg.StableRows, cfg.Kin, cfg.PassPath = false, false, true
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
@@ -162,6 +182,7 @@ func TestMixedIsSecond21(t *testing.T) {
 func TestUndecayedIsFirst21(t *testing.T) {
 	const want = uint64(0xbaee248a8a9a5bc)
 	cfg := testConfig(1)
+	cfg.Sexes = false // before stage 3-1
 	cfg.EvidenceHalfLife, cfg.StableRows, cfg.Kin, cfg.PassPath = 0, false, false, true
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
@@ -178,6 +199,7 @@ func TestUndecayedIsFirst21(t *testing.T) {
 func TestUntoldIsStage20(t *testing.T) {
 	const want = uint64(0xe85e05167296fc73)
 	cfg := testConfig(1)
+	cfg.Sexes = false // before stage 3-1
 	cfg.Tell, cfg.EvidenceHalfLife, cfg.StableRows = false, 0, false
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
@@ -194,6 +216,7 @@ func TestUntoldIsStage20(t *testing.T) {
 func TestTruthIsBeforeStage16(t *testing.T) {
 	const want = uint64(0x6031cdab7f6ff3fb)
 	cfg := testConfig(1)
+	cfg.Sexes = false // before stage 3-1
 	cfg.Learn = false
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
@@ -210,6 +233,7 @@ func TestTruthIsBeforeStage16(t *testing.T) {
 func TestBounceIsStage15(t *testing.T) {
 	const want = uint64(0x8f80778b1d21631e)
 	cfg := testConfig(1)
+	cfg.Sexes = false // before stage 3-1
 	cfg.Bounce, cfg.Learn = true, false
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
@@ -226,6 +250,7 @@ func TestBounceIsStage15(t *testing.T) {
 func TestDrawnIsCollisions(t *testing.T) {
 	const want = uint64(0xe4ce1d34b72b02f4)
 	cfg := testConfig(1)
+	cfg.Sexes = false // before stage 3-1
 	cfg.AllotInherit = false
 	cfg.Bounce, cfg.Learn = true, false
 	w, err := NewWorld(cfg, testMap())
@@ -243,6 +268,7 @@ func TestDrawnIsCollisions(t *testing.T) {
 func TestOverlapIsStage14(t *testing.T) {
 	const want = uint64(0x6dda229acfd53e93)
 	cfg := testConfig(1)
+	cfg.Sexes = false // before stage 3-1
 	cfg.Collide, cfg.AllotInherit = false, false
 	cfg.Bounce, cfg.Learn = true, false
 	w, err := NewWorld(cfg, testMap())
@@ -260,6 +286,7 @@ func TestOverlapIsStage14(t *testing.T) {
 func TestFixedIsStage13(t *testing.T) {
 	const want = uint64(0x31db5a227bba52b8)
 	cfg := testConfig(1)
+	cfg.Sexes = false // before stage 3-1
 	cfg.Allot, cfg.Collide = false, false
 	cfg.Bounce, cfg.Learn = true, false
 	w, err := NewWorld(cfg, testMap())
@@ -277,6 +304,7 @@ func TestFixedIsStage13(t *testing.T) {
 func TestNoBreedIsStage12e(t *testing.T) {
 	const want = uint64(0xc6343895ef84fe4d)
 	cfg := testConfig(1)
+	cfg.Sexes = false // before stage 3-1
 	cfg.Breed, cfg.Allot, cfg.Collide = false, false, false
 	cfg.Bounce, cfg.Learn = true, false
 	w, err := NewWorld(cfg, testMap())
@@ -294,6 +322,7 @@ func TestNoBreedIsStage12e(t *testing.T) {
 func TestEverytickIsStage12r(t *testing.T) {
 	const want = uint64(0x72d49e5113ca37a8)
 	cfg := testConfig(1)
+	cfg.Sexes = false // before stage 3-1
 	cfg.Recheck, cfg.Breed, cfg.Allot, cfg.Collide = 0, false, false, false
 	cfg.Bounce, cfg.Learn = true, false
 	w, err := NewWorld(cfg, testMap())
@@ -311,6 +340,7 @@ func TestEverytickIsStage12r(t *testing.T) {
 func TestStraightbackIsStage12q(t *testing.T) {
 	const want = uint64(0x598db45e1aaf44c7)
 	cfg := testConfig(1)
+	cfg.Sexes = false // before stage 3-1
 	cfg.TurnOffReverse, cfg.Recheck, cfg.Breed, cfg.Allot, cfg.Collide = false, 0, false, false, false
 	cfg.Bounce, cfg.Learn = true, false
 	w, err := NewWorld(cfg, testMap())
@@ -328,6 +358,7 @@ func TestStraightbackIsStage12q(t *testing.T) {
 func TestNoHeadingIsStage12p(t *testing.T) {
 	const want = uint64(0x46ffb00b8b64a80)
 	cfg := testConfig(1)
+	cfg.Sexes = false // before stage 3-1
 	cfg.KeepHeading, cfg.Recheck, cfg.Breed, cfg.Allot, cfg.Collide = false, 0, false, false, false
 	cfg.Bounce, cfg.Learn = true, false
 	w, err := NewWorld(cfg, testMap())
@@ -345,6 +376,7 @@ func TestNoHeadingIsStage12p(t *testing.T) {
 func TestNoSightIsFirstStage12(t *testing.T) {
 	const want = uint64(0x51de0e4034431e90)
 	cfg := testConfig(1)
+	cfg.Sexes = false // before stage 3-1
 	cfg.Sight, cfg.KeepHeading, cfg.Recheck, cfg.Breed, cfg.Allot, cfg.Collide = -1, false, 0, false, false, false
 	cfg.Bounce, cfg.Learn = true, false
 	w, err := NewWorld(cfg, testMap())
@@ -362,6 +394,7 @@ func TestNoSightIsFirstStage12(t *testing.T) {
 func TestNoWindowIsStage11(t *testing.T) {
 	const want = uint64(0xa43263b50e366b1e)
 	cfg := testConfig(1)
+	cfg.Sexes = false // before stage 3-1
 	cfg.Window, cfg.KeepHeading, cfg.Recheck, cfg.Breed, cfg.Allot, cfg.Collide = 0, false, 0, false, false, false
 	cfg.Bounce, cfg.Learn = true, false
 	w, err := NewWorld(cfg, testMap())

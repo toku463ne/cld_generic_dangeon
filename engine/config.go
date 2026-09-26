@@ -148,6 +148,11 @@ type Config struct {
 	// poorer, bodies that do not find them no poorer - not of the world,
 	// and passed on it hands one body's way of moving to others.
 	PassPath bool
+	// Sexes gives every body a sex, one or the other alike, drawn when it
+	// comes into the world; only adults of the two sexes can mate (stage
+	// 3-1). A sex changes nothing else. Off: stage 2-4, where any two
+	// adults can.
+	Sexes bool
 	// Tell has bodies pass what they know of the world to the bodies they
 	// meet (tell.go), keeping at most HeardLimit observers' evidence per
 	// row. Off: stage 2-0.
@@ -220,6 +225,7 @@ func DefaultConfig() Config {
 		EvidenceHalfLife: 1200,
 		HeardLimit:       64,
 		Kin:              true,
+		Sexes:            true,
 		Collide:          true,
 	}
 }

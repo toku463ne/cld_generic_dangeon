@@ -15,8 +15,9 @@ func pairWorld(t *testing.T, a, b Body) *World {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, x := range []Body{a, b} {
+	for i, x := range []Body{a, b} {
 		x.Heading, x.Goal, x.Decided, x.Parents = -1, -1, -1, [2]int64{-1, -1}
+		x.Sex = Female + Sex(i) // one of each: they can mate
 		w.bodies = append(w.bodies, x)
 	}
 	w.nextID = 2
@@ -172,5 +173,52 @@ func TestWorthlessChildIsNotMated(t *testing.T) {
 	w.cfg.ChildWorth = 0
 	if a := w.decide(&w.bodies[0]); a.Kind == ActMate {
 		t.Fatalf("mated for a child worth nothing: %+v", w.valuation)
+	}
+}
+
+// With Sexes only adults of the two sexes see each other as mates; bodies
+// are born of one sex or the other alike; without Sexes none has a sex.
+func TestMatesAreOfTheOtherSex(t *testing.T) {
+	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 100}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100})
+	a, b := &w.bodies[0], &w.bodies[1]
+	if opts := w.mateOptions(nil, a); !hasMate(opts, 1) {
+		t.Fatal("no mate offered with a body of the other sex in sight")
+	}
+	b.Sex = a.Sex
+	if opts := w.mateOptions(nil, a); hasMate(opts, 1) {
+		t.Fatal("a mate offered with a body of the same sex")
+	}
+	w.cfg.Sexes = false
+	if opts := w.mateOptions(nil, a); !hasMate(opts, 1) {
+		t.Fatal("without sexes, no mate offered")
+	}
+	cfg := testConfig(3)
+	cfg.Bodies = 400
+	w2, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	females := 0
+	for _, x := range w2.Bodies() {
+		switch x.Sex {
+		case Female:
+			females++
+		case Male:
+		default:
+			t.Fatalf("body %d has sex %d", x.ID, x.Sex)
+		}
+	}
+	if females < 160 || females > 240 {
+		t.Fatalf("%d of 400 bodies female", females)
+	}
+	cfg.Sexes = false
+	w3, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, x := range w3.Bodies() {
+		if x.Sex != NoSex {
+			t.Fatalf("without sexes, body %d has sex %d", x.ID, x.Sex)
+		}
 	}
 }

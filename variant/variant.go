@@ -27,6 +27,9 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Sexless is stage 2-4: any two adults can mate.
+const Sexless = "sexless"
+
 // Aged is stage 2-3: the path row passes from parent to child, ageing
 // from when each piece was observed.
 const Aged = "aged"
@@ -97,7 +100,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func aged(c *engine.Config)      { c.PassPath = true }
+func sexless(c *engine.Config)   { c.Sexes = false }
+func aged(c *engine.Config)      { sexless(c); c.PassPath = true }
 func kin(c *engine.Config)       { aged(c); c.AgePath = false }
 func near(c *engine.Config)      { kin(c); c.Kin = false }
 func mixed(c *engine.Config)     { near(c); c.StableRows = false }
@@ -116,6 +120,7 @@ func everytick(c *engine.Config) { nobreed(c); c.Recheck = 0 }
 var rewrites = map[string]func(*engine.Config){
 	Base:         func(*engine.Config) {},
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Sexless:      sexless,
 	Aged:         aged,
 	Kin:          kin,
 	Near:         near,

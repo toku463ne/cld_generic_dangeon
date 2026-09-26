@@ -88,6 +88,10 @@ type result struct {
 	// back is the share of decisions after tick 5000 that took a move
 	// straight back the way the body last moved.
 	back float64
+	// adults is the share of the living that are adults, and minority the
+	// share of the rarer sex among the adults (NaN without sexes), both
+	// averaged over the checkpoints every 1000 ticks after tick 5000.
+	adults, minority float64
 	// With Learn: where the evidence the living held came from, summed
 	// over the checkpoints after tick 5000 (prov), and the ages at death
 	// after tick 5000 (deathAges), for the median life to set it against.
@@ -196,7 +200,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		}
 	})
 	var was map[int64][2]float64
-	var dSum, dN, eSum, eN float64
+	var dSum, dN, eSum, eN, aSum, aN, mSum, mN float64
 	for _, b := range w.Bodies() {
 		known[b.ID] = b
 	}
@@ -273,6 +277,21 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 			now := map[int64][2]float64{}
 			bs := w.Bodies()
 			on := 0.0
+			var bySex [3]float64
+			for _, b := range bs {
+				if w.Tick() >= b.Mature {
+					bySex[b.Sex]++
+				}
+			}
+			if len(bs) > 0 {
+				adults := bySex[0] + bySex[1] + bySex[2]
+				aSum += adults / float64(len(bs))
+				aN++
+				if f, m := bySex[engine.Female], bySex[engine.Male]; f+m > 0 {
+					mSum += math.Min(f, m) / (f + m)
+					mN++
+				}
+			}
 			for _, b := range bs {
 				now[b.ID] = [2]float64{b.X, b.Y}
 				if p, ok := was[b.ID]; ok {
@@ -319,6 +338,11 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	}
 	r.displace, r.edge = dSum/math.Max(dN, 1), eSum/math.Max(eN, 1)
 	r.back = backs / math.Max(traced, 1)
+	r.adults = aSum / math.Max(aN, 1)
+	r.minority = math.NaN()
+	if mN > 0 {
+		r.minority = mSum / mN
+	}
 	st := w.Stats()
 	if cfg.Learn {
 		r.rows = memRows(w, m)
@@ -705,6 +729,15 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	p("| 縁（地図の端か水の隣のタイル）にいる割合 | %s（縁の面積比 %.4f） |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.edge }), 4), edgeShare(m))
 	p("| 真後ろへの手（tick 5000 より後の決定のうち） | %s |\n\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.back }), 4))
 
+	p("### 補助の表: 成人と性（%s、tick 5000 より後、1000 tick ごと）\n\n", base)
+	p("| 量 | 値 |\n| --- | --- |\n")
+	p("| 生きている身体のうち成人の割合 | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.adults }), 4))
+	if xs := collectWhere(rs, func(r result) bool { return !math.IsNaN(r.minority) }, func(r result) float64 { return r.minority }); len(xs) > 0 {
+		p("| 成人のうち少ない側の性の割合 | %s |\n\n", fmtMeanSE(xs, 4))
+	} else {
+		p("| 成人のうち少ない側の性の割合 | —（性別なし） |\n\n")
+	}
+
 	p("### 9. 対の差\n\n")
 	if len(o.variants) < 2 {
 		p("（比較対象なし）\n")
@@ -725,6 +758,7 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"縁（地図の端か水の隣）にいる割合", 4, func(r result) float64 { return r.edge }},
 		{"真後ろへの手（決定のうち）", 4, func(r result) float64 { return r.back }},
 		{"決定の割合", 4, func(r result) float64 { return r.decided }},
+		{"成人の割合", 4, func(r result) float64 { return r.adults }},
 	}
 	for _, v := range o.variants[1:] {
 		for _, mt := range metrics {

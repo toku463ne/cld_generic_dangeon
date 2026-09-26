@@ -369,9 +369,9 @@ func (v *View) Render(dst *image.RGBA) {
 
 	full := v.W.Config().EnergyMax
 	rad := max(v.scale/3, 1)
+	now := v.W.Tick()
 	for _, b := range v.W.Bodies() {
-		g := uint8(255 * min(max(b.Energy/full, 0), 1))
-		fillCircle(dst, px(b.X), px(b.Y), rad, color.RGBA{g, g, g, 0xff})
+		fillCircle(dst, px(b.X), px(b.Y), rad, bodyColor(b, now, b.Energy/full))
 	}
 	if following {
 		strokeCircle(dst, px(fb.X), px(fb.Y), rad+2, followColor)
@@ -382,6 +382,49 @@ func (v *View) Render(dst *image.RGBA) {
 		}
 	}
 	v.renderPanel(dst)
+}
+
+// Body hues: a child's until it comes of age, then a woman's or a man's.
+// A world without sexes draws bodies grey.
+var (
+	childHue  = color.RGBA{0x70, 0xe0, 0x70, 0xff}
+	femaleHue = color.RGBA{0xff, 0x70, 0xb0, 0xff}
+	maleHue   = color.RGBA{0x60, 0xa0, 0xff, 0xff}
+	greyHue   = color.RGBA{0xff, 0xff, 0xff, 0xff}
+)
+
+// bodyColor is body b's hue at tick now, darker the less energy it has
+// (full, its energy over the config's most): the brightness still reads
+// as how near starving it is.
+func bodyColor(b engine.Body, now int64, full float64) color.RGBA {
+	hue := greyHue
+	switch {
+	case b.Sex == engine.NoSex:
+	case now < b.Mature:
+		hue = childHue
+	case b.Sex == engine.Female:
+		hue = femaleHue
+	default:
+		hue = maleHue
+	}
+	f := min(max(full, 0), 1)
+	if hue != greyHue {
+		f = 0.2 + 0.8*f // a starving body keeps a trace of its hue
+	}
+	return color.RGBA{uint8(float64(hue.R) * f), uint8(float64(hue.G) * f), uint8(float64(hue.B) * f), 0xff}
+}
+
+// sexName names body b's sex and stage at tick now, for the status line.
+func sexName(b engine.Body, now int64) string {
+	switch {
+	case b.Sex == engine.NoSex:
+		return ""
+	case now < b.Mature:
+		return "  child"
+	case b.Sex == engine.Female:
+		return "  female"
+	}
+	return "  male"
 }
 
 func (v *View) drawTrail(dst *image.RGBA, t *trail, c color.RGBA) {
@@ -487,7 +530,7 @@ func (v *View) FollowText() string {
 		return fmt.Sprintf("body #%d is dead", v.follow)
 	}
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "body #%d  energy %.1f  age %d  heading %s", b.ID, b.Energy, v.W.Tick()-b.Born, dirName(b.Heading))
+	fmt.Fprintf(&sb, "body #%d%s  energy %.1f  age %d  heading %s", b.ID, sexName(b, v.W.Tick()), b.Energy, v.W.Tick()-b.Born, dirName(b.Heading))
 	if b.Build.Speed > 0 {
 		fmt.Fprintf(&sb, "  speed %.3f  most %.0f", b.Build.Speed, b.Build.EnergyMax)
 	}

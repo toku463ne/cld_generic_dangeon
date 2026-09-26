@@ -43,6 +43,9 @@ type Body struct {
 	// Parents are the IDs of the two bodies it was born of, -1 for the
 	// first bodies.
 	Parents [2]int64
+	// Sex is Female or Male, drawn when it comes into the world (with
+	// Sexes); NoSex in a world without sexes.
+	Sex Sex `json:",omitempty"`
 	// Build is its own speed, most energy and burn (build.go), and Share
 	// the share of its budget it was born with for speed (with Allot).
 	Build Build
@@ -155,6 +158,7 @@ func (w *World) placeBodies() {
 			Goal:    -1,
 			Decided: -1,
 			Parents: [2]int64{-1, -1},
+			Sex:     w.drawSex(),
 		}
 		w.allot(&b)
 		b.Energy = w.maxOf(&b)

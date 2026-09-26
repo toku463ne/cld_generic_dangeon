@@ -28,6 +28,25 @@ import "math"
 // adult reports whether body b may mate now.
 func (w *World) adult(b *Body) bool { return w.tick >= b.Mature }
 
+// Sex is a body's sex (with Sexes). It changes nothing a body can do but
+// whom it can mate with.
+type Sex int8
+
+const (
+	NoSex Sex = iota
+	Female
+	Male
+)
+
+// drawSex draws a sex, one or the other alike, with Sexes; NoSex without,
+// drawing nothing.
+func (w *World) drawSex() Sex {
+	if !w.cfg.Sexes {
+		return NoSex
+	}
+	return Female + Sex(w.rng.Intn(2))
+}
+
 // birthShare is the energy each parent pays for a birth.
 func (w *World) birthShare() float64 { return w.cfg.BirthEnergy / 2 }
 
@@ -109,7 +128,7 @@ func (w *World) mates(b *Body, f func(*Body)) {
 			}
 			for _, j := range w.grid[w.m.index(x, y)] {
 				o := &w.bodies[j]
-				if o.ID != b.ID && w.adult(o) {
+				if o.ID != b.ID && w.adult(o) && (!w.cfg.Sexes || o.Sex != b.Sex) {
 					f(o)
 				}
 			}
@@ -176,6 +195,7 @@ func (w *World) mate(b *Body, id int64) {
 		Decided: -1,
 		Mature:  w.tick + int64(w.cfg.MatureAge),
 		Parents: [2]int64{p.ID, b.ID},
+		Sex:     w.drawSex(),
 	}
 	w.allot(&child, p, b)
 	w.born = append(w.born, child)
