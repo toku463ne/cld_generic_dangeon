@@ -77,9 +77,11 @@ type result struct {
 	actions   [engine.NumActionKinds]float64
 	decided   float64 // decisions over actions (body-ticks)
 	births    float64
-	adultRate float64   // matured over matured and died young; NaN with neither
-	regions   []float64 // regions with a body in them, at tick 0 and each checkpoint
-	valley    float64   // fewest bodies at any tick after tick 0
+	// provisioned is the food that went straight to resting mothers.
+	provisioned float64
+	adultRate   float64   // matured over matured and died young; NaN with neither
+	regions     []float64 // regions with a body in them, at tick 0 and each checkpoint
+	valley      float64   // fewest bodies at any tick after tick 0
 	// displace is the mean straight-line distance, in tiles, a body gets
 	// from where it was 1000 ticks before (over bodies alive at both ends,
 	// every 1000 ticks after tick 5000); edge the mean share of the living
@@ -371,6 +373,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		r.decided = decisions / total
 	}
 	r.births = float64(st.Births)
+	r.provisioned = float64(w.FoodLedger().Provisioned)
 	for i := range r.rows {
 		c := rowCount(st, r.rows[i].key)
 		r.rows[i].learned, r.rows[i].passed = float64(c.Learned), float64(c.Passed)
@@ -627,6 +630,7 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	for _, e := range []string{"種族内の戦い", "種族間の戦い", "コインを拾った", "売買"} {
 		p("| %s | 0 |\n", e)
 	}
+	p("| 休んでいる母に配られた食料 | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.provisioned }), 2))
 	p("| 体力消耗（合計） | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.burned }), 1))
 	p("| 死亡 | %s |\n\n", fmtMeanSE(starved, 2))
 
@@ -759,6 +763,7 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"真後ろへの手（決定のうち）", 4, func(r result) float64 { return r.back }},
 		{"決定の割合", 4, func(r result) float64 { return r.decided }},
 		{"成人の割合", 4, func(r result) float64 { return r.adults }},
+		{"休んでいる母に配られた食料", 2, func(r result) float64 { return r.provisioned }},
 	}
 	for _, v := range o.variants[1:] {
 		for _, mt := range metrics {

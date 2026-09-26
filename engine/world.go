@@ -255,6 +255,9 @@ func (w *World) Fingerprint() uint64 {
 			if w.bears() {
 				put(uint64(b.Rested))
 			}
+			if w.bears() && w.cfg.Provision {
+				put(uint64(b.Partner))
+			}
 		}
 	}
 	put(uint64(w.nextID))

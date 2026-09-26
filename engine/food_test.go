@@ -163,3 +163,68 @@ func TestBadSeasonsAreRejected(t *testing.T) {
 		}
 	}
 }
+
+// Food that comes back goes to a resting mother instead of the ground with
+// ProvisionWith if her partner is in her region and ProvisionAlone if not;
+// it appears and is eaten at once, so the ledger still closes; a mother not
+// resting, or a region without one, gets nothing.
+func TestProvision(t *testing.T) {
+	for _, c := range []struct {
+		name            string
+		partnerX        float64
+		resting         bool
+		with, alone     float64
+		wantProvisioned bool
+	}{
+		{"partner near", 3.5, true, 1, 0, true},
+		{"partner away", 3.5, true, 1, 0, false},
+		{"partner gone", -1, true, 0, 1, true},
+		{"not resting", 3.5, false, 1, 1, false},
+	} {
+		m := NewMap(10, 10)
+		m.RegionFood = []float64{1, 1}
+		for y := 0; y < m.Height; y++ {
+			for x := 5; x < m.Width; x++ {
+				m.SetRegion(x, y, 1)
+			}
+		}
+		cfg := DefaultConfig()
+		cfg.Bodies, cfg.FoodCap, cfg.FoodReturn = 0, 20, 1
+		cfg.ProvisionWith, cfg.ProvisionAlone = c.with, c.alone
+		w, err := NewWorld(cfg, m)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mother := Body{ID: 0, X: 2.5, Y: 2.5, Energy: 10, Sex: Female, Partner: 1, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}}
+		if c.resting {
+			mother.Rested = w.tick + 100
+		}
+		w.bodies = append(w.bodies, mother)
+		if c.partnerX >= 0 {
+			// Near: the same region (x < 5); away: the other region.
+			x := c.partnerX
+			if c.name == "partner away" {
+				x = 7.5
+			}
+			w.bodies = append(w.bodies, Body{ID: 1, X: x, Y: 2.5, Energy: 100, Sex: Male, Partner: -1, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}})
+		}
+		w.nextID = 2
+		w.buildGrid()
+		for i := 0; i < 20; i++ {
+			w.eatFood(0)
+		}
+		w.returnFood()
+		checkFood(t, w)
+		l := w.FoodLedger()
+		got := l.Provisioned > 0
+		if got != c.wantProvisioned {
+			t.Fatalf("%s: provisioned %d", c.name, l.Provisioned)
+		}
+		if got && w.bodies[0].Energy <= 10 {
+			t.Fatalf("%s: provisioned, but the mother's energy is %v", c.name, w.bodies[0].Energy)
+		}
+		if got && l.Provisioned+int64(l.OnGround) != 20 {
+			t.Fatalf("%s: %d provisioned and %d on the ground of 20 returned", c.name, l.Provisioned, l.OnGround)
+		}
+	}
+}

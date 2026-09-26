@@ -91,6 +91,14 @@ type Config struct {
 	FemaleBears  bool
 	MateEnergy   float64
 	RecoverTicks int
+	// Provision gives resting mothers (with FemaleBears) a share of the
+	// food that comes back (food.go, stage 3-3): each unit returning to a
+	// region goes, instead of to the ground, to one mother resting there
+	// drawn at random, with chance ProvisionWith if the father of her last
+	// child is in the region now and ProvisionAlone if not (dead or
+	// elsewhere alike). Off: stage 3-2.
+	Provision                     bool
+	ProvisionWith, ProvisionAlone float64
 	// MatureAge is how many ticks after its birth a child becomes an adult
 	// and may mate.
 	MatureAge int
@@ -239,6 +247,9 @@ func DefaultConfig() Config {
 		FemaleBears:      true,
 		MateEnergy:       5,
 		RecoverTicks:     400,
+		Provision:        true,
+		ProvisionWith:    0.07,
+		ProvisionAlone:   0.035,
 		Collide:          true,
 	}
 }

@@ -201,6 +201,7 @@ func (w *World) mate(b *Body, id int64) {
 		for _, x := range []*Body{b, p} {
 			if x.Sex == Female {
 				x.Rested = w.tick + int64(w.cfg.RecoverTicks)
+				x.Partner = b.ID + p.ID - x.ID // the other
 			}
 		}
 	}
@@ -221,6 +222,7 @@ func (w *World) mate(b *Body, id int64) {
 		Mature:  w.tick + int64(w.cfg.MatureAge),
 		Parents: [2]int64{p.ID, b.ID},
 		Sex:     w.drawSex(),
+		Partner: -1,
 	}
 	w.allot(&child, p, b)
 	w.born = append(w.born, child)

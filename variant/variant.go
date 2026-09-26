@@ -27,6 +27,9 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Unfed is stage 3-2: resting mothers get none of the food that comes back.
+const Unfed = "unfed"
+
 // Even is stage 3-1: each parent pays half a birth.
 const Even = "even"
 
@@ -103,7 +106,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func even(c *engine.Config)      { c.FemaleBears = false }
+func unfed(c *engine.Config)     { c.Provision = false }
+func even(c *engine.Config)      { unfed(c); c.FemaleBears = false }
 func sexless(c *engine.Config)   { even(c); c.Sexes = false }
 func aged(c *engine.Config)      { sexless(c); c.PassPath = true }
 func kin(c *engine.Config)       { aged(c); c.AgePath = false }
@@ -124,6 +128,7 @@ func everytick(c *engine.Config) { nobreed(c); c.Recheck = 0 }
 var rewrites = map[string]func(*engine.Config){
 	Base:         func(*engine.Config) {},
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Unfed:        unfed,
 	Even:         even,
 	Sexless:      sexless,
 	Aged:         aged,

@@ -24,6 +24,9 @@ type FoodLedger struct {
 	OnGround int   // units on the map now
 	Appeared int64 // units that have appeared since the world was built
 	Eaten    int64 // units that have been eaten
+	// Provisioned counts the units that went straight to a resting mother
+	// (Provision): each appeared and was eaten in the same tick.
+	Provisioned int64
 }
 
 // Balanced reports whether the account closes: nothing appeared or vanished
@@ -45,7 +48,7 @@ type foodState struct {
 	// how many come back, only for where.
 	owed []float64
 
-	appeared, eaten int64
+	appeared, eaten, provisioned int64
 
 	// regionLand lists each region's land tiles, which is where its food can
 	// appear.
@@ -147,18 +150,73 @@ func (w *World) returnFood() {
 	if vacant <= 0 || sum == 0 {
 		return
 	}
+	var resting [][]int // per region, the indices of the mothers resting there
 	for r, s := range shares {
 		if len(f.regionLand[r]) == 0 || s == 0 {
 			continue
 		}
 		f.owed[r] += w.cfg.FoodReturn * float64(vacant) * s / sum
 		for f.owed[r] >= 1 && len(f.foods) < w.cfg.FoodCap {
+			if resting == nil {
+				resting = w.restingMothers()
+			}
+			if w.provision(RegionID(r), resting[r]) {
+				f.owed[r]--
+				continue
+			}
 			if !w.placeFood(RegionID(r)) {
 				break
 			}
 			f.owed[r]--
 		}
 	}
+}
+
+// restingMothers lists, per region, the indices of the mothers resting
+// there, in the order of the bodies; nothing without Provision.
+func (w *World) restingMothers() [][]int {
+	out := make([][]int, len(w.m.RegionFood))
+	if !w.cfg.Provision || !w.bears() {
+		return out
+	}
+	for i := range w.bodies {
+		b := &w.bodies[i]
+		if w.resting(b) {
+			r := w.m.Region[w.tileOf(b.X, b.Y)]
+			out[r] = append(out[r], i)
+		}
+	}
+	return out
+}
+
+// provision gives a unit returning to region r to one of the mothers
+// resting there (the indices in mothers), drawn at random, with chance
+// ProvisionWith if the father of her last child stands in r now and
+// ProvisionAlone if not. It reports whether it did: the unit then appeared
+// and was eaten at once, and never lay on the ground.
+func (w *World) provision(r RegionID, mothers []int) bool {
+	if len(mothers) == 0 {
+		return false
+	}
+	m := &w.bodies[mothers[w.rng.Intn(len(mothers))]]
+	p := w.cfg.ProvisionAlone
+	for i := range w.bodies {
+		if o := &w.bodies[i]; o.ID == m.Partner {
+			if w.m.Region[w.tileOf(o.X, o.Y)] == r {
+				p = w.cfg.ProvisionWith
+			}
+			break
+		}
+	}
+	if w.rng.Float64() >= p {
+		return false
+	}
+	m.Energy = min(m.Energy+w.cfg.FoodEnergy, w.maxOf(m))
+	w.food.appeared++
+	w.food.eaten++
+	w.food.provisioned++
+	w.provisioned(r)
+	return true
 }
 
 // foodOn returns the index of the unit on tile t, or -1.
@@ -197,6 +255,8 @@ func (w *World) FoodLedger() FoodLedger {
 		OnGround: len(w.food.foods),
 		Appeared: w.food.appeared,
 		Eaten:    w.food.eaten,
+
+		Provisioned: w.food.provisioned,
 	}
 }
 

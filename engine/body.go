@@ -49,6 +49,9 @@ type Body struct {
 	// Rested is the tick a mother can mate again after a birth (with
 	// FemaleBears); zero for none yet.
 	Rested int64 `json:",omitempty"`
+	// Partner is the father of a mother's last child (with FemaleBears),
+	// -1 for none: whether he is near sets how likely she is provisioned.
+	Partner int64 `json:",omitempty"`
 	// Build is its own speed, most energy and burn (build.go), and Share
 	// the share of its budget it was born with for speed (with Allot).
 	Build Build
@@ -121,6 +124,9 @@ type Stats struct {
 	// each learned row, what bodies learned themselves and passed on.
 	RegionRows       []RowCount `json:",omitempty"`
 	PathRow, MateRow RowCount
+	// Provisioned counts, per region, the food that went straight to a
+	// resting mother (Provision, food.go).
+	Provisioned []int64 `json:",omitempty"`
 }
 
 // RowCount counts, for one learned row, the observations bodies added to it
@@ -162,6 +168,7 @@ func (w *World) placeBodies() {
 			Decided: -1,
 			Parents: [2]int64{-1, -1},
 			Sex:     w.drawSex(),
+			Partner: -1,
 		}
 		w.allot(&b)
 		b.Energy = w.maxOf(&b)
@@ -222,7 +229,16 @@ func (w *World) Bodies() []Body {
 func (w *World) Stats() Stats {
 	s := w.stats
 	s.RegionRows = append([]RowCount(nil), s.RegionRows...)
+	s.Provisioned = append([]int64(nil), s.Provisioned...)
 	return s
+}
+
+// provisioned counts a unit given to a resting mother in region r.
+func (w *World) provisioned(r RegionID) {
+	for int(r) >= len(w.stats.Provisioned) {
+		w.stats.Provisioned = append(w.stats.Provisioned, 0)
+	}
+	w.stats.Provisioned[r]++
 }
 
 // regionRow returns the counts of region r's row, growing the list to it.

@@ -85,8 +85,24 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0xa1d282e1ee3e8c90)
+	const want = uint64(0xde7a3d9c0a25b1db)
 	w := newTestWorld(t, 1)
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// Without provisioning, the world is stage 3-2: its fingerprint is the one
+// pinned then.
+func TestUnfedIsStage32(t *testing.T) {
+	const want = uint64(0xa1d282e1ee3e8c90)
+	cfg := testConfig(1)
+	cfg.Provision = false
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
 		t.Fatalf("fingerprint = %#x, want %#x", got, want)
