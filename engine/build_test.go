@@ -73,3 +73,46 @@ func TestOwnBuild(t *testing.T) {
 		}
 	}
 }
+
+// A child's level of the share is one of its parents', or one level from
+// it; it moves away from both about as often as AllotMutation says; and
+// the budget account closes every tick.
+func TestChildInheritsTheShare(t *testing.T) {
+	births, moved := 0, 0
+	mutation := 0.0
+	for seed := int64(1); seed <= 4; seed++ {
+		w := newTestWorld(t, seed)
+		mutation = w.cfg.AllotMutation
+		level := map[int64]int{}
+		for _, b := range w.Bodies() {
+			level[b.ID] = b.Level
+		}
+		for i := 0; i < 4000; i++ {
+			w.Step()
+			if l := w.BudgetLedger(); !l.Balanced() {
+				t.Fatalf("tick %d: budget ledger does not close: %+v", w.Tick(), l)
+			}
+			for _, b := range w.Bodies() {
+				if _, ok := level[b.ID]; ok {
+					continue
+				}
+				level[b.ID] = b.Level
+				p, q := level[b.Parents[0]], level[b.Parents[1]]
+				near := func(x int) bool { return b.Level == x || b.Level == x-1 || b.Level == x+1 }
+				if !near(p) && !near(q) {
+					t.Fatalf("child %d at level %d of parents at %d and %d", b.ID, b.Level, p, q)
+				}
+				births++
+				if b.Level != p && b.Level != q {
+					moved++
+				}
+			}
+		}
+	}
+	if births < 200 {
+		t.Fatalf("only %d births", births)
+	}
+	if f := float64(moved) / float64(births); f < 0.02 || f > 0.2 {
+		t.Fatalf("%d of %d children moved away from both parents' levels (%.3f), mutation %v", moved, births, f, mutation)
+	}
+}

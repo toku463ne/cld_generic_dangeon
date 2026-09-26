@@ -47,6 +47,10 @@ type Body struct {
 	// the share of its budget it was born with for speed (with Allot).
 	Build Build
 	Share float64 `json:",omitempty"`
+	// Level is the share's level (0 to AllotLevels-1), which a child
+	// inherits; Budget is the size of its budget (Config.Budget for now).
+	Level  int     `json:",omitempty"`
+	Budget float64 `json:",omitempty"`
 }
 
 // ActionKind is what an action does, for counting.
@@ -102,6 +106,9 @@ type Stats struct {
 	// Births counts the bodies born (breed.go). Of them, Matured became
 	// adults and DiedYoung died before.
 	Births, Matured, DiedYoung int64
+	// BudgetIn and BudgetOut are the budgets brought in by the born and
+	// taken out by the dead (BudgetLedger).
+	BudgetIn, BudgetOut float64
 }
 
 // tileOf returns the index of the tile under (x, y), or -1 off the map.

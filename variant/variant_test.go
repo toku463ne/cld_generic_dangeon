@@ -33,6 +33,7 @@ func TestEarlierStagesLackLaterRules(t *testing.T) {
 		name                            string
 		collide, allot, breed, onEvents bool
 	}{
+		{Drawn, true, true, true, true},
 		{Overlap, false, true, true, true},
 		{Fixed, false, false, true, true},
 		{Nobreed, false, false, false, true},

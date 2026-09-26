@@ -92,6 +92,14 @@ type Config struct {
 	// times (2 x share) to this power, so an even split buys the config's
 	// values, and below 1 each further share buys less.
 	AllotCurve float64
+	// AllotInherit has a child take one parent's level of the share, drawn
+	// between the two, instead of drawing it afresh (stage 1-5), and
+	// AllotMutation is the chance it then moves one level.
+	AllotInherit  bool
+	AllotMutation float64
+	// Budget is the size of every body's budget. The budget ledger
+	// (BudgetLedger) accounts for it.
+	Budget float64
 
 	// Collide keeps a body from stepping into a tile another body stands
 	// on (breed.go keeps who stands where): the move is not among its
@@ -127,6 +135,9 @@ func DefaultConfig() Config {
 		AllotSpread:    0.25,
 		AllotLevels:    11,
 		AllotCurve:     0.5,
+		AllotInherit:   true,
+		AllotMutation:  0.1,
+		Budget:         1,
 		Collide:        true,
 	}
 }

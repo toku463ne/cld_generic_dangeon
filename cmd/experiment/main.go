@@ -89,7 +89,7 @@ type result struct {
 	shares    []float64
 	lives     map[float64]float64
 	lifeKids  map[float64]float64
-	shareLive []float64
+	shareLive []shareStats
 	why       [engine.NumTriggers]float64 // share of the decisions by trigger
 	regionOf  []float64                   // share of the bodies in each region, averaged over the second half of the run
 	regionOK  bool                        // whether regionOf has any tick behind it
@@ -157,17 +157,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.series = append(r.series, int32(len(w.Bodies())))
 	r.valley = math.Inf(1)
 	r.lives, r.lifeKids = map[float64]float64{}, map[float64]float64{}
-	meanShare := func() float64 {
-		bs := w.Bodies()
-		if len(bs) == 0 {
-			return math.NaN()
-		}
-		x := 0.0
-		for _, b := range bs {
-			x += b.Share
-		}
-		return x / float64(len(bs))
-	}
+	meanShare := func() shareStats { return shareStatsOf(w.Bodies(), cfg.Speed) }
 	if cfg.Allot {
 		r.shareLive = append(r.shareLive, meanShare())
 	}
@@ -183,6 +173,9 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		w.Step()
 		if l := w.FoodLedger(); !l.Balanced() {
 			return result{}, fmt.Errorf("tick %d: food ledger does not close: %+v", t, l)
+		}
+		if l := w.BudgetLedger(); !l.Balanced() {
+			return result{}, fmt.Errorf("tick %d: budget ledger does not close: %+v", t, l)
 		}
 		r.series = append(r.series, int32(len(w.Bodies())))
 		r.valley = math.Min(r.valley, float64(len(w.Bodies())))
@@ -680,10 +673,74 @@ func writeAllot(p func(string, ...any), o options, rs []result, every, rows int)
 	}
 	d := collect(rs, func(r result) float64 { return side(r, true) - side(r, false) })
 	p("\n速さの側（配分 > 0.5）− 体力の上限の側（< 0.5）の生涯出生数（同じシードの対の差）: %s\n\n", fmtMeanSE(d, 3))
-	p("| tick | 生きている身体の配分の平均 |\n| --- | --- |\n")
-	for i := 0; i < rows; i += max(rows/4, 1) {
-		xs := collectWhere(rs, func(r result) bool { return i < len(r.shareLive) && !math.IsNaN(r.shareLive[i]) }, func(r result) float64 { return r.shareLive[i] })
-		p("| %d | %s |\n", i*every, fmtMeanSE(xs, 4))
+	p("| tick | 配分の平均 | 配分の標準偏差 | 最遅の速さ | 中央値の速さ | 最速の速さ | 最速 ÷ 中央値 |\n| --- | --- | --- | --- | --- | --- | --- |\n")
+	ok := func(i int) func(result) bool {
+		return func(r result) bool { return i < len(r.shareLive) && !math.IsNaN(r.shareLive[i].mean) }
+	}
+	for i := 0; i < rows; i++ {
+		get := func(f func(shareStats) float64) []float64 {
+			return collectWhere(rs, ok(i), func(r result) float64 { return f(r.shareLive[i]) })
+		}
+		p("| %d | %s | %s | %s | %s | %s | %s |\n", i*every,
+			fmtMeanSE(get(func(s shareStats) float64 { return s.mean }), 4),
+			fmtMeanSE(get(func(s shareStats) float64 { return s.sd }), 4),
+			fmtMeanSE(get(func(s shareStats) float64 { return s.slowest }), 4),
+			fmtMeanSE(get(func(s shareStats) float64 { return s.median }), 4),
+			fmtMeanSE(get(func(s shareStats) float64 { return s.fastest }), 4),
+			fmtMeanSE(get(func(s shareStats) float64 { return s.fastest / s.median }), 3))
+	}
+	// Whether the share has settled: the mean over the last quarter less
+	// the mean over the quarter before, seed by seed.
+	q := rows / 4
+	if q > 0 {
+		d := collect(rs, func(r result) float64 {
+			avg := func(a, b int) float64 {
+				x, n := 0.0, 0.0
+				for i := a; i < b && i < len(r.shareLive); i++ {
+					if !math.IsNaN(r.shareLive[i].mean) {
+						x += r.shareLive[i].mean
+						n++
+					}
+				}
+				return x / n
+			}
+			return avg(rows-q, rows) - avg(rows-2*q, rows-q)
+		})
+		p("\n配分の平均の、最後の 4 分の 1 − その前の 4 分の 1（同じシードの対の差）: %s\n", fmtMeanSE(d, 4))
+	}
+	last := collectWhere(rs, ok(rows-1), func(r result) float64 { return r.shareLive[rows-1].median })
+	if m, _ := meanSE(last); m > 0 {
+		p("\n画面横断時間（地図の幅 %d タイル、1 フレーム 1 tick、60 フレーム/秒）: 終わりの中央値の身体 %.1f 秒\n", o.width, float64(o.width)/m/60)
 	}
 	p("\n")
+}
+
+// shareStats describes the shares of the living at one tick: their mean and
+// standard deviation, and the slowest, median and fastest speed.
+type shareStats struct {
+	mean, sd                 float64
+	slowest, median, fastest float64
+}
+
+func shareStatsOf(bs []engine.Body, speed float64) shareStats {
+	if len(bs) == 0 {
+		return shareStats{math.NaN(), math.NaN(), math.NaN(), math.NaN(), math.NaN()}
+	}
+	var st shareStats
+	speeds := make([]float64, len(bs))
+	for i, b := range bs {
+		st.mean += b.Share
+		speeds[i] = b.Build.Speed
+		if speeds[i] == 0 {
+			speeds[i] = speed
+		}
+	}
+	st.mean /= float64(len(bs))
+	for _, b := range bs {
+		st.sd += (b.Share - st.mean) * (b.Share - st.mean)
+	}
+	st.sd = math.Sqrt(st.sd / float64(len(bs)))
+	sort.Float64s(speeds)
+	st.slowest, st.median, st.fastest = speeds[0], speeds[len(speeds)/2], speeds[len(speeds)-1]
+	return st
 }

@@ -27,6 +27,10 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Drawn is the world before stage 1-5: every body draws its share of the
+// budget afresh (with collisions).
+const Drawn = "drawn"
+
 // Overlap is stage 1-4: bodies walk through each other.
 const Overlap = "overlap"
 
@@ -45,7 +49,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func overlap(c *engine.Config)   { c.Collide = false }
+func drawn(c *engine.Config)     { c.AllotInherit = false }
+func overlap(c *engine.Config)   { drawn(c); c.Collide = false }
 func fixed(c *engine.Config)     { overlap(c); c.Allot = false }
 func nobreed(c *engine.Config)   { fixed(c); c.Breed = false }
 func everytick(c *engine.Config) { nobreed(c); c.Recheck = 0 }
@@ -54,6 +59,7 @@ func everytick(c *engine.Config) { nobreed(c); c.Recheck = 0 }
 // stands for.
 var rewrites = map[string]func(*engine.Config){
 	Base:         func(*engine.Config) {},
+	Drawn:        drawn,
 	Overlap:      overlap,
 	Fixed:        fixed,
 	Nobreed:      nobreed,

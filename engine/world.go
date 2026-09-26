@@ -93,6 +93,7 @@ func (w *World) removeDead() {
 	for _, b := range w.bodies {
 		if b.Energy <= 0 {
 			w.stats.Deaths[CauseStarved]++
+			w.stats.BudgetOut += b.Budget
 			if w.tick < b.Mature {
 				w.stats.DiedYoung++
 			}
@@ -178,6 +179,9 @@ func (w *World) Fingerprint() uint64 {
 			put(b.Saw)
 		}
 		// And the age of coming of age, where bodies breed.
+		if w.cfg.Allot && w.cfg.AllotInherit {
+			put(uint64(b.Level))
+		}
 		if w.cfg.Breed {
 			put(uint64(b.Mature))
 			put(b.Mates)

@@ -173,7 +173,7 @@ func (w *World) mate(b *Body, id int64) {
 		Mature:  w.tick + int64(w.cfg.MatureAge),
 		Parents: [2]int64{p.ID, b.ID},
 	}
-	w.allot(&child)
+	w.allot(&child, p, b)
 	w.born = append(w.born, child)
 	w.nextID++
 	w.stats.Births++
