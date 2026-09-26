@@ -201,6 +201,10 @@ func (w *World) pathTally(b *Body) Tally {
 	return w.Fresh(b.Memory.Path)
 }
 
+// PathTally is body b's path row as it weighs now (it does not age with
+// StableRows), for reports.
+func (w *World) PathTally(b Body) Tally { return w.pathTally(&b) }
+
 // agePath ages a path row, where it ages.
 func (w *World) agePath(t *Tally) {
 	if !w.cfg.StableRows {

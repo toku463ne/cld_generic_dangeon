@@ -111,6 +111,9 @@ type Stats struct {
 	// BudgetIn and BudgetOut are the budgets brought in by the born and
 	// taken out by the dead (BudgetLedger).
 	BudgetIn, BudgetOut float64
+	// Passed counts the times a body gave another evidence it held (tell.go),
+	// by row: the regions' and the path's.
+	PassedRegion, PassedPath int64
 }
 
 // tileOf returns the index of the tile under (x, y), or -1 off the map.

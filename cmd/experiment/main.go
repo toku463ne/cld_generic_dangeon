@@ -94,6 +94,8 @@ type result struct {
 	prov      map[string]*provSum
 	provNames []string
 	deathAges []float64
+	// Evidence passed between bodies, by row (tell.go), per run.
+	passedRegion, passedPath float64
 	// With Learn: what the living had learned at the end (rows), and, at
 	// every checkpoint after tick 5000, how far off each age band's region
 	// estimates were (learnAge).
@@ -347,6 +349,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		r.decided = decisions / total
 	}
 	r.births = float64(st.Births)
+	r.passedRegion, r.passedPath = float64(st.PassedRegion), float64(st.PassedPath)
 	r.adultRate = math.NaN()
 	if n := st.Matured + st.DiedYoung; n > 0 {
 		r.adultRate = float64(st.Matured) / float64(n)
@@ -657,7 +660,29 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	writeProvenance(p, rs)
 
 	p("### 7. スキル別伝承数\n\n")
-	p("| スキル | 伝承された回数 | 保有率 |\n| --- | --- | --- |\n\n")
+	if baseCfg, _ := variant.Config(base, o.seed0); baseCfg.Learn && baseCfg.Tell {
+		p("スキルはまだ無い。伝承されるのは学んだ行なので、行ごとに出す。伝承された回数は、身体が持っていた証拠を出会った身体に渡した回数（1シードあたり）、保有率は受け取った証拠を持つ生きている身体の割合（tick 5000 より後のチェックポイントの平均）。\n\n")
+		p("| 行 | 伝承された回数 | 保有率 |\n| --- | --- | --- |\n")
+		holders := func(match func(string) bool) []float64 {
+			return collectWhere(rs, func(r result) bool { return len(r.provNames) > 0 }, func(r result) float64 {
+				x, n := 0.0, 0.0
+				for _, name := range r.provNames {
+					if match(name) {
+						ps := r.prov[name]
+						x += ps.hearers / ps.n
+						n++
+					}
+				}
+				return x / math.Max(n, 1)
+			})
+		}
+		p("| 地域の行（全地域） | %s | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.passedRegion }), 1),
+			fmtMeanSE(holders(func(n string) bool { return strings.HasPrefix(n, "region") }), 4))
+		p("| 通ったタイルの行 | %s | %s |\n\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.passedPath }), 1),
+			fmtMeanSE(holders(func(n string) bool { return n == "path" }), 4))
+	} else {
+		p("| スキル | 伝承された回数 | 保有率 |\n| --- | --- | --- |\n\n")
+	}
 
 	p("### 8. 死因別死亡数（%s）\n\n", base)
 	p("| 死因 | 回数 | 割合 |\n| --- | --- | --- |\n")
@@ -919,13 +944,17 @@ func memRows(w *engine.World, m engine.Map) []memRow {
 		}
 		rows = append(rows, row)
 	}
-	path := memRow{name: "自分が通ったタイルの食料 / タイル", truth: math.NaN()}
+	path := memRow{name: "自分が通ったタイルの食料 / タイル（証拠はタイルに直した数）", truth: math.NaN()}
 	mate := memRow{name: "交配の申し出が子になる割合", truth: math.NaN()}
 	for _, b := range bs {
 		bl := w.Belief(b)
-		if b.Memory.Path.N > 0 {
+		if pt := w.PathTally(b); pt.N > 0 {
 			path.holders++
-			path.evidence += w.Fresh(b.Memory.Path).N
+			n := pt.N
+			if w.Config().StableRows && bl.Here > 0 {
+				n /= bl.Here // counted as food expected, a fraction of a tile each
+			}
+			path.evidence += n
 			path.estimate += bl.Path
 		}
 		if b.Memory.Asks > 0 {
