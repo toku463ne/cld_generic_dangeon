@@ -11,9 +11,10 @@ import (
 // world's random source, so that a world without sexes can be read as if it
 // had them.
 func pseudoSex(id int64) int {
-	x := uint64(id)*0x9e3779b97f4a7c15 + 0x632be59bd9b4e019
-	x ^= x >> 31
-	return int(x & 1)
+	x := uint64(id) + 0x9e3779b97f4a7c15 // the SplitMix64 finalizer
+	x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9
+	x = (x ^ (x >> 27)) * 0x94d049bb133111eb
+	return int((x ^ (x >> 31)) >> 63)
 }
 
 type sexTally struct {
