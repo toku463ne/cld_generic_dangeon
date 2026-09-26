@@ -94,6 +94,8 @@ type result struct {
 	// share of the rarer sex among the adults (NaN without sexes), both
 	// averaged over the checkpoints every 1000 ticks after tick 5000.
 	adults, minority float64
+	// female is the share of women among the adults (NaN without sexes).
+	female float64
 	// With Learn: where the evidence the living held came from, summed
 	// over the checkpoints after tick 5000 (prov), and the ages at death
 	// after tick 5000 (deathAges), for the median life to set it against.
@@ -202,7 +204,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		}
 	})
 	var was map[int64][2]float64
-	var dSum, dN, eSum, eN, aSum, aN, mSum, mN float64
+	var dSum, dN, eSum, eN, aSum, aN, mSum, mN, fSum float64
 	for _, b := range w.Bodies() {
 		known[b.ID] = b
 	}
@@ -291,6 +293,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 				aN++
 				if f, m := bySex[engine.Female], bySex[engine.Male]; f+m > 0 {
 					mSum += math.Min(f, m) / (f + m)
+					fSum += f / (f + m)
 					mN++
 				}
 			}
@@ -341,9 +344,9 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.displace, r.edge = dSum/math.Max(dN, 1), eSum/math.Max(eN, 1)
 	r.back = backs / math.Max(traced, 1)
 	r.adults = aSum / math.Max(aN, 1)
-	r.minority = math.NaN()
+	r.minority, r.female = math.NaN(), math.NaN()
 	if mN > 0 {
-		r.minority = mSum / mN
+		r.minority, r.female = mSum/mN, fSum/mN
 	}
 	st := w.Stats()
 	if cfg.Learn {
@@ -737,7 +740,8 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	p("| 量 | 値 |\n| --- | --- |\n")
 	p("| 生きている身体のうち成人の割合 | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.adults }), 4))
 	if xs := collectWhere(rs, func(r result) bool { return !math.IsNaN(r.minority) }, func(r result) float64 { return r.minority }); len(xs) > 0 {
-		p("| 成人のうち少ない側の性の割合 | %s |\n\n", fmtMeanSE(xs, 4))
+		p("| 成人のうち少ない側の性の割合 | %s |\n", fmtMeanSE(xs, 4))
+		p("| 成人のうち女の割合 | %s |\n\n", fmtMeanSE(collectWhere(rs, func(r result) bool { return !math.IsNaN(r.female) }, func(r result) float64 { return r.female }), 4))
 	} else {
 		p("| 成人のうち少ない側の性の割合 | —（性別なし） |\n\n")
 	}
@@ -764,6 +768,7 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"決定の割合", 4, func(r result) float64 { return r.decided }},
 		{"成人の割合", 4, func(r result) float64 { return r.adults }},
 		{"休んでいる母に配られた食料", 2, func(r result) float64 { return r.provisioned }},
+		{"成人のうち女の割合", 4, func(r result) float64 { return r.female }},
 	}
 	for _, v := range o.variants[1:] {
 		for _, mt := range metrics {

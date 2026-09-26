@@ -79,6 +79,14 @@ const Bounced = "bounce"
 // back draws among the best at random instead of turning 45 degrees off.
 const DrawReverse = "drawreverse"
 
+// Food2 and Food4 are the base world with food coming back twice and four
+// times as fast (FoodReturn): a sweep of how rich the map is, the rules
+// left as they are.
+const (
+	Food2 = "food2"
+	Food4 = "food4"
+)
+
 // Tight is the base world with the top of the budget pinched harder: the
 // diminishing return of AllotCurve halved, 0.5 to 0.25 (stage 1-5 asks
 // whether speed can be held down for free).
@@ -127,6 +135,8 @@ func everytick(c *engine.Config) { nobreed(c); c.Recheck = 0 }
 // stands for.
 var rewrites = map[string]func(*engine.Config){
 	Base:         func(*engine.Config) {},
+	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
+	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
 	Unfed:        unfed,
 	Even:         even,

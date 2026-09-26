@@ -20,6 +20,8 @@ type provisionTally struct {
 	// A mother's energy when her rest ended, summed, and how many rests
 	// ended with her alive.
 	endEnergy, ends float64
+	// The food given to resting mothers (Provision), in units.
+	given float64
 }
 
 // runProvision reads, in the world of stage 3-2, how much food comes back
@@ -38,7 +40,11 @@ func runProvision(cfg engine.Config, m engine.Map, ticks int) (provisionTally, e
 		seen[b.ID] = true
 	}
 	nr := len(m.RegionFood)
+	var given0 int64
 	for tick := 1; tick <= ticks; tick++ {
+		if tick == 5001 {
+			given0 = w.FoodLedger().Provisioned
+		}
 		vacant := float64(cfg.FoodCap - len(w.Foods()))
 		w.Step()
 		now := w.Tick()
@@ -101,6 +107,7 @@ func runProvision(cfg engine.Config, m engine.Map, ticks int) (provisionTally, e
 			}
 		}
 	}
+	t.given = float64(w.FoodLedger().Provisioned - given0)
 	return t, nil
 }
 
@@ -138,5 +145,8 @@ func provision(m engine.Map, name string, seeds int, seed0 int64, ticks int, vna
 	fmt.Printf("| 休んでいる母（1 tick あたりの数） | %s |\n", cell(func(t provisionTally) float64 { return t.resting / n }, 3))
 	fmt.Printf("| そのうち相手が同じ地域にいる割合 | %s |\n", cell(func(t provisionTally) float64 { return t.withPartner / t.resting }, 4))
 	fmt.Printf("| 休んでいる母のいる地域で、母1体あたりに戻る食料（1 tick あたりの単位） | %s |\n", cell(func(t provisionTally) float64 { return t.owedPerMother / t.busy }, 5))
-	fmt.Printf("| 休み明けの母の体力 | %s |\n\n", cell(func(t provisionTally) float64 { return t.endEnergy / t.ends }, 1))
+	fmt.Printf("| 休み明けの母の体力 | %s |\n", cell(func(t provisionTally) float64 { return t.endEnergy / t.ends }, 1))
+	fmt.Printf("| 休んでいる母1体が休みのあいだに配られた体力（配られた食料 × 食料の体力 ÷ 休んでいる母の数 × 休みの tick 数） | %s |\n\n", cell(func(t provisionTally) float64 {
+		return t.given * cfg0.FoodEnergy / t.resting * float64(cfg0.RecoverTicks)
+	}, 1))
 }
