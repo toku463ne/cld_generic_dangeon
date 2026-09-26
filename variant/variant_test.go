@@ -51,7 +51,7 @@ func TestEarlierStagesLackLaterRules(t *testing.T) {
 		if !cfg.Bounce {
 			t.Errorf("%s: an earlier stage without the bounce", c.name)
 		}
-		if cfg.Learn || cfg.Tell || cfg.EvidenceHalfLife != 0 {
+		if cfg.Learn || cfg.Tell || cfg.EvidenceHalfLife != 0 || cfg.StableRows {
 			t.Errorf("%s: an earlier stage that learns, tells or ages evidence", c.name)
 		}
 		if cfg.Collide != c.collide || cfg.Allot != c.allot || cfg.Breed != c.breed || (cfg.Recheck > 0) != c.onEvents {

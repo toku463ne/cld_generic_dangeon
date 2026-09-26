@@ -15,7 +15,12 @@ import "sort"
 // Heard evidence counts toward an estimate as the body's own does.
 //
 // Only what a body knows of the world passes: not the mate row, and never
-// a row about one individual (there are none yet). A body keeps at most
+// a row about one individual (there are none yet). With StableRows only the
+// rows of facts that do not change pass - the path's, read as how much less
+// food tiles walked lately hold than their region - and how rich a region
+// is now, which changes with how many eat there, is each body's own: passed
+// on, the evidence of the days of plenty had everyone expect too much at
+// once when food ran short. A body keeps at most
 // HeardLimit observers' evidence per row, the largest: without a limit,
 // evidence passed on and on would have every body carry every observer
 // that ever lived. Memory capacity is not yet in the budget; the limit
@@ -56,6 +61,9 @@ func (w *World) tell(b *Body) {
 // how their evidence weighs now.
 func (w *World) pass(from, to *Body) {
 	for r := range from.Memory.Regions {
+		if w.cfg.StableRows {
+			break // how rich a region is now changes; only the stable row passes
+		}
 		for len(to.Memory.Regions) <= r {
 			to.Memory.Regions = append(to.Memory.Regions, Tally{T: w.tick})
 		}
@@ -63,8 +71,8 @@ func (w *World) pass(from, to *Body) {
 		w.age(&to.Memory.Regions[r])
 		w.passTally(&to.Memory.Regions[r], from.Memory.Regions[r], from.ID, to.ID)
 	}
-	w.age(&from.Memory.Path)
-	w.age(&to.Memory.Path)
+	w.agePath(&from.Memory.Path)
+	w.agePath(&to.Memory.Path)
 	w.passTally(&to.Memory.Path, from.Memory.Path, from.ID, to.ID)
 }
 

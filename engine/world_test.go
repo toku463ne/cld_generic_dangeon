@@ -85,8 +85,24 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0xc91b803c2f04cb5a)
+	const want = uint64(0x93985c1a1c5ca120)
 	w := newTestWorld(t, 1)
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// Passing and ageing every row alike, the world is the second run of stage
+// 2-1: its fingerprint is the one pinned then.
+func TestMixedIsSecond21(t *testing.T) {
+	const want = uint64(0xc91b803c2f04cb5a)
+	cfg := testConfig(1)
+	cfg.StableRows = false
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
 		t.Fatalf("fingerprint = %#x, want %#x", got, want)
@@ -98,7 +114,7 @@ func TestFingerprint(t *testing.T) {
 func TestUndecayedIsFirst21(t *testing.T) {
 	const want = uint64(0xbaee248a8a9a5bc)
 	cfg := testConfig(1)
-	cfg.EvidenceHalfLife = 0
+	cfg.EvidenceHalfLife, cfg.StableRows = 0, false
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -114,7 +130,7 @@ func TestUndecayedIsFirst21(t *testing.T) {
 func TestUntoldIsStage20(t *testing.T) {
 	const want = uint64(0xe85e05167296fc73)
 	cfg := testConfig(1)
-	cfg.Tell, cfg.EvidenceHalfLife = false, 0
+	cfg.Tell, cfg.EvidenceHalfLife, cfg.StableRows = false, 0, false
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)

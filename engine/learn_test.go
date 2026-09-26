@@ -28,6 +28,7 @@ func TestSteppingTeaches(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.Bodies, cfg.FoodCap = 0, 0
 	cfg.EvidenceHalfLife = 0 // counts, not ages
+	cfg.StableRows = false   // tiles counted, not against the region
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)

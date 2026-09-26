@@ -130,6 +130,13 @@ type Config struct {
 	// The world changes; evidence of how it was misleads. Zero keeps all
 	// evidence at full weight: the first run of stage 2-1.
 	EvidenceHalfLife float64
+	// StableRows keeps apart the rows of facts that do not change from those
+	// that do (learn.go, tell.go): the path row is read as how much less
+	// food tiles walked lately hold than their region - a ratio, which
+	// neither ages nor changes with the region - and passes at full weight;
+	// the regions' rows, how much food a region holds now, age and are not
+	// passed. Off: both kinds pass and age (the second run of 2-1).
+	StableRows bool
 	// Tell has bodies pass what they know of the world to the bodies they
 	// meet (tell.go), keeping at most HeardLimit observers' evidence per
 	// row. Off: stage 2-0.
@@ -191,6 +198,7 @@ func DefaultConfig() Config {
 		ChildWeight:      2,
 		BeliefStep:       1.1,
 		Tell:             true,
+		StableRows:       true,
 		EvidenceHalfLife: 1200,
 		HeardLimit:       64,
 		Collide:          true,

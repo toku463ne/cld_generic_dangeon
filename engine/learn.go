@@ -185,7 +185,41 @@ func (w *World) regionRate(b *Body, r RegionID) float64 {
 
 // pathRate is a body's estimate for a tile it walked lately, in region r.
 func (w *World) pathRate(b *Body, r RegionID) float64 {
-	return w.Fresh(b.Memory.Path).estimate(w.regionRate(b, r), w.cfg.PathWeight)
+	return w.pathFrom(w.pathTally(b), w.regionRate(b, r))
+}
+
+// pathTally is body b's path row as it weighs now. With StableRows it does
+// not age: that tiles walked lately hold less than their region is a fact
+// that does not change as the world does.
+func (w *World) pathTally(b *Body) Tally {
+	if w.cfg.StableRows {
+		return b.Memory.Path
+	}
+	return w.Fresh(b.Memory.Path)
+}
+
+// agePath ages a path row, where it ages.
+func (w *World) agePath(t *Tally) {
+	if !w.cfg.StableRows {
+		w.age(t)
+	}
+}
+
+// pathFrom is the path's estimate from its tally, for a region estimated
+// at p. With StableRows the tally counts food seen on tiles walked lately
+// (K) against what the region was believed to hold there (N), so the
+// estimate is that ratio - one, a tile like any other, with no evidence,
+// worth PathWeight tiles - times p. Without, the tally counts food in
+// tiles seen, pulled toward p.
+func (w *World) pathFrom(t Tally, p float64) float64 {
+	if !w.cfg.StableRows {
+		return t.estimate(p, w.cfg.PathWeight)
+	}
+	weight := w.cfg.PathWeight * p
+	if t.N+weight <= 0 {
+		return p
+	}
+	return (t.K + weight) / (t.N + weight) * p
 }
 
 // childRate is a body's estimate of the chance a mate becomes a child.
@@ -202,7 +236,7 @@ func (w *World) belief(b *Body) Belief {
 	r := w.m.RegionAt(int(math.Floor(b.X)), int(math.Floor(b.Y)))
 	return Belief{
 		Land: w.land(b), Here: w.regionRate(b, r), Path: w.pathRate(b, r), Child: w.childRate(b),
-		HereN: w.Fresh(b.Memory.region(r)).N, PathN: w.Fresh(b.Memory.Path).N, Asks: b.Memory.Asks,
+		HereN: w.Fresh(b.Memory.region(r)).N, PathN: w.pathTally(b).N, Asks: b.Memory.Asks,
 	}
 }
 
@@ -231,13 +265,13 @@ type ray struct {
 func (w *World) ratesOf(b *Body, rs *rates) {
 	n := len(w.m.RegionFood)
 	land := w.land(b)
-	path := w.Fresh(b.Memory.Path)
+	path := w.pathTally(b)
 	rs.region, rs.path = rs.region[:0], rs.path[:0]
 	rs.tables, rs.built = rs.tables[:0], rs.built[:0]
 	for r := 0; r < n; r++ {
 		p := w.Fresh(b.Memory.region(RegionID(r))).estimate(land, w.cfg.RegionWeight)
 		rs.region = append(rs.region, p)
-		rs.path = append(rs.path, path.estimate(p, w.cfg.PathWeight))
+		rs.path = append(rs.path, w.pathFrom(path, p))
 		rs.tables = append(rs.tables, Survival{})
 		rs.built = append(rs.built, false)
 	}
@@ -300,8 +334,13 @@ func (w *World) stepped(b *Body, from, to int) {
 			mem.Regions[r].N++
 			mem.Regions[r].K += food
 			if w.walked(b, t) {
-				w.age(&mem.Path)
-				mem.Path.N++
+				w.agePath(&mem.Path)
+				if w.cfg.StableRows {
+					// Against what the region was believed to hold.
+					mem.Path.N += w.regionRate(b, r)
+				} else {
+					mem.Path.N++
+				}
 				mem.Path.K += food
 			}
 		}

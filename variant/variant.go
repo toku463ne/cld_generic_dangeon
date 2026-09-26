@@ -27,6 +27,10 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Mixed is the second run of stage 2-1: every row of the world passes and
+// ages, the regions' and the path's alike.
+const Mixed = "mixed"
+
 // Pathless is the base world with the path row read nowhere: evidence
 // passes and ages, but keeping on the move is read by the region alone.
 const Pathless = "pathless"
@@ -81,7 +85,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func undecayed(c *engine.Config) { c.EvidenceHalfLife = 0 }
+func mixed(c *engine.Config)     { c.StableRows = false }
+func undecayed(c *engine.Config) { mixed(c); c.EvidenceHalfLife = 0 }
 func untold(c *engine.Config)    { undecayed(c); c.Tell = false }
 func truth(c *engine.Config)     { untold(c); c.Learn = false }
 func bounced(c *engine.Config)   { truth(c); c.Bounce = true }
@@ -96,9 +101,10 @@ func everytick(c *engine.Config) { nobreed(c); c.Recheck = 0 }
 var rewrites = map[string]func(*engine.Config){
 	Base:         func(*engine.Config) {},
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
-	Pathless:     func(c *engine.Config) { c.PathAhead = 0 },
+	Mixed:        mixed,
+	Pathless:     func(c *engine.Config) { mixed(c); c.PathAhead = 0 },
 	Undecayed:    undecayed,
-	Alone:        func(c *engine.Config) { c.Tell = false },
+	Alone:        func(c *engine.Config) { mixed(c); c.Tell = false },
 	Untold:       untold,
 	Truth:        truth,
 	Bounced:      bounced,
