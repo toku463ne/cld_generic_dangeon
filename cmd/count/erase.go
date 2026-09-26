@@ -151,7 +151,7 @@ func erase(m engine.Map, name string, seeds int, seed0 int64, ticks int, vname s
 		mm, se := meanSE(xs)
 		return fmt.Sprintf("%.*f ± %.*f", prec, mm, prec, se)
 	}
-	fmt.Printf("| 群 | 年齢（tick %d の時点） | 身体の数 | 消す前の証拠（タイル） | 死んだ割合（消さない世界） | 死んだ割合（消した世界） | 差（消した − 消さない） |\n| --- | --- | --- | --- | --- | --- | --- |\n", ticks)
+	fmt.Printf("| 群 | 年齢（tick %d の時点） | 身体の数 | 消す前の証拠（見込んだ食料に直した数） | 死んだ割合（消さない世界） | 死んだ割合（消した世界） | 差（消した − 消さない） |\n| --- | --- | --- | --- | --- | --- | --- |\n", ticks)
 	for _, grp := range []struct {
 		name string
 		get  func(eraseTally) *[len(eraseBands) + 1]eraseGroup
