@@ -27,6 +27,7 @@ func TestNewbornReadsPriors(t *testing.T) {
 func TestSteppingTeaches(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.Bodies, cfg.FoodCap = 0, 0
+	cfg.EvidenceHalfLife = 0 // counts, not ages
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -185,5 +186,32 @@ func TestValueWithOwnEstimates(t *testing.T) {
 		if got.Options[j] != want.Options[j] || got.Risk[0][j] != want.Risk[0][j] {
 			t.Fatalf("option %d: %v %v, the decision read %v %v", j, got.Options[j], got.Risk[0][j], want.Options[j], want.Risk[0][j])
 		}
+	}
+}
+
+// Evidence halves in weight every EvidenceHalfLife ticks, own and heard
+// alike, and an estimate reads it as it weighs now.
+func TestEvidenceAges(t *testing.T) {
+	w := newTestWorld(t, 1)
+	hl := int64(w.cfg.EvidenceHalfLife)
+	tl := Tally{N: 100, K: 10, Heard: []Heard{{ID: 7, N: 40, K: 4}}, HN: 40, HK: 4, T: w.tick}
+	w.tick += hl
+	if f := w.Fresh(tl); math.Abs(f.N-50) > 1e-9 || math.Abs(f.K-5) > 1e-9 {
+		t.Fatalf("after a half-life: %+v", f)
+	}
+	w.age(&tl)
+	if math.Abs(tl.N-50) > 1e-9 || math.Abs(tl.scale()*tl.heard(7).N-20) > 1e-9 || math.Abs(tl.HN-20) > 1e-9 || tl.T != w.tick {
+		t.Fatalf("aged: %+v", tl)
+	}
+	tl.settle()
+	if math.Abs(tl.heard(7).N-20) > 1e-9 || tl.S != 0 || math.Abs(tl.N-50) > 1e-9 {
+		t.Fatalf("settled: %+v", tl)
+	}
+	// Long enough, and an entry is let go when settled.
+	w.tick += 20 * hl
+	w.age(&tl)
+	tl.settle()
+	if len(tl.Heard) != 0 || tl.HN != 0 {
+		t.Fatalf("an entry worth nothing kept: %+v", tl)
 	}
 }

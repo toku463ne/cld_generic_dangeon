@@ -29,6 +29,7 @@ func TestNoHeardEvidenceWithoutPassing(t *testing.T) {
 func TestOrphanEvidence(t *testing.T) {
 	cfg := testConfig(4)
 	cfg.Tell = false // only the evidence handed over below is heard
+	cfg.EvidenceHalfLife = 0
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -41,7 +42,7 @@ func TestOrphanEvidence(t *testing.T) {
 	}
 	r := &b.Memory.Regions[0]
 	r.N, r.K = r.N+10, r.K+1
-	r.Heard = map[int64]Count{aID: {N: 10, K: 1}}
+	r.Heard = []Heard{{ID: aID, N: 10, K: 1}}
 	r.HN, r.HK = 10, 1
 	region0 := func() RowProvenance {
 		for _, rp := range w.Provenance() {

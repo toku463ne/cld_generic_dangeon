@@ -199,18 +199,17 @@ func (w *World) Fingerprint() uint64 {
 			tally := func(t Tally) {
 				putF(t.N)
 				putF(t.K)
+				if w.cfg.EvidenceHalfLife > 0 {
+					put(uint64(t.T))
+					putF(t.S)
+				}
 				if !w.cfg.Tell {
 					return
 				}
-				ids := make([]int64, 0, len(t.Heard))
-				for id := range t.Heard {
-					ids = append(ids, id)
-				}
-				sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
-				for _, id := range ids {
-					put(uint64(id))
-					putF(t.Heard[id].N)
-					putF(t.Heard[id].K)
+				for _, h := range t.Heard {
+					put(uint64(h.ID))
+					putF(h.N)
+					putF(h.K)
 				}
 			}
 			for _, t := range mem.Regions {

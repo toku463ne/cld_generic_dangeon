@@ -1,6 +1,9 @@
 package engine
 
-import "math"
+import (
+	"math"
+	"sort"
+)
 
 // Learning from experience (stage 1-6).
 //
@@ -28,10 +31,43 @@ import "math"
 // of it; Heard is the part received from other bodies, by the body that
 // first observed it (provenance.go, tell.go), and HN and HK its sums. The
 // rest, N-HN of it, the body observed itself.
+//
+// With EvidenceHalfLife, evidence weighs less the older it is: all of a
+// tally is kept as of tick T, and halves every EvidenceHalfLife ticks
+// after (age, Fresh).
 type Tally struct {
-	N, K   float64         `json:",omitempty"`
-	Heard  map[int64]Count `json:",omitempty"`
-	HN, HK float64         `json:",omitempty"`
+	N, K   float64 `json:",omitempty"`
+	Heard  []Heard `json:",omitempty"`
+	HN, HK float64 `json:",omitempty"`
+	T      int64   `json:",omitempty"`
+	// S scales the Heard entries: each weighs S times what it holds (zero
+	// stands for 1). Ageing scales S rather than every entry; passing
+	// evidence brings the entries to scale (settle).
+	S float64 `json:",omitempty"`
+}
+
+// Heard is evidence received from one observer: K of N came out one way. A
+// tally keeps its entries in the order of their observers' IDs.
+type Heard struct {
+	ID   int64
+	N, K float64
+}
+
+// heard returns the entry of observer id, or a zero one.
+func (t Tally) heard(id int64) Heard {
+	i := sort.Search(len(t.Heard), func(i int) bool { return t.Heard[i].ID >= id })
+	if i < len(t.Heard) && t.Heard[i].ID == id {
+		return t.Heard[i]
+	}
+	return Heard{ID: id}
+}
+
+// scale is what the Heard entries of t are multiplied by.
+func (t Tally) scale() float64 {
+	if t.S == 0 {
+		return 1
+	}
+	return t.S
 }
 
 // estimate is the tally's rate pulled toward prior by weight observations.
@@ -62,10 +98,67 @@ type Belief struct {
 	HereN, PathN, Asks float64
 }
 
-// landTally pools a body's regions.
-func (mem *Memory) landTally() Tally {
+// decay is what evidence kept as of tick t weighs now.
+func (w *World) decay(t int64) float64 {
+	if w.cfg.EvidenceHalfLife <= 0 || t >= w.tick {
+		return 1
+	}
+	return math.Exp2(-float64(w.tick-t) / w.cfg.EvidenceHalfLife)
+}
+
+// Fresh returns tally t's sums as they weigh now (its Heard entries are left
+// as they were kept; age brings those to now as well).
+func (w *World) Fresh(t Tally) Tally {
+	f := w.decay(t.T)
+	return Tally{N: f * t.N, K: f * t.K, HN: f * t.HN, HK: f * t.HK, T: w.tick}
+}
+
+// age brings tally t to now: its sums, and the scale of its entries.
+func (w *World) age(t *Tally) {
+	f := w.decay(t.T)
+	t.T = w.tick
+	if f == 1 {
+		return
+	}
+	t.N, t.K, t.HN, t.HK = f*t.N, f*t.K, f*t.HN, f*t.HK
+	if len(t.Heard) > 0 {
+		t.S = t.scale() * f
+	}
+}
+
+// settle brings the entries of an aged tally to scale, letting go of those
+// worth less than a hundredth of a tile, and sums again.
+func (t *Tally) settle() {
+	s := t.scale()
+	ownN, ownK := t.N-t.HN, t.K-t.HK
+	kept := t.Heard[:0]
+	for _, h := range t.Heard {
+		h.N, h.K = s*h.N, s*h.K
+		if h.N >= 0.01 {
+			kept = append(kept, h)
+		}
+	}
+	t.Heard, t.S = kept, 0
+	t.resum(ownN, ownK)
+}
+
+// resum sets the heard sums from the entries (in the order of their
+// observers, so that fractions always sum alike), and the totals from them
+// and the own part.
+func (t *Tally) resum(ownN, ownK float64) {
+	t.HN, t.HK = 0, 0
+	for _, h := range t.Heard {
+		t.HN += h.N
+		t.HK += h.K
+	}
+	t.N, t.K = ownN+t.HN, ownK+t.HK
+}
+
+// landTally pools a body's regions, as they weigh now.
+func (w *World) landTally(mem *Memory) Tally {
 	var t Tally
 	for _, r := range mem.Regions {
+		r = w.Fresh(r)
 		t.N += r.N
 		t.K += r.K
 	}
@@ -74,7 +167,7 @@ func (mem *Memory) landTally() Tally {
 
 // land is a body's estimate of the chance a tile holds food, anywhere.
 func (w *World) land(b *Body) float64 {
-	return b.Memory.landTally().estimate(w.cfg.PriorFood, w.cfg.PriorWeight)
+	return w.landTally(&b.Memory).estimate(w.cfg.PriorFood, w.cfg.PriorWeight)
 }
 
 // region is the tally of region r.
@@ -87,12 +180,12 @@ func (mem *Memory) region(r RegionID) Tally {
 
 // regionRate is a body's estimate for region r.
 func (w *World) regionRate(b *Body, r RegionID) float64 {
-	return b.Memory.region(r).estimate(w.land(b), w.cfg.RegionWeight)
+	return w.Fresh(b.Memory.region(r)).estimate(w.land(b), w.cfg.RegionWeight)
 }
 
 // pathRate is a body's estimate for a tile it walked lately, in region r.
 func (w *World) pathRate(b *Body, r RegionID) float64 {
-	return b.Memory.Path.estimate(w.regionRate(b, r), w.cfg.PathWeight)
+	return w.Fresh(b.Memory.Path).estimate(w.regionRate(b, r), w.cfg.PathWeight)
 }
 
 // childRate is a body's estimate of the chance a mate becomes a child.
@@ -109,7 +202,7 @@ func (w *World) belief(b *Body) Belief {
 	r := w.m.RegionAt(int(math.Floor(b.X)), int(math.Floor(b.Y)))
 	return Belief{
 		Land: w.land(b), Here: w.regionRate(b, r), Path: w.pathRate(b, r), Child: w.childRate(b),
-		HereN: b.Memory.region(r).N, PathN: b.Memory.Path.N, Asks: b.Memory.Asks,
+		HereN: w.Fresh(b.Memory.region(r)).N, PathN: w.Fresh(b.Memory.Path).N, Asks: b.Memory.Asks,
 	}
 }
 
@@ -138,12 +231,13 @@ type ray struct {
 func (w *World) ratesOf(b *Body, rs *rates) {
 	n := len(w.m.RegionFood)
 	land := w.land(b)
+	path := w.Fresh(b.Memory.Path)
 	rs.region, rs.path = rs.region[:0], rs.path[:0]
 	rs.tables, rs.built = rs.tables[:0], rs.built[:0]
 	for r := 0; r < n; r++ {
-		p := b.Memory.region(RegionID(r)).estimate(land, w.cfg.RegionWeight)
+		p := w.Fresh(b.Memory.region(RegionID(r))).estimate(land, w.cfg.RegionWeight)
 		rs.region = append(rs.region, p)
-		rs.path = append(rs.path, b.Memory.Path.estimate(p, w.cfg.PathWeight))
+		rs.path = append(rs.path, path.estimate(p, w.cfg.PathWeight))
 		rs.tables = append(rs.tables, Survival{})
 		rs.built = append(rs.built, false)
 	}
@@ -200,11 +294,13 @@ func (w *World) stepped(b *Body, from, to int) {
 			}
 			r := w.m.Region[t]
 			for int(r) >= len(mem.Regions) {
-				mem.Regions = append(mem.Regions, Tally{})
+				mem.Regions = append(mem.Regions, Tally{T: w.tick})
 			}
+			w.age(&mem.Regions[r])
 			mem.Regions[r].N++
 			mem.Regions[r].K += food
 			if w.walked(b, t) {
+				w.age(&mem.Path)
 				mem.Path.N++
 				mem.Path.K += food
 			}

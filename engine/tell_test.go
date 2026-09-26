@@ -14,13 +14,13 @@ func TestTellPassesOnce(t *testing.T) {
 	a.Memory.Path = tallyOf(10, 0)
 	b.Memory.Regions = []Tally{tallyOf(40, 1)}
 	w.tell(a)
-	if got := b.Memory.Regions[0]; got.N != 140 || got.K != 6 || got.Heard[0] != (Count{100, 5}) {
+	if got := b.Memory.Regions[0]; got.N != 140 || got.K != 6 || got.heard(0) != (Heard{0, 100, 5}) {
 		t.Fatalf("b's region after meeting a: %+v", got)
 	}
-	if got := a.Memory.Regions[0]; got.N != 140 || got.K != 6 || got.Heard[1] != (Count{40, 1}) || len(got.Heard) != 1 {
+	if got := a.Memory.Regions[0]; got.N != 140 || got.K != 6 || got.heard(1) != (Heard{1, 40, 1}) || len(got.Heard) != 1 {
 		t.Fatalf("a's region after meeting b: %+v", got)
 	}
-	if got := b.Memory.Path; got.N != 10 || got.Heard[0] != (Count{10, 0}) {
+	if got := b.Memory.Path; got.N != 10 || got.heard(0) != (Heard{0, 10, 0}) {
 		t.Fatalf("b's path: %+v", got)
 	}
 	// Still in sight: nothing passes again.
@@ -34,11 +34,11 @@ func TestTellPassesOnce(t *testing.T) {
 	// one entry for a, the larger.
 	c := &Body{ID: 2}
 	w.pass(b, c)
-	if got := c.Memory.Regions[0].Heard[0]; got != (Count{100, 5}) {
+	if got := c.Memory.Regions[0].heard(0); got != (Heard{0, 100, 5}) {
 		t.Fatalf("c heard of a through b: %+v", got)
 	}
 	w.pass(a, c)
-	if got := c.Memory.Regions[0]; got.Heard[0] != (Count{150, 5}) || got.N != 150+40 {
+	if got := c.Memory.Regions[0]; got.heard(0) != (Heard{0, 150, 5}) || got.N != 150+40 {
 		t.Fatalf("c after hearing a itself: %+v", got)
 	}
 }
@@ -53,9 +53,9 @@ func TestHeardLimitAndEstimate(t *testing.T) {
 		src := &Body{ID: i, Memory: Memory{Regions: []Tally{tallyOf(float64(10*(i+1)), float64(i))}}}
 		w.pass(src, dst)
 	}
-	h := dst.Memory.Regions[0].Heard
-	if len(h) != 3 || h[5].N != 60 || h[4].N != 50 || h[3].N != 40 {
-		t.Fatalf("kept %+v", h)
+	tl := dst.Memory.Regions[0]
+	if len(tl.Heard) != 3 || tl.heard(5).N != 60 || tl.heard(4).N != 50 || tl.heard(3).N != 40 {
+		t.Fatalf("kept %+v", tl.Heard)
 	}
 	if got, want := dst.Memory.Regions[0].N, 150.0; got != want {
 		t.Fatalf("N %v, want %v", got, want)

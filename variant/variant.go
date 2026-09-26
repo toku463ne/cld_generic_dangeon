@@ -27,6 +27,14 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Undecayed is the first run of stage 2-1: evidence passes between bodies
+// and keeps its full weight however old.
+const Undecayed = "undecayed"
+
+// Alone is the base world with nothing passed: evidence ages, but each body
+// has only its own.
+const Alone = "alone"
+
 // Untold is stage 2-0: bodies learn but pass nothing on.
 const Untold = "untold"
 
@@ -69,7 +77,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func untold(c *engine.Config)    { c.Tell = false }
+func undecayed(c *engine.Config) { c.EvidenceHalfLife = 0 }
+func untold(c *engine.Config)    { undecayed(c); c.Tell = false }
 func truth(c *engine.Config)     { untold(c); c.Learn = false }
 func bounced(c *engine.Config)   { truth(c); c.Bounce = true }
 func drawn(c *engine.Config)     { bounced(c); c.AllotInherit = false }
@@ -83,6 +92,8 @@ func everytick(c *engine.Config) { nobreed(c); c.Recheck = 0 }
 var rewrites = map[string]func(*engine.Config){
 	Base:         func(*engine.Config) {},
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Undecayed:    undecayed,
+	Alone:        func(c *engine.Config) { c.Tell = false },
 	Untold:       untold,
 	Truth:        truth,
 	Bounced:      bounced,

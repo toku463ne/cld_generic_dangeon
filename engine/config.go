@@ -125,6 +125,11 @@ type Config struct {
 	// PriorChild is the chance a body is born expecting a mate to make a
 	// child, worth ChildWeight asks.
 	PriorChild, ChildWeight float64
+	// EvidenceHalfLife is how many ticks it takes evidence of the world -
+	// a body's own and what it heard - to weigh half as much (learn.go).
+	// The world changes; evidence of how it was misleads. Zero keeps all
+	// evidence at full weight: the first run of stage 2-1.
+	EvidenceHalfLife float64
 	// Tell has bodies pass what they know of the world to the bodies they
 	// meet (tell.go), keeping at most HeardLimit observers' evidence per
 	// row. Off: stage 2-0.
@@ -151,42 +156,43 @@ type Config struct {
 // each one and what decided it.
 func DefaultConfig() Config {
 	return Config{
-		Seed:           1,
-		FoodCap:        300,
-		FoodReturn:     0.002,
-		FoodEnergy:     30,
-		Bodies:         200,
-		EnergyMax:      100,
-		EnergyBurn:     0.1,
-		Speed:          0.25,
-		Window:         1000,
-		Sight:          1,
-		KeepHeading:    true,
-		TurnOffReverse: true,
-		Recheck:        300,
-		Breed:          true,
-		ChildWorth:     0.5,
-		BirthEnergy:    50,
-		MatureAge:      1000,
-		Allot:          true,
-		AllotSpread:    0.25,
-		AllotLevels:    11,
-		AllotCurve:     0.5,
-		AllotInherit:   true,
-		AllotMutation:  0.1,
-		Budget:         1,
-		Learn:          true,
-		PriorFood:      0.01,
-		PriorWeight:    50,
-		RegionWeight:   50,
-		PathWeight:     20,
-		PathRecall:     200,
-		PathAhead:      8,
-		PriorChild:     1,
-		ChildWeight:    2,
-		BeliefStep:     1.1,
-		Tell:           true,
-		HeardLimit:     64,
-		Collide:        true,
+		Seed:             1,
+		FoodCap:          300,
+		FoodReturn:       0.002,
+		FoodEnergy:       30,
+		Bodies:           200,
+		EnergyMax:        100,
+		EnergyBurn:       0.1,
+		Speed:            0.25,
+		Window:           1000,
+		Sight:            1,
+		KeepHeading:      true,
+		TurnOffReverse:   true,
+		Recheck:          300,
+		Breed:            true,
+		ChildWorth:       0.5,
+		BirthEnergy:      50,
+		MatureAge:        1000,
+		Allot:            true,
+		AllotSpread:      0.25,
+		AllotLevels:      11,
+		AllotCurve:       0.5,
+		AllotInherit:     true,
+		AllotMutation:    0.1,
+		Budget:           1,
+		Learn:            true,
+		PriorFood:        0.01,
+		PriorWeight:      50,
+		RegionWeight:     50,
+		PathWeight:       20,
+		PathRecall:       200,
+		PathAhead:        8,
+		PriorChild:       1,
+		ChildWeight:      2,
+		BeliefStep:       1.1,
+		Tell:             true,
+		EvidenceHalfLife: 1200,
+		HeardLimit:       64,
+		Collide:          true,
 	}
 }

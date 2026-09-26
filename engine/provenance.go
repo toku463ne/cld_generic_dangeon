@@ -20,9 +20,6 @@ import (
 // saved: after a load, evidence of an observer who died before the save
 // counts as an orphan of unknown age.
 
-// Count is evidence received from one observer: K of N came out one way.
-type Count struct{ N, K float64 }
-
 // RowProvenance is where the evidence the living hold for one row came
 // from.
 type RowProvenance struct {
@@ -55,18 +52,21 @@ func (w *World) Provenance() []RowProvenance {
 			if !ok {
 				continue
 			}
-			rp.Held += t.N
+			f := w.decay(t.T) // what the evidence weighs now
+			fe := f * t.scale()
+			rp.Held += f * t.N
 			if len(t.Heard) > 0 {
 				hearers++
 			}
-			for id, c := range t.Heard {
-				rp.Heard += c.N
+			for _, c := range t.Heard {
+				id := c.ID
+				rp.Heard += fe * c.N
 				if alive[id] {
 					continue
 				}
-				rp.Orphan += c.N
+				rp.Orphan += fe * c.N
 				if when, ok := w.died[id]; ok {
-					ages[float64(w.tick-when)] += c.N
+					ages[float64(w.tick-when)] += fe * c.N
 				}
 			}
 		}

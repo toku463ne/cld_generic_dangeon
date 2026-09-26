@@ -912,7 +912,7 @@ func memRows(w *engine.World, m engine.Map) []memRow {
 			if r >= len(b.Memory.Regions) || b.Memory.Regions[r].N == 0 {
 				continue
 			}
-			t := b.Memory.Regions[r]
+			t := w.Fresh(b.Memory.Regions[r])
 			row.holders++
 			row.evidence += t.N
 			row.estimate += (t.K + w.Config().RegionWeight*w.Belief(b).Land) / (t.N + w.Config().RegionWeight)
@@ -925,7 +925,7 @@ func memRows(w *engine.World, m engine.Map) []memRow {
 		bl := w.Belief(b)
 		if b.Memory.Path.N > 0 {
 			path.holders++
-			path.evidence += b.Memory.Path.N
+			path.evidence += w.Fresh(b.Memory.Path).N
 			path.estimate += bl.Path
 		}
 		if b.Memory.Asks > 0 {

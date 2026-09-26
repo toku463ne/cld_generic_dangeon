@@ -8,9 +8,10 @@ import "sort"
 // passes the other what it knows of the world: for each region and for the
 // path, its own evidence and what it has heard, each piece under the body
 // that first observed it. The receiver keeps, for each observer, the
-// larger of what it had and what it is given - a later copy of the same
-// observer's evidence holds more - so nothing is counted twice however
-// many ways it arrives, and nothing is passed back to its own observer.
+// larger of what it had and what it is given, as they weigh now - a later
+// copy of the same observer's evidence holds more - so nothing is counted
+// twice however many ways it arrives, and nothing is passed back to its own
+// observer.
 // Heard evidence counts toward an estimate as the body's own does.
 //
 // Only what a body knows of the world passes: not the mate row, and never
@@ -51,58 +52,90 @@ func (w *World) tell(b *Body) {
 	}
 }
 
-// pass gives body to what body from knows of the world.
+// pass gives body to what body from knows of the world, both brought to
+// how their evidence weighs now.
 func (w *World) pass(from, to *Body) {
 	for r := range from.Memory.Regions {
 		for len(to.Memory.Regions) <= r {
-			to.Memory.Regions = append(to.Memory.Regions, Tally{})
+			to.Memory.Regions = append(to.Memory.Regions, Tally{T: w.tick})
 		}
+		w.age(&from.Memory.Regions[r])
+		w.age(&to.Memory.Regions[r])
 		w.passTally(&to.Memory.Regions[r], from.Memory.Regions[r], from.ID, to.ID)
 	}
+	w.age(&from.Memory.Path)
+	w.age(&to.Memory.Path)
 	w.passTally(&to.Memory.Path, from.Memory.Path, from.ID, to.ID)
 }
 
-// passTally merges tally src, held by body srcID, into dst, held by dstID.
+// passTally merges tally src, held by body srcID, into dst, held by dstID:
+// for each observer the larger entry, as they weigh now, src's own evidence
+// under srcID, none under dstID; then the HeardLimit largest are kept.
 func (w *World) passTally(dst *Tally, src Tally, srcID, dstID int64) {
-	take := func(id int64, c Count) {
-		if id == dstID || c.N <= 0 {
-			return
+	dst.settle()
+	ss := src.scale()
+	// src's entries brought to scale, with its own evidence under srcID.
+	in := make([]Heard, 0, len(src.Heard)+1)
+	own := Heard{ID: srcID, N: src.N - src.HN, K: src.K - src.HK}
+	placed := own.N <= 0
+	for _, h := range src.Heard {
+		if !placed && own.ID < h.ID {
+			in, placed = append(in, own), true
 		}
-		if dst.Heard == nil {
-			dst.Heard = map[int64]Count{}
-		}
-		if c.N > dst.Heard[id].N {
-			dst.Heard[id] = c
-		}
+		in = append(in, Heard{ID: h.ID, N: ss * h.N, K: ss * h.K})
 	}
-	take(srcID, Count{N: src.N - src.HN, K: src.K - src.HK})
-	for id, c := range src.Heard {
-		take(id, c)
+	if !placed {
+		in = append(in, own)
 	}
-	if len(dst.Heard) > w.cfg.HeardLimit {
-		type entry struct {
-			id int64
-			c  Count
-		}
-		es := make([]entry, 0, len(dst.Heard))
-		for id, c := range dst.Heard {
-			es = append(es, entry{id, c})
-		}
-		sort.Slice(es, func(i, j int) bool {
-			if es[i].c.N != es[j].c.N {
-				return es[i].c.N < es[j].c.N
+	// Merge the two lists, both in the order of their observers.
+	out := make([]Heard, 0, len(dst.Heard)+len(in))
+	i, j := 0, 0
+	for i < len(dst.Heard) || j < len(in) {
+		var h Heard
+		switch {
+		case j == len(in) || i < len(dst.Heard) && dst.Heard[i].ID < in[j].ID:
+			h, i = dst.Heard[i], i+1
+		case i == len(dst.Heard) || in[j].ID < dst.Heard[i].ID:
+			h, j = in[j], j+1
+		default: // the same observer: the larger
+			h = dst.Heard[i]
+			if in[j].N > h.N {
+				h = in[j]
 			}
-			return es[i].id < es[j].id
-		})
-		for _, e := range es[:len(es)-w.cfg.HeardLimit] {
-			delete(dst.Heard, e.id)
+			i, j = i+1, j+1
 		}
+		if h.ID != dstID && h.N > 0 {
+			out = append(out, h)
+		}
+	}
+	if len(out) > w.cfg.HeardLimit {
+		// Keep the HeardLimit largest; among equal ones, the lower IDs.
+		ns := make([]float64, len(out))
+		for k, h := range out {
+			ns[k] = h.N
+		}
+		sort.Float64s(ns)
+		cut := ns[len(ns)-w.cfg.HeardLimit]
+		above := 0
+		for _, n := range ns {
+			if n > cut {
+				above++
+			}
+		}
+		atCut := w.cfg.HeardLimit - above
+		kept := out[:0]
+		for _, h := range out {
+			switch {
+			case h.N > cut:
+				kept = append(kept, h)
+			case h.N == cut && atCut > 0:
+				kept = append(kept, h)
+				atCut--
+			}
+		}
+		out = kept
 	}
 	ownN, ownK := dst.N-dst.HN, dst.K-dst.HK
-	dst.HN, dst.HK = 0, 0
-	for _, c := range dst.Heard {
-		dst.HN += c.N
-		dst.HK += c.K
-	}
-	dst.N, dst.K = ownN+dst.HN, ownK+dst.HK
+	dst.Heard = out
+	dst.resum(ownN, ownK)
 }
