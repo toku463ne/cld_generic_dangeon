@@ -83,9 +83,9 @@ type result struct {
 	// requests are the requests to mate sent, and requestBirths the
 	// births they brought about.
 	requests, requestBirths float64
-	adultRate   float64   // matured over matured and died young; NaN with neither
-	regions     []float64 // regions with a body in them, at tick 0 and each checkpoint
-	valley      float64   // fewest bodies at any tick after tick 0
+	adultRate               float64   // matured over matured and died young; NaN with neither
+	regions                 []float64 // regions with a body in them, at tick 0 and each checkpoint
+	valley                  float64   // fewest bodies at any tick after tick 0
 	// displace is the mean straight-line distance, in tiles, a body gets
 	// from where it was 1000 ticks before (over bodies alive at both ends,
 	// every 1000 ticks after tick 5000); edge the mean share of the living
