@@ -117,6 +117,13 @@ type Config struct {
 	// Lifespan is the age in ticks at which a body dies of age (stage
 	// 3-5). Zero: no body dies of age (stage 3-4).
 	Lifespan int
+	// ChildAbility is a newborn's (and a body at Lifespan's) share of its
+	// speed and most energy; OldAge the age from which they fall to it;
+	// AgeStep the steps they move in (build.go ageFactor, stage 3-7). 1:
+	// abilities do not change with age (stage 3-6).
+	ChildAbility float64
+	OldAge       int
+	AgeStep      float64
 	// MatureAge is how many ticks after its birth a child becomes an adult
 	// and may mate.
 	MatureAge int
@@ -273,6 +280,9 @@ func DefaultConfig() Config {
 		ProvisionEachAlone: 0.00275,
 		RestBurn:           0.5,
 		Lifespan:           4000,
+		ChildAbility:       0.5,
+		OldAge:             3200,
+		AgeStep:            0.25,
 		Collide:            true,
 	}
 }

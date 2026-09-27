@@ -85,6 +85,10 @@ func (w *World) Step() {
 		if b.Mature == w.tick && b.Mature > 0 {
 			w.stats.Matured++
 		}
+		if w.cfg.ChildAbility < 1 {
+			// Old age lowers the most a body can hold (stage 3-7).
+			b.Energy = math.Min(b.Energy, w.maxOf(b))
+		}
 		w.act(i, b, w.turn(b))
 		burn := w.burnOf(b)
 		b.Energy -= burn

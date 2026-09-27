@@ -54,7 +54,7 @@ func (w *World) TruthTable() TruthTable {
 		Meal:  energyTicks(w.cfg.FoodEnergy, w.cfg.EnergyBurn),
 		Full:  energyTicks(w.cfg.EnergyMax, w.cfg.EnergyBurn),
 		Meet:  make([]float64, len(w.m.RegionFood)),
-		Reach: w.reach(w.cfg.Speed),
+		Reach: w.reach(w.slowest()),
 	}
 	for r := range t.Meet {
 		t.Meet[r] = w.meet(RegionID(r), w.cfg.Speed)
@@ -723,3 +723,12 @@ func (w *World) tied(a Action) bool {
 // valuation's slices are reused by the next decision, so copy what is kept.
 // nil turns the trace off. The trace draws nothing and changes nothing.
 func (w *World) SetTrace(f func(b Body, v Valuation, a Action)) { w.trace = f }
+
+// slowest is the config's speed at the age it is least (ChildAbility), for
+// tables read by bodies of any age.
+func (w *World) slowest() float64 {
+	if low := w.cfg.ChildAbility; low > 0 && low < 1 {
+		return w.cfg.Speed * low
+	}
+	return w.cfg.Speed
+}

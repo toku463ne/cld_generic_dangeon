@@ -22,17 +22,44 @@ type Build struct {
 }
 
 func (w *World) speedOf(b *Body) float64 {
+	speed := w.cfg.Speed
 	if b.Build.Speed > 0 {
-		return b.Build.Speed
+		speed = b.Build.Speed
 	}
-	return w.cfg.Speed
+	return speed * w.ageFactor(b)
 }
 
 func (w *World) maxOf(b *Body) float64 {
+	most := w.cfg.EnergyMax
 	if b.Build.EnergyMax > 0 {
-		return b.Build.EnergyMax
+		most = b.Build.EnergyMax
 	}
-	return w.cfg.EnergyMax
+	return most * w.ageFactor(b)
+}
+
+// ageFactor scales a body's speed and most energy by its age (stage 3-7):
+// from ChildAbility at birth up to 1 when it comes of age, 1 through
+// adulthood, and down from OldAge to ChildAbility at Lifespan - a baby and
+// an old body alike. The first bodies, adults from the start, skip the
+// rise. The factor moves in steps of AgeStep, so that bodies share survival
+// tables. With ChildAbility 1 it is 1.
+func (w *World) ageFactor(b *Body) float64 {
+	low := w.cfg.ChildAbility
+	if low >= 1 || low <= 0 {
+		return 1
+	}
+	age := float64(w.tick - b.Born)
+	f := 1.0
+	switch {
+	case w.tick < b.Mature && b.Mature > b.Born:
+		f = low + (1-low)*age/float64(b.Mature-b.Born)
+	case w.cfg.OldAge > 0 && w.cfg.Lifespan > w.cfg.OldAge && age > float64(w.cfg.OldAge):
+		f = 1 - (1-low)*(age-float64(w.cfg.OldAge))/float64(w.cfg.Lifespan-w.cfg.OldAge)
+	}
+	if step := w.cfg.AgeStep; step > 0 {
+		f = math.Floor(f/step) * step
+	}
+	return math.Max(math.Min(f, 1), low)
 }
 
 func (w *World) burnOf(b *Body) float64 {

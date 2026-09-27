@@ -116,3 +116,36 @@ func TestChildInheritsTheShare(t *testing.T) {
 		t.Fatalf("%d of %d children moved away from both parents' levels (%.3f), mutation %v", moved, births, f, mutation)
 	}
 }
+
+// A body's speed and most energy follow its age: ChildAbility at birth,
+// rising to full when it comes of age, full through adulthood, falling
+// from OldAge back to ChildAbility at Lifespan, in steps of AgeStep; the
+// first bodies, adults from the start, are full from the start.
+func TestAgeFactor(t *testing.T) {
+	w := newTestWorld(t, 1)
+	w.cfg.ChildAbility, w.cfg.OldAge, w.cfg.Lifespan, w.cfg.AgeStep, w.cfg.MatureAge = 0.5, 3000, 4000, 0.05, 400
+	w.tick = 10000
+	child := Body{Born: 10000, Mature: 10400}
+	for _, c := range []struct {
+		age  int64
+		want float64
+	}{{0, 0.5}, {200, 0.75}, {399, 0.95}, {400, 1}, {2999, 1}, {3500, 0.75}, {3999, 0.5}} {
+		b := child
+		b.Born, b.Mature = w.tick-c.age, w.tick-c.age+400
+		if got := w.ageFactor(&b); math.Abs(got-c.want) > 1e-9 {
+			t.Errorf("age %d: factor %v, want %v", c.age, got, c.want)
+		}
+	}
+	first := Body{Born: 0, Mature: 0}
+	w.tick = 10
+	if got := w.ageFactor(&first); got != 1 {
+		t.Errorf("a first body at tick 10: factor %v, want 1", got)
+	}
+	if got, want := w.speedOf(&child), w.cfg.Speed*w.ageFactor(&child); got != want {
+		t.Errorf("speed %v, want %v", got, want)
+	}
+	w.cfg.ChildAbility = 1
+	if got := w.ageFactor(&child); got != 1 {
+		t.Errorf("without the curve: factor %v", got)
+	}
+}

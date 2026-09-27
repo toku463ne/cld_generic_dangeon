@@ -387,6 +387,7 @@ func TestTraceIsTheChoice(t *testing.T) {
 	// Value reads the config's build, so every body here has it.
 	cfg := testConfig(4)
 	cfg.Allot, cfg.Learn = false, false
+	cfg.ChildAbility = 1 // every body the config's build at every age
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
