@@ -153,12 +153,34 @@ func TestPlayedBodyMovesAsHeld(t *testing.T) {
 	}
 	v.Play()
 	d := v.Driver()
-	d.Dx = 1
 	before, _ := v.followed()
+	// Hold a way whose next tile no other body stands on (collisions take
+	// a blocked step off the options).
+	taken := map[[2]int]bool{}
+	for _, b := range v.W.Bodies() {
+		if b.ID != before.ID {
+			taken[[2]int{int(b.X), int(b.Y)}] = true
+		}
+	}
+	ways := [][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}
+	held := -1
+	for i, way := range ways {
+		x, y := before.X+float64(way[0])*before.Build.Speed, before.Y+float64(way[1])*before.Build.Speed
+		if x >= 0 && y >= 0 && x < 32 && y < 24 && !taken[[2]int{int(x), int(y)}] {
+			held = i
+			break
+		}
+	}
+	if held < 0 {
+		t.Fatal("no free way to hold")
+	}
+	d.Dx, d.Dy = ways[held][0], ways[held][1]
 	v.Step(false)
 	after, ok := v.followed()
-	if !ok || after.X <= before.X || after.Y != before.Y {
-		t.Fatalf("held east: (%v,%v) -> (%v,%v)", before.X, before.Y, after.X, after.Y)
+	moved := [2]float64{after.X - before.X, after.Y - before.Y}
+	if !ok || moved[0]*float64(ways[held][0]) <= 0 && ways[held][0] != 0 || moved[1]*float64(ways[held][1]) <= 0 && ways[held][1] != 0 ||
+		ways[held][0] == 0 && moved[0] != 0 || ways[held][1] == 0 && moved[1] != 0 {
+		t.Fatalf("held %v: (%v,%v) -> (%v,%v)", ways[held], before.X, before.Y, after.X, after.Y)
 	}
 	if !strings.Contains(v.FollowText(), "PLAYED") {
 		t.Fatalf("follow text does not say the body is played: %q", v.FollowText())
