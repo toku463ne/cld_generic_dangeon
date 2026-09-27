@@ -159,6 +159,11 @@ func (w *World) mates(b *Body, f func(*Body)) {
 func (w *World) sawMates(b *Body) uint64 {
 	var h uint64
 	w.mates(b, func(o *Body) { h += mix(uint64(o.ID)) })
+	if w.adult(b) && w.canPay(b) && !w.resting(b) {
+		// Only a body that can mate is moved by a request coming in
+		// range: to any other it is no option.
+		w.requesters(b, func(o *Body) { h += mix(uint64(o.ID)) })
+	}
 	return h
 }
 
@@ -178,7 +183,100 @@ func (w *World) mateOptions(dst []Action, b *Body) []Action {
 		return dst
 	}
 	w.mates(b, func(o *Body) { dst = append(dst, Action{Kind: ActMate, Mate: o.ID}) })
+	clear(w.far)
+	w.requesters(b, func(o *Body) {
+		dst = append(dst, Action{Kind: ActMate, Mate: o.ID})
+		if w.far == nil {
+			w.far = map[int64]int{}
+		}
+		gap := math.Max(math.Abs(o.X-b.X), math.Abs(o.Y-b.Y)) - float64(w.cfg.Sight)
+		w.far[o.ID] = int(math.Ceil(math.Max(gap, 0) / w.speedOf(b)))
+	})
 	return dst
+}
+
+// request has body b broadcast a request to mate if it can mate - an
+// adult, not resting, able to pay its share - sees no mate and has none
+// open (stage M-3). It spends no turn: sent as a choice among moves, read
+// as a wait that may bring a child, it outvalued eating.
+func (w *World) request(b *Body) {
+	if !w.cfg.Requests || !w.cfg.Breed || b.Requested > w.tick || !w.adult(b) || !w.canPay(b) || w.resting(b) {
+		return
+	}
+	seen := false
+	w.mates(b, func(*Body) { seen = true })
+	if !seen {
+		b.Requested = w.tick + int64(w.cfg.RequestTicks)
+		w.stats.Requests++
+		w.asking = append(w.asking, w.indexOf(b))
+	}
+}
+
+// indexOf is the index of body b among the world's bodies.
+func (w *World) indexOf(b *Body) int {
+	for i := range w.bodies {
+		if &w.bodies[i] == b {
+			return i
+		}
+	}
+	return -1
+}
+
+// listAsking lists the bodies with a request open, at the start of a tick
+// (the indices change only when the dead leave and the born join).
+func (w *World) listAsking() {
+	w.asking = w.asking[:0]
+	if !w.cfg.Requests {
+		return
+	}
+	for i := range w.bodies {
+		if w.bodies[i].Requested > w.tick {
+			w.asking = append(w.asking, i)
+		}
+	}
+}
+
+// requesters calls f with every body of the other sex, adult and not
+// resting, out of b's sight but within RequestRange of it, whose request to
+// mate is open (Requests).
+func (w *World) requesters(b *Body, f func(*Body)) {
+	if !w.cfg.Requests {
+		return
+	}
+	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
+	for _, i := range w.asking {
+		o := &w.bodies[i]
+		if o.Requested <= w.tick || o.ID == b.ID || o.Sex == b.Sex || !w.adult(o) || w.resting(o) {
+			continue
+		}
+		d := max(abs(int(math.Floor(o.X))-bx), abs(int(math.Floor(o.Y))-by))
+		if d > w.cfg.Sight && d <= w.cfg.RequestRange {
+			f(o)
+		}
+	}
+}
+
+// farMate reports whether the body id is a requester out of b's sight, and
+// the direction of a step towards it.
+func (w *World) farMate(b *Body, id int64) (int, bool) {
+	d, far := 0, false
+	w.requesters(b, func(o *Body) {
+		if o.ID == id {
+			d, far = dirTowards(o.X-b.X, o.Y-b.Y), true
+		}
+	})
+	return d, far
+}
+
+// farTicks is how many ticks the body whose options were last listed walks
+// to reach the sight of body id, a requester out of its sight; 0 if id is
+// in sight. mateOptions works it out once per decision.
+func (w *World) farTicks(id int64) int { return w.far[id] }
+
+// dirTowards is the move direction nearest to (dx, dy): 0 east, then
+// clockwise with y down.
+func dirTowards(dx, dy float64) int {
+	return (int(math.Round(math.Atan2(dy, dx)/(math.Pi/4))) + 8) % 8
 }
 
 // mate carries out body b's mate with the body whose ID is id: a birth if
@@ -192,9 +290,16 @@ func (w *World) mate(b *Body, id int64) {
 			p = o
 		}
 	})
-	if p == nil || p.Intent != (Action{Kind: ActMate, Mate: b.ID}) || !w.canPay(b) || !w.canPay(p) {
+	// The partner agrees by naming b too, or by an open request: a
+	// request is itself consent (stage M-3).
+	requested := p != nil && w.cfg.Requests && p.Requested > w.tick
+	if p == nil || (p.Intent != (Action{Kind: ActMate, Mate: b.ID}) && !requested) || !w.canPay(b) || !w.canPay(p) {
 		return
 	}
+	if requested {
+		w.stats.RequestBirths++
+	}
+	b.Requested, p.Requested = 0, 0
 	b.Energy -= w.birthShare(b)
 	p.Energy -= w.birthShare(p)
 	if w.bears() {

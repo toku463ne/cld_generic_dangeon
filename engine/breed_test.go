@@ -92,7 +92,12 @@ func TestBirthNeedsBoth(t *testing.T) {
 // decision before the birth was to mate with the other; children come of
 // age and are counted.
 func TestBirthsAreAgreed(t *testing.T) {
-	w := newTestWorld(t, 3)
+	cfg := testConfig(3)
+	cfg.Requests = false // with requests a request is consent (TestRequest)
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	type choice struct {
 		born int // children born this tick before the decision
 		a    Action
@@ -285,5 +290,48 @@ func TestRestingMotherBurnsLess(t *testing.T) {
 	w.tick += 10
 	if got := w.burnOf(mother); got != full {
 		t.Fatalf("rested mother burns %v, want %v", got, full)
+	}
+}
+
+// With Requests a body that can mate and sees no mate broadcasts a request,
+// spending no turn; a body of the other sex within RequestRange sees it as
+// a mate out of sight, and a step to it is a step towards it; in sight, its
+// offer makes a child without being named back.
+func TestRequest(t *testing.T) {
+	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 80}, Body{ID: 1, X: 5.5, Y: 2.5, Energy: 60})
+	w.cfg.Requests, w.cfg.RequestRange, w.cfg.RequestTicks = true, 5, 100
+	she, he := &w.bodies[0], &w.bodies[1]
+	w.request(she)
+	if she.Requested != w.tick+100 {
+		t.Fatalf("no request sent: %d", she.Requested)
+	}
+	// He sees her as a mate out of sight, and she him not (he sent none).
+	if !hasMate(w.mateOptions(nil, he), 0) {
+		t.Fatal("the requester is not among his mates")
+	}
+	d, far := w.farMate(he, 0)
+	if !far || d != 4 {
+		t.Fatalf("a step towards her: dir %d far %v, want west", d, far)
+	}
+	x := he.X
+	w.act(1, he, Action{Kind: ActMate, Mate: 0})
+	if he.X >= x || len(w.born) != 0 {
+		t.Fatalf("he did not step towards her: x %v -> %v, born %d", x, he.X, len(w.born))
+	}
+	// In sight, his offer makes a child though she names no one.
+	he.X = 3.5
+	w.buildGrid()
+	she.Intent = Action{Kind: ActWait}
+	w.act(1, he, Action{Kind: ActMate, Mate: 0})
+	if len(w.born) != 1 || she.Requested != 0 {
+		t.Fatalf("born %d, her request %d", len(w.born), she.Requested)
+	}
+	// A body that cannot pay sends none; nor one with a mate in sight.
+	w2 := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 1}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 60})
+	w2.cfg.Requests, w2.cfg.RequestTicks = true, 100
+	w2.request(&w2.bodies[0])
+	w2.request(&w2.bodies[1])
+	if w2.bodies[0].Requested != 0 || w2.bodies[1].Requested != 0 {
+		t.Fatalf("requests %d %d, want none", w2.bodies[0].Requested, w2.bodies[1].Requested)
 	}
 }

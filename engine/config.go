@@ -121,9 +121,16 @@ type Config struct {
 	// speed and most energy; OldAge the age from which they fall to it;
 	// AgeStep the steps they move in (build.go ageFactor, stage 3-7). 1:
 	// abilities do not change with age (stage 3-6).
-	ChildAbility float64
-	OldAge       int
-	AgeStep      float64
+	// Requests lets a body that can mate and sees no mate broadcast a
+	// request (stage M-3): it stays open RequestTicks, reaches bodies of
+	// the other sex within RequestRange tiles, and is itself consent - a
+	// body that answers, comes into sight and offers makes a child without
+	// being named back. Off: stage 3-7.
+	Requests                   bool
+	RequestRange, RequestTicks int
+	ChildAbility               float64
+	OldAge                     int
+	AgeStep                    float64
 	// MatureAge is how many ticks after its birth a child becomes an adult
 	// and may mate.
 	MatureAge int
@@ -283,6 +290,9 @@ func DefaultConfig() Config {
 		ChildAbility:       0.5,
 		OldAge:             3200,
 		AgeStep:            0.25,
+		Requests:           true,
+		RequestRange:       5,
+		RequestTicks:       100,
 		Collide:            true,
 	}
 }

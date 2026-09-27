@@ -55,6 +55,9 @@ type Body struct {
 	// Asks is how many units a resting mother has asked for and not yet
 	// received (with ProvisionEach).
 	Asks int `json:",omitempty"`
+	// Requested is the tick its request to mate stays open until (with
+	// Requests); zero or past for none.
+	Requested int64 `json:",omitempty"`
 	// Build is its own speed, most energy and burn (build.go), and Share
 	// the share of its budget it was born with for speed (with Allot).
 	Build Build
@@ -129,6 +132,9 @@ type Stats struct {
 	// each learned row, what bodies learned themselves and passed on.
 	RegionRows       []RowCount `json:",omitempty"`
 	PathRow, MateRow RowCount
+	// Requests counts the requests to mate sent (Requests), and
+	// RequestBirths the births a request brought about.
+	Requests, RequestBirths int64
 	// Provisioned counts, per region, the food that went straight to a
 	// resting mother (Provision, food.go).
 	Provisioned []int64 `json:",omitempty"`
@@ -204,6 +210,11 @@ func (w *World) act(i int, b *Body, a Action) {
 	w.stats.Actions[a.Kind]++
 	switch a.Kind {
 	case ActMate:
+		if d, far := w.farMate(b, a.Mate); far {
+			// A requester out of sight: a step towards it (Requests).
+			w.stepTowards(i, b, d)
+			return
+		}
 		if w.cfg.Learn {
 			b.Memory.Asks++
 			w.stats.MateRow.Learned++
@@ -214,14 +225,30 @@ func (w *World) act(i int, b *Body, a Action) {
 		w.eatFood(w.foodOn(t))
 		b.Energy = math.Min(b.Energy+w.cfg.FoodEnergy, w.maxOf(b))
 	case ActMove:
-		from := w.tileOf(b.X, b.Y)
-		v := moveDirs[a.Dir]
-		b.X += v[0] * w.speedOf(b)
-		b.Y += v[1] * w.speedOf(b)
-		b.Heading = a.Dir
-		to := w.tileOf(b.X, b.Y)
-		w.moved(i, from, to)
-		w.stepped(b, from, to)
+		w.step(i, b, a.Dir)
+	}
+}
+
+// step moves body b, the i-th of the world's bodies, one step in direction
+// d.
+func (w *World) step(i int, b *Body, d int) {
+	from := w.tileOf(b.X, b.Y)
+	v := moveDirs[d]
+	b.X += v[0] * w.speedOf(b)
+	b.Y += v[1] * w.speedOf(b)
+	b.Heading = d
+	to := w.tileOf(b.X, b.Y)
+	w.moved(i, from, to)
+	w.stepped(b, from, to)
+}
+
+// stepTowards moves body b a step in direction d if that step is open, and
+// otherwise waits.
+func (w *World) stepTowards(i int, b *Body, d int) {
+	v := moveDirs[d]
+	x, y := b.X+v[0]*w.speedOf(b), b.Y+v[1]*w.speedOf(b)
+	if t := w.tileOf(x, y); t >= 0 && w.m.Terrain[t] == TerrainLand && !w.blocks(b, x, y) {
+		w.step(i, b, d)
 	}
 }
 

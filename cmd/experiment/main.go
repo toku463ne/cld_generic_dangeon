@@ -80,6 +80,9 @@ type result struct {
 	births    float64
 	// provisioned is the food that went straight to resting mothers.
 	provisioned float64
+	// requests are the requests to mate sent, and requestBirths the
+	// births they brought about.
+	requests, requestBirths float64
 	adultRate   float64   // matured over matured and died young; NaN with neither
 	regions     []float64 // regions with a body in them, at tick 0 and each checkpoint
 	valley      float64   // fewest bodies at any tick after tick 0
@@ -379,6 +382,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	}
 	r.births = float64(st.Births)
 	r.provisioned = float64(w.FoodLedger().Provisioned)
+	r.requests, r.requestBirths = float64(st.Requests), float64(st.RequestBirths)
 	for i := range r.rows {
 		c := rowCount(st, r.rows[i].key)
 		r.rows[i].learned, r.rows[i].passed = float64(c.Learned), float64(c.Passed)
@@ -635,6 +639,7 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		p("| %s | 0 |\n", e)
 	}
 	p("| 休んでいる母に配られた食料 | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.provisioned }), 2))
+	p("| 交配要求 | %s |\n| 交配要求で成り立った出生 | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.requests }), 2), fmtMeanSE(collect(rs, func(r result) float64 { return r.requestBirths }), 2))
 	p("| 体力消耗（合計） | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.burned }), 1))
 	p("| 死亡 | %s |\n\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.starved + r.aged }), 2))
 
@@ -787,6 +792,7 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"成人の割合", 4, func(r result) float64 { return r.adults }},
 		{"休んでいる母に配られた食料", 2, func(r result) float64 { return r.provisioned }},
 		{"成人のうち女の割合", 4, func(r result) float64 { return r.female }},
+		{"交配要求で成り立った出生", 2, func(r result) float64 { return r.requestBirths }},
 	}
 	for _, v := range o.variants[1:] {
 		for _, mt := range metrics {

@@ -316,8 +316,10 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			x, y = b.X+d[0]*speed, b.Y+d[1]*speed
 		case ActMate:
 			// Read as agreed: the share paid, and a child - with the
-			// chance child, and otherwise a tick spent as a wait.
-			after = energyTicks(b.Energy-w.birthShare(b), burn) - 1
+			// chance child, and otherwise a tick spent as a wait. A
+			// requester out of sight is reached first, k ticks of walking
+			// (Requests).
+			after = energyTicks(b.Energy-w.birthShare(b), burn) - 1 - w.farTicks(a.Mate)
 		}
 		c := 0.0
 		if a.Kind == ActMate {

@@ -85,8 +85,24 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0xd1e6c04e0a38b0dd)
+	const want = uint64(0xd5089edccdd2163a)
 	w := newTestWorld(t, 1)
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// Without requests to mate, the world is stage 3-7: its fingerprint is the
+// one pinned then.
+func TestUnaskedIsStage37(t *testing.T) {
+	const want = uint64(0xd1e6c04e0a38b0dd)
+	cfg := testConfig(1)
+	cfg.Requests = false
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
 		t.Fatalf("fingerprint = %#x, want %#x", got, want)
@@ -98,6 +114,7 @@ func TestFingerprint(t *testing.T) {
 func TestUnagedIsStage36(t *testing.T) {
 	const want = uint64(0x58f5fb5146e6aeb2)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
@@ -115,6 +132,7 @@ func TestUnagedIsStage36(t *testing.T) {
 func TestSlowgrowIsStage35b(t *testing.T) {
 	const want = uint64(0x8a059c7590e3f58e)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000
 	w, err := NewWorld(cfg, testMap())
@@ -132,6 +150,7 @@ func TestSlowgrowIsStage35b(t *testing.T) {
 func TestAgelessIsStage34(t *testing.T) {
 	const want = uint64(0x5dc9e29b78aa406e)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0
@@ -150,6 +169,7 @@ func TestAgelessIsStage34(t *testing.T) {
 func TestBusyIsStage33d(t *testing.T) {
 	const want = uint64(0x384173ebd067a28b)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -169,6 +189,7 @@ func TestBusyIsStage33d(t *testing.T) {
 func TestDoubledIsStage33c(t *testing.T) {
 	const want = uint64(0xe3831b583507fd10)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -189,6 +210,7 @@ func TestDoubledIsStage33c(t *testing.T) {
 func TestLeanIsStage33b(t *testing.T) {
 	const want = uint64(0x6bd4f31ce603a4df)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -209,6 +231,7 @@ func TestLeanIsStage33b(t *testing.T) {
 func TestPerunitIsStage33(t *testing.T) {
 	const want = uint64(0xde7a3d9c0a25b1db)
 	cfg := testConfig(1)
+	cfg.Requests = false      // before stage M-3
 	cfg.ChildAbility = 1      // before stage 3-7
 	cfg.MatureAge = 1000      // before stage 3-6
 	cfg.Lifespan = 0          // before stage 3-5
@@ -229,6 +252,7 @@ func TestPerunitIsStage33(t *testing.T) {
 func TestUnfedIsStage32(t *testing.T) {
 	const want = uint64(0xa1d282e1ee3e8c90)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -249,6 +273,7 @@ func TestUnfedIsStage32(t *testing.T) {
 func TestEvenIsStage31(t *testing.T) {
 	const want = uint64(0x8b3ca5a0fba68811)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -269,6 +294,7 @@ func TestEvenIsStage31(t *testing.T) {
 func TestSexlessIsStage24(t *testing.T) {
 	const want = uint64(0x6b3c0afd0521ffad)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -288,6 +314,7 @@ func TestSexlessIsStage24(t *testing.T) {
 func TestAgedIsStage23(t *testing.T) {
 	const want = uint64(0x7adba2aacb1d8238)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -308,6 +335,7 @@ func TestAgedIsStage23(t *testing.T) {
 func TestKinIsStage22(t *testing.T) {
 	const want = uint64(0xc2470db84a940725)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -328,6 +356,7 @@ func TestKinIsStage22(t *testing.T) {
 func TestNearIsThird21(t *testing.T) {
 	const want = uint64(0x93985c1a1c5ca120)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -348,6 +377,7 @@ func TestNearIsThird21(t *testing.T) {
 func TestMixedIsSecond21(t *testing.T) {
 	const want = uint64(0xc91b803c2f04cb5a)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -368,6 +398,7 @@ func TestMixedIsSecond21(t *testing.T) {
 func TestUndecayedIsFirst21(t *testing.T) {
 	const want = uint64(0xbaee248a8a9a5bc)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -388,6 +419,7 @@ func TestUndecayedIsFirst21(t *testing.T) {
 func TestUntoldIsStage20(t *testing.T) {
 	const want = uint64(0xe85e05167296fc73)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -408,6 +440,7 @@ func TestUntoldIsStage20(t *testing.T) {
 func TestTruthIsBeforeStage16(t *testing.T) {
 	const want = uint64(0x6031cdab7f6ff3fb)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -428,6 +461,7 @@ func TestTruthIsBeforeStage16(t *testing.T) {
 func TestBounceIsStage15(t *testing.T) {
 	const want = uint64(0x8f80778b1d21631e)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -448,6 +482,7 @@ func TestBounceIsStage15(t *testing.T) {
 func TestDrawnIsCollisions(t *testing.T) {
 	const want = uint64(0xe4ce1d34b72b02f4)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -469,6 +504,7 @@ func TestDrawnIsCollisions(t *testing.T) {
 func TestOverlapIsStage14(t *testing.T) {
 	const want = uint64(0x6dda229acfd53e93)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -490,6 +526,7 @@ func TestOverlapIsStage14(t *testing.T) {
 func TestFixedIsStage13(t *testing.T) {
 	const want = uint64(0x31db5a227bba52b8)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -511,6 +548,7 @@ func TestFixedIsStage13(t *testing.T) {
 func TestNoBreedIsStage12e(t *testing.T) {
 	const want = uint64(0xc6343895ef84fe4d)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -532,6 +570,7 @@ func TestNoBreedIsStage12e(t *testing.T) {
 func TestEverytickIsStage12r(t *testing.T) {
 	const want = uint64(0x72d49e5113ca37a8)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -553,6 +592,7 @@ func TestEverytickIsStage12r(t *testing.T) {
 func TestStraightbackIsStage12q(t *testing.T) {
 	const want = uint64(0x598db45e1aaf44c7)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -574,6 +614,7 @@ func TestStraightbackIsStage12q(t *testing.T) {
 func TestNoHeadingIsStage12p(t *testing.T) {
 	const want = uint64(0x46ffb00b8b64a80)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -595,6 +636,7 @@ func TestNoHeadingIsStage12p(t *testing.T) {
 func TestNoSightIsFirstStage12(t *testing.T) {
 	const want = uint64(0x51de0e4034431e90)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5
@@ -616,6 +658,7 @@ func TestNoSightIsFirstStage12(t *testing.T) {
 func TestNoWindowIsStage11(t *testing.T) {
 	const want = uint64(0xa43263b50e366b1e)
 	cfg := testConfig(1)
+	cfg.Requests = false // before stage M-3
 	cfg.ChildAbility = 1 // before stage 3-7
 	cfg.MatureAge = 1000 // before stage 3-6
 	cfg.Lifespan = 0     // before stage 3-5

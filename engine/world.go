@@ -55,6 +55,12 @@ type World struct {
 
 	// trace, when set, is shown every decision as it is made.
 	trace func(Body, Valuation, Action)
+	// asking lists the indices of the bodies with a request to mate open
+	// (breed.go), kept through a tick.
+	// far holds, for the decision under way, the ticks of walking to each
+	// requester out of sight among the options (breed.go).
+	far    map[int64]int
+	asking []int
 }
 
 // NewWorld builds a world on the given map: the food cap laid out by region
@@ -79,6 +85,7 @@ func NewWorld(cfg Config, m Map) (*World, error) {
 // join.
 func (w *World) Step() {
 	w.tick++
+	w.listAsking()
 	w.returnFood()
 	for i := range w.bodies {
 		b := &w.bodies[i]
@@ -89,6 +96,7 @@ func (w *World) Step() {
 			// Old age lowers the most a body can hold (stage 3-7).
 			b.Energy = math.Min(b.Energy, w.maxOf(b))
 		}
+		w.request(b)
 		w.act(i, b, w.turn(b))
 		burn := w.burnOf(b)
 		b.Energy -= burn
@@ -269,6 +277,9 @@ func (w *World) Fingerprint() uint64 {
 			}
 			if w.bears() && w.cfg.Provision && w.cfg.ProvisionEach {
 				put(uint64(b.Asks))
+			}
+			if w.cfg.Requests {
+				put(uint64(b.Requested))
 			}
 		}
 	}

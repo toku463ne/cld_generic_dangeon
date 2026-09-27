@@ -27,6 +27,9 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Unasked is stage 3-7: no body broadcasts a request to mate.
+const Unasked = "unasked"
+
 // Unaged is stage 3-6: abilities do not change with age.
 const Unaged = "unaged"
 
@@ -149,7 +152,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func unaged(c *engine.Config)    { c.ChildAbility = 1 }
+func unasked(c *engine.Config)   { c.Requests = false }
+func unaged(c *engine.Config)    { unasked(c); c.ChildAbility = 1 }
 func slowgrow(c *engine.Config)  { unaged(c); c.MatureAge = 1000 }
 func short(c *engine.Config)     { slowgrow(c); c.Lifespan = 3000 }
 func ageless(c *engine.Config)   { short(c); c.Lifespan = 0 }
@@ -183,6 +187,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Unasked:      unasked,
 	Unaged:       unaged,
 	Slowgrow:     slowgrow,
 	Short:        short,

@@ -139,7 +139,12 @@ func TestLearningReadsNoUnseenFood(t *testing.T) {
 // Every mate a body carries out is an ask, every child it has is counted,
 // and the trace shows the belief the choice was made on.
 func TestMateRowCounts(t *testing.T) {
-	w := newTestWorld(t, 3)
+	cfg := testConfig(3)
+	cfg.Requests = false // a requester has children it never asked for
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	asks := map[int64]float64{}
 	traced := false
 	w.SetTrace(func(b Body, v Valuation, a Action) {
