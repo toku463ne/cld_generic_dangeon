@@ -261,8 +261,8 @@ func DefaultConfig() Config {
 		ProvisionWith:      0.07,
 		ProvisionAlone:     0.035,
 		ProvisionEach:      true,
-		ProvisionEachWith:  0.0075,
-		ProvisionEachAlone: 0.00375,
+		ProvisionEachWith:  0.0055,
+		ProvisionEachAlone: 0.00275,
 		Collide:            true,
 	}
 }

@@ -27,6 +27,10 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Doubled is stage 3-3c: a mother asks for what the birth costs and what
+// she burns while resting, and mothers come to outnumber fathers.
+const Doubled = "doubled"
+
 // Lean is stage 3-3b: a mother asks for enough to make up the birth, not
 // what she burns while she rests.
 const Lean = "lean"
@@ -122,6 +126,7 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
+func doubled(c *engine.Config)   { c.ProvisionEachWith, c.ProvisionEachAlone = 0.0075, 0.00375 }
 func lean(c *engine.Config)      { c.ProvisionEachWith, c.ProvisionEachAlone = 0.00375, 0.001875 }
 func perunit(c *engine.Config)   { lean(c); c.ProvisionEach = false }
 func unfed(c *engine.Config)     { perunit(c); c.Provision = false }
@@ -148,6 +153,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Doubled:      doubled,
 	Lean:         lean,
 	Perunit:      perunit,
 	Unfed:        unfed,
