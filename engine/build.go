@@ -36,10 +36,14 @@ func (w *World) maxOf(b *Body) float64 {
 }
 
 func (w *World) burnOf(b *Body) float64 {
+	burn := w.cfg.EnergyBurn
 	if b.Build.EnergyBurn > 0 {
-		return b.Build.EnergyBurn
+		burn = b.Build.EnergyBurn
 	}
-	return w.cfg.EnergyBurn
+	if w.resting(b) {
+		burn *= w.cfg.RestBurn // a resting mother keeps still (stage 3-4)
+	}
+	return burn
 }
 
 // SetBuild gives the living body with the given ID a build, for experiments

@@ -267,3 +267,23 @@ func TestMotherBears(t *testing.T) {
 		t.Fatal("rested, the mother still cannot mate")
 	}
 }
+
+// A resting mother burns RestBurn times what she would; a mother rested and
+// a father burn as before.
+func TestRestingMotherBurnsLess(t *testing.T) {
+	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 80}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 60})
+	w.cfg.FemaleBears, w.cfg.RestBurn = true, 0.5
+	mother, father := &w.bodies[0], &w.bodies[1]
+	full := w.burnOf(mother)
+	mother.Rested = w.tick + 10
+	if got := w.burnOf(mother); got != full*0.5 {
+		t.Fatalf("resting mother burns %v, want %v", got, full*0.5)
+	}
+	if got := w.burnOf(father); got != w.cfg.EnergyBurn {
+		t.Fatalf("father burns %v", got)
+	}
+	w.tick += 10
+	if got := w.burnOf(mother); got != full {
+		t.Fatalf("rested mother burns %v, want %v", got, full)
+	}
+}

@@ -109,6 +109,11 @@ type Config struct {
 	// ProvisionAlone (stage 3-3).
 	ProvisionEach                         bool
 	ProvisionEachWith, ProvisionEachAlone float64
+	// RestBurn scales what a resting mother (with FemaleBears) burns a
+	// tick (stage 3-4): she keeps still while she recovers. She knows her
+	// own burn, as every body does, so she values her options with it. 1:
+	// stage 3-3d, where she burns as any body does.
+	RestBurn float64
 	// MatureAge is how many ticks after its birth a child becomes an adult
 	// and may mate.
 	MatureAge int
@@ -263,6 +268,7 @@ func DefaultConfig() Config {
 		ProvisionEach:      true,
 		ProvisionEachWith:  0.0055,
 		ProvisionEachAlone: 0.00275,
+		RestBurn:           0.5,
 		Collide:            true,
 	}
 }

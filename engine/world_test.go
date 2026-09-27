@@ -85,8 +85,24 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0x384173ebd067a28b)
+	const want = uint64(0x5dc9e29b78aa406e)
 	w := newTestWorld(t, 1)
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// With resting mothers burning as any body does, the world is stage 3-3d:
+// its fingerprint is the one pinned then.
+func TestBusyIsStage33d(t *testing.T) {
+	const want = uint64(0x384173ebd067a28b)
+	cfg := testConfig(1)
+	cfg.RestBurn = 1
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
 		t.Fatalf("fingerprint = %#x, want %#x", got, want)
@@ -98,6 +114,7 @@ func TestFingerprint(t *testing.T) {
 func TestDoubledIsStage33c(t *testing.T) {
 	const want = uint64(0xe3831b583507fd10)
 	cfg := testConfig(1)
+	cfg.RestBurn = 1 // before stage 3-4
 	cfg.ProvisionEachWith, cfg.ProvisionEachAlone = 0.0075, 0.00375
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
@@ -114,6 +131,7 @@ func TestDoubledIsStage33c(t *testing.T) {
 func TestLeanIsStage33b(t *testing.T) {
 	const want = uint64(0x6bd4f31ce603a4df)
 	cfg := testConfig(1)
+	cfg.RestBurn = 1 // before stage 3-4
 	cfg.ProvisionEachWith, cfg.ProvisionEachAlone = 0.00375, 0.001875
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
@@ -130,6 +148,7 @@ func TestLeanIsStage33b(t *testing.T) {
 func TestPerunitIsStage33(t *testing.T) {
 	const want = uint64(0xde7a3d9c0a25b1db)
 	cfg := testConfig(1)
+	cfg.RestBurn = 1          // before stage 3-4
 	cfg.ProvisionEach = false // ProvisionEachWith and Alone unread
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
@@ -146,6 +165,7 @@ func TestPerunitIsStage33(t *testing.T) {
 func TestUnfedIsStage32(t *testing.T) {
 	const want = uint64(0xa1d282e1ee3e8c90)
 	cfg := testConfig(1)
+	cfg.RestBurn = 1 // before stage 3-4
 	cfg.Provision = false
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
@@ -162,6 +182,7 @@ func TestUnfedIsStage32(t *testing.T) {
 func TestEvenIsStage31(t *testing.T) {
 	const want = uint64(0x8b3ca5a0fba68811)
 	cfg := testConfig(1)
+	cfg.RestBurn = 1 // before stage 3-4
 	cfg.FemaleBears = false
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
