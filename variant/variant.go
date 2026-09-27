@@ -27,6 +27,10 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Perunit is stage 3-3: each unit coming back goes to a resting mother by
+// chance, so a mother's share thins as mothers multiply.
+const Perunit = "perunit"
+
 // Unfed is stage 3-2: resting mothers get none of the food that comes back.
 const Unfed = "unfed"
 
@@ -114,7 +118,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func unfed(c *engine.Config)     { c.Provision = false }
+func perunit(c *engine.Config)   { c.ProvisionEach = false }
+func unfed(c *engine.Config)     { perunit(c); c.Provision = false }
 func even(c *engine.Config)      { unfed(c); c.FemaleBears = false }
 func sexless(c *engine.Config)   { even(c); c.Sexes = false }
 func aged(c *engine.Config)      { sexless(c); c.PassPath = true }
@@ -138,6 +143,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Perunit:      perunit,
 	Unfed:        unfed,
 	Even:         even,
 	Sexless:      sexless,

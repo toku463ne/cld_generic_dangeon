@@ -52,6 +52,9 @@ type Body struct {
 	// Partner is the father of a mother's last child (with FemaleBears),
 	// -1 for none: whether he is near sets how likely she is provisioned.
 	Partner int64 `json:",omitempty"`
+	// Asks is how many units a resting mother has asked for and not yet
+	// received (with ProvisionEach).
+	Asks int `json:",omitempty"`
 	// Build is its own speed, most energy and burn (build.go), and Share
 	// the share of its budget it was born with for speed (with Allot).
 	Build Build

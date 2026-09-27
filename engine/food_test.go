@@ -191,6 +191,7 @@ func TestProvision(t *testing.T) {
 		cfg := DefaultConfig()
 		cfg.Bodies, cfg.FoodCap, cfg.FoodReturn = 0, 20, 1
 		cfg.ProvisionWith, cfg.ProvisionAlone = c.with, c.alone
+		cfg.ProvisionEach = false // each unit by chance (3-3)
 		w, err := NewWorld(cfg, m)
 		if err != nil {
 			t.Fatal(err)
@@ -226,5 +227,63 @@ func TestProvision(t *testing.T) {
 		if got && l.Provisioned+int64(l.OnGround) != 20 {
 			t.Fatalf("%s: %d provisioned and %d on the ground of 20 returned", c.name, l.Provisioned, l.OnGround)
 		}
+	}
+}
+
+// With ProvisionEach a resting mother asks for a unit by her own chance -
+// ProvisionEachWith with her partner in her region, ProvisionEachAlone
+// without - holding at most two asks, and food coming back goes to mothers
+// who asked before the ground; a mother who has not asked, or is not
+// resting, gets none.
+func TestProvisionEach(t *testing.T) {
+	m := NewMap(10, 10)
+	m.RegionFood = []float64{1, 1}
+	for y := 0; y < m.Height; y++ {
+		for x := 5; x < m.Width; x++ {
+			m.SetRegion(x, y, 1)
+		}
+	}
+	cfg := DefaultConfig()
+	cfg.Bodies, cfg.FoodCap, cfg.FoodReturn = 0, 20, 1
+	cfg.ProvisionEachWith, cfg.ProvisionEachAlone = 1, 0
+	w, err := NewWorld(cfg, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := func(id int64, x float64, sex Sex, partner int64, rested int64) Body {
+		return Body{ID: id, X: x, Y: 2.5, Energy: 10, Sex: sex, Partner: partner, Rested: rested, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}}
+	}
+	w.bodies = append(w.bodies,
+		body(0, 1.5, Female, 2, 100), // resting, partner near: asks
+		body(1, 3.5, Female, 3, 100), // resting, partner away: never asks
+		body(2, 2.5, Male, -1, 0),
+		body(3, 7.5, Male, -1, 0),
+		body(4, 4.5, Female, 2, 0), // not resting
+	)
+	w.nextID = 5
+	w.buildGrid()
+	w.askProvision()
+	w.askProvision()
+	w.askProvision()
+	if got := []int{w.bodies[0].Asks, w.bodies[1].Asks, w.bodies[4].Asks}; got[0] != 2 || got[1] != 0 || got[2] != 0 {
+		t.Fatalf("asks %v, want [2 0 0]", got)
+	}
+	for i := 0; i < 20; i++ {
+		w.eatFood(0)
+	}
+	w.bodies[0].Asks = 1 // one ask left before the food comes back
+	w.returnFood()       // asks again (to 2), then is served both
+	checkFood(t, w)
+	if l := w.FoodLedger(); l.Provisioned != 2 || w.bodies[0].Asks != 0 {
+		t.Fatalf("provisioned %d, mother's asks %d, want 2 and 0", l.Provisioned, w.bodies[0].Asks)
+	}
+	if w.bodies[0].Energy != 10+2*cfg.FoodEnergy || w.bodies[1].Energy != 10 || w.bodies[4].Energy != 10 {
+		t.Fatalf("energies %v %v %v", w.bodies[0].Energy, w.bodies[1].Energy, w.bodies[4].Energy)
+	}
+	// Her rest over, her asks go.
+	w.bodies[0].Asks, w.tick = 2, 100
+	w.askProvision()
+	if w.bodies[0].Asks != 0 {
+		t.Fatalf("rested mother keeps %d asks", w.bodies[0].Asks)
 	}
 }

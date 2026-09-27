@@ -150,6 +150,7 @@ func (w *World) returnFood() {
 	if vacant <= 0 || sum == 0 {
 		return
 	}
+	w.askProvision()
 	var resting [][]int // per region, the indices of the mothers resting there
 	for r, s := range shares {
 		if len(f.regionLand[r]) == 0 || s == 0 {
@@ -160,7 +161,7 @@ func (w *World) returnFood() {
 			if resting == nil {
 				resting = w.restingMothers()
 			}
-			if w.provision(RegionID(r), resting[r]) {
+			if w.provision(RegionID(r), &resting[r]) {
 				f.owed[r]--
 				continue
 			}
@@ -173,7 +174,8 @@ func (w *World) returnFood() {
 }
 
 // restingMothers lists, per region, the indices of the mothers resting
-// there, in the order of the bodies; nothing without Provision.
+// there (with ProvisionEach, those who have asked), in the order of the
+// bodies; nothing without Provision.
 func (w *World) restingMothers() [][]int {
 	out := make([][]int, len(w.m.RegionFood))
 	if !w.cfg.Provision || !w.bears() {
@@ -181,7 +183,7 @@ func (w *World) restingMothers() [][]int {
 	}
 	for i := range w.bodies {
 		b := &w.bodies[i]
-		if w.resting(b) {
+		if w.resting(b) && (!w.cfg.ProvisionEach || b.Asks > 0) {
 			r := w.m.Region[w.tileOf(b.X, b.Y)]
 			out[r] = append(out[r], i)
 		}
@@ -194,22 +196,29 @@ func (w *World) restingMothers() [][]int {
 // ProvisionWith if the father of her last child stands in r now and
 // ProvisionAlone if not. It reports whether it did: the unit then appeared
 // and was eaten at once, and never lay on the ground.
-func (w *World) provision(r RegionID, mothers []int) bool {
+func (w *World) provision(r RegionID, list *[]int) bool {
+	mothers := *list
 	if len(mothers) == 0 {
 		return false
 	}
-	m := &w.bodies[mothers[w.rng.Intn(len(mothers))]]
-	p := w.cfg.ProvisionAlone
-	for i := range w.bodies {
-		if o := &w.bodies[i]; o.ID == m.Partner {
-			if w.m.Region[w.tileOf(o.X, o.Y)] == r {
-				p = w.cfg.ProvisionWith
-			}
-			break
+	k := w.rng.Intn(len(mothers))
+	m := &w.bodies[mothers[k]]
+	if w.cfg.ProvisionEach {
+		// She asked: the unit is hers. Once she has no asks left she
+		// leaves the list, so the next unit goes to another who asked.
+		m.Asks--
+		if m.Asks == 0 {
+			mothers[k] = mothers[len(mothers)-1]
+			*list = mothers[:len(mothers)-1]
 		}
-	}
-	if w.rng.Float64() >= p {
-		return false
+	} else {
+		p := w.cfg.ProvisionAlone
+		if w.partnerNear(m, r) {
+			p = w.cfg.ProvisionWith
+		}
+		if w.rng.Float64() >= p {
+			return false
+		}
 	}
 	m.Energy = min(m.Energy+w.cfg.FoodEnergy, w.maxOf(m))
 	w.food.appeared++
@@ -263,4 +272,39 @@ func (w *World) FoodLedger() FoodLedger {
 // Foods returns a copy of the food on the map.
 func (w *World) Foods() []Food {
 	return append([]Food(nil), w.food.foods...)
+}
+
+// partnerNear reports whether the father of mother m's last child stands in
+// region r now.
+func (w *World) partnerNear(m *Body, r RegionID) bool {
+	for i := range w.bodies {
+		if o := &w.bodies[i]; o.ID == m.Partner {
+			return w.m.Region[w.tileOf(o.X, o.Y)] == r
+		}
+	}
+	return false
+}
+
+// askProvision has every resting mother ask for a unit (ProvisionEach):
+// with ProvisionEachWith if her partner is in her region, ProvisionEachAlone
+// if not, holding at most two asks. A mother not resting holds none.
+func (w *World) askProvision() {
+	if !w.cfg.Provision || !w.cfg.ProvisionEach || !w.bears() {
+		return
+	}
+	for i := range w.bodies {
+		m := &w.bodies[i]
+		if !w.resting(m) {
+			m.Asks = 0
+			continue
+		}
+		r := w.m.Region[w.tileOf(m.X, m.Y)]
+		p := w.cfg.ProvisionEachAlone
+		if w.partnerNear(m, r) {
+			p = w.cfg.ProvisionEachWith
+		}
+		if w.rng.Float64() < p && m.Asks < 2 {
+			m.Asks++
+		}
+	}
 }
