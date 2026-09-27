@@ -237,7 +237,7 @@ func DefaultConfig() Config {
 		Breed:              true,
 		ChildWorth:         0.5,
 		BirthEnergy:        50,
-		MatureAge:          1000,
+		MatureAge:          400,
 		Allot:              true,
 		AllotSpread:        0.25,
 		AllotLevels:        11,
