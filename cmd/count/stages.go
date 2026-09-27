@@ -101,5 +101,15 @@ func stages(m engine.Map, name string, seeds int, seed0 int64, ticks int, vname 
 	fmt.Printf("| そのうち成人前に死んだ割合 | %s |\n", cell(func(t stagesTally) float64 { return t.diedChild / t.died }, 4))
 	fmt.Printf("| 一生の長さの平均（tick） | %s |\n", cell(func(t stagesTally) float64 { return t.ages / t.died }, 0))
 	fmt.Printf("| 一生のうち子で過ごした tick の割合 | %s |\n", cell(func(t stagesTally) float64 { return t.lifeChild / (t.lifeChild + t.lifeAdult) }, 4))
-	fmt.Printf("| 死んだ年齢（全シード、25%%・50%%・75%%・95%%） | %s |\n\n", quantiles(ages, 0.25, 0.5, 0.75, 0.95))
+	fmt.Printf("| 死んだ年齢（全シード、25%%・50%%・75%%・95%%） | %s |\n", quantiles(ages, 0.25, 0.5, 0.75, 0.95))
+	for _, limit := range []float64{2000, 2500, 3000, 4000, 5000} {
+		over := 0.0
+		for _, a := range ages {
+			if a > limit {
+				over++
+			}
+		}
+		fmt.Printf("| 死んだ年齢が %.0f を超えた割合（全シード） | %.4f |\n", limit, over/float64(max(len(ages), 1)))
+	}
+	fmt.Println()
 }
