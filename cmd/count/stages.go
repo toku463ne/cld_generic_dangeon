@@ -11,12 +11,18 @@ type stagesTally struct {
 	// Body-ticks after tick 5000, and those spent as children (before
 	// Mature).
 	bodyTicks, childTicks float64
+	// Body-ticks after tick 5000 by age band (stageBands).
+	band [len(stageBands)]float64
 	// Bodies born after tick 5000 that died before the end: how many, how
 	// many died children, their ages at death summed, and the ticks they
 	// lived as children and as adults.
 	died, diedChild, ages, lifeChild, lifeAdult float64
 	agesAt                                      []float64
 }
+
+// stageBands are the age bands, in ticks, the living are read in: child
+// (before MatureAge), then adulthood cut where old age would begin.
+var stageBands = [...][2]int64{{0, 1000}, {1000, 2000}, {2000, 3000}, {3000, 1 << 40}}
 
 // runStages reads how the living's ticks and the lives of the dead divide
 // between childhood and adulthood.
@@ -35,6 +41,12 @@ func runStages(cfg engine.Config, m engine.Map, ticks int) (stagesTally, error) 
 			alive[b.ID] = true
 			last[b.ID] = b
 			if tick > 5000 {
+				age := now - b.Born
+				for k, bd := range stageBands {
+					if age >= bd[0] && age < bd[1] {
+						t.band[k]++
+					}
+				}
 				t.bodyTicks++
 				if now < b.Mature {
 					t.childTicks++
@@ -97,6 +109,13 @@ func stages(m engine.Map, name string, seeds int, seed0 int64, ticks int, vname 
 	}
 	fmt.Printf("| 量 | 値 |\n| --- | --- |\n")
 	fmt.Printf("| 生きている身体×tick のうち子（成人前）の割合 | %s |\n", cell(func(t stagesTally) float64 { return t.childTicks / t.bodyTicks }, 4))
+	for k, bd := range stageBands {
+		hi := fmt.Sprint(bd[1])
+		if bd[1] > 1<<30 {
+			hi = ""
+		}
+		fmt.Printf("| 生きている身体×tick のうち年齢 %d〜%s の割合 | %s |\n", bd[0], hi, cell(func(t stagesTally) float64 { return t.band[k] / t.bodyTicks }, 4))
+	}
 	fmt.Printf("| 生まれて死んだ身体（1シードあたり） | %s |\n", cell(func(t stagesTally) float64 { return t.died }, 0))
 	fmt.Printf("| そのうち成人前に死んだ割合 | %s |\n", cell(func(t stagesTally) float64 { return t.diedChild / t.died }, 4))
 	fmt.Printf("| 一生の長さの平均（tick） | %s |\n", cell(func(t stagesTally) float64 { return t.ages / t.died }, 0))
