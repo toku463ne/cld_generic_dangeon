@@ -769,6 +769,12 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		f    func(result) float64
 	}{
 		{"人口（最終）", 2, func(r result) float64 { return r.pop[len(r.pop)-1] }},
+		{"崩壊したシードの割合", 4, func(r result) float64 {
+			if r.fellAt > 0 {
+				return 1
+			}
+			return 0
+		}},
 		{"餓死", 2, func(r result) float64 { return r.starved }},
 		{"老いによる死", 2, func(r result) float64 { return r.aged }},
 		{"体力消耗（合計）", 2, func(r result) float64 { return r.burned }},
