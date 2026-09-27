@@ -100,6 +100,14 @@ const Bounced = "bounce"
 // back draws among the best at random instead of turning 45 degrees off.
 const DrawReverse = "drawreverse"
 
+// Mature750 and Mature400 are the base world with children coming of age
+// at 750 and 400 ticks instead of MatureAge: a sweep of how long a body
+// cannot mate.
+const (
+	Mature750 = "mature750"
+	Mature400 = "mature400"
+)
+
 // Food2 and Food4 are the base world with food coming back twice and four
 // times as fast (FoodReturn): a sweep of how rich the map is, the rules
 // left as they are.
@@ -162,6 +170,8 @@ func everytick(c *engine.Config) { nobreed(c); c.Recheck = 0 }
 // stands for.
 var rewrites = map[string]func(*engine.Config){
 	Base:         func(*engine.Config) {},
+	Mature750:    func(c *engine.Config) { c.MatureAge = 750 },
+	Mature400:    func(c *engine.Config) { c.MatureAge = 400 },
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
