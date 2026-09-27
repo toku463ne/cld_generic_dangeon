@@ -272,7 +272,7 @@ func DefaultConfig() Config {
 		ProvisionEachWith:  0.0055,
 		ProvisionEachAlone: 0.00275,
 		RestBurn:           0.5,
-		Lifespan:           3000,
+		Lifespan:           4000,
 		Collide:            true,
 	}
 }

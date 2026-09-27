@@ -27,6 +27,9 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Short is stage 3-5: bodies die of age at 3000 ticks.
+const Short = "short"
+
 // Ageless is stage 3-4: no body dies of age.
 const Ageless = "ageless"
 
@@ -132,7 +135,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func ageless(c *engine.Config)   { c.Lifespan = 0 }
+func short(c *engine.Config)     { c.Lifespan = 3000 }
+func ageless(c *engine.Config)   { short(c); c.Lifespan = 0 }
 func busy(c *engine.Config)      { ageless(c); c.RestBurn = 1 }
 func doubled(c *engine.Config)   { busy(c); c.ProvisionEachWith, c.ProvisionEachAlone = 0.0075, 0.00375 }
 func lean(c *engine.Config)      { busy(c); c.ProvisionEachWith, c.ProvisionEachAlone = 0.00375, 0.001875 }
@@ -161,6 +165,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Short:        short,
 	Ageless:      ageless,
 	Busy:         busy,
 	Doubled:      doubled,
