@@ -85,8 +85,24 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0x6bd4f31ce603a4df)
+	const want = uint64(0xe3831b583507fd10)
 	w := newTestWorld(t, 1)
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// Asking for the birth's cost only, the world is stage 3-3b: its
+// fingerprint is the one pinned then.
+func TestLeanIsStage33b(t *testing.T) {
+	const want = uint64(0x6bd4f31ce603a4df)
+	cfg := testConfig(1)
+	cfg.ProvisionEachWith, cfg.ProvisionEachAlone = 0.00375, 0.001875
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
 		t.Fatalf("fingerprint = %#x, want %#x", got, want)
@@ -98,7 +114,7 @@ func TestFingerprint(t *testing.T) {
 func TestPerunitIsStage33(t *testing.T) {
 	const want = uint64(0xde7a3d9c0a25b1db)
 	cfg := testConfig(1)
-	cfg.ProvisionEach = false
+	cfg.ProvisionEach = false // ProvisionEachWith and Alone unread
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
