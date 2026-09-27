@@ -91,6 +91,8 @@ type Cause int
 
 const (
 	CauseStarved Cause = iota
+	// CauseAged is death at the end of a lifespan (Lifespan, stage 3-5).
+	CauseAged
 	NumCauses
 )
 

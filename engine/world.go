@@ -102,12 +102,17 @@ func (w *World) Step() {
 func (w *World) removeDead() {
 	alive := w.bodies[:0]
 	for _, b := range w.bodies {
-		if b.Energy <= 0 {
+		cause := CauseStarved
+		old := w.cfg.Lifespan > 0 && w.tick-b.Born >= int64(w.cfg.Lifespan)
+		if old && b.Energy > 0 {
+			cause = CauseAged
+		}
+		if b.Energy <= 0 || old {
 			if w.died == nil {
 				w.died = map[int64]int64{}
 			}
 			w.died[b.ID] = w.tick
-			w.stats.Deaths[CauseStarved]++
+			w.stats.Deaths[cause]++
 			w.stats.BudgetOut += b.Budget
 			if w.tick < b.Mature {
 				w.stats.DiedYoung++
@@ -264,8 +269,9 @@ func (w *World) Fingerprint() uint64 {
 		}
 	}
 	put(uint64(w.nextID))
-	for _, d := range w.stats.Deaths {
-		put(uint64(d))
+	put(uint64(w.stats.Deaths[CauseStarved]))
+	if w.cfg.Lifespan > 0 {
+		put(uint64(w.stats.Deaths[CauseAged]))
 	}
 	if w.cfg.Breed {
 		put(uint64(w.stats.Births))

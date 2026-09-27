@@ -106,3 +106,25 @@ func TestMovesOntoWaterAreNotOffered(t *testing.T) {
 		}
 	}
 }
+
+// A body dies of age when it reaches Lifespan, fed or not, counted apart
+// from starving; without a lifespan it lives on while it has energy.
+func TestDeathOfAge(t *testing.T) {
+	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 100}, Body{ID: 1, X: 5.5, Y: 2.5, Energy: 0.01})
+	w.cfg.Lifespan = 50
+	w.bodies[0].Born, w.bodies[1].Born = -49, 0
+	w.tick = 1
+	w.removeDead()
+	if len(w.bodies) != 1 || w.bodies[0].ID != 1 {
+		t.Fatalf("left %+v, want the young one", w.bodies)
+	}
+	if st := w.Stats(); st.Deaths[CauseAged] != 1 || st.Deaths[CauseStarved] != 0 {
+		t.Fatalf("deaths %v: the old one aged, the young one still has energy", st.Deaths)
+	}
+	w2 := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 100, Born: -1000}, Body{ID: 1, X: 5.5, Y: 2.5, Energy: 100})
+	w2.cfg.Lifespan = 0
+	w2.removeDead()
+	if len(w2.bodies) != 2 {
+		t.Fatal("without a lifespan a fed body died")
+	}
+}

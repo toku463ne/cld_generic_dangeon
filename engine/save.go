@@ -20,7 +20,7 @@ import (
 // saved, so that a loaded world can build them before play (World.Warm).
 
 // snapshotVersion changes whenever the format does.
-const snapshotVersion = 14
+const snapshotVersion = 15
 
 type snapshot struct {
 	Version int    `json:"version"`

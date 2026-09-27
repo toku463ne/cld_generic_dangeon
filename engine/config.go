@@ -114,6 +114,9 @@ type Config struct {
 	// own burn, as every body does, so she values her options with it. 1:
 	// stage 3-3d, where she burns as any body does.
 	RestBurn float64
+	// Lifespan is the age in ticks at which a body dies of age (stage
+	// 3-5). Zero: no body dies of age (stage 3-4).
+	Lifespan int
 	// MatureAge is how many ticks after its birth a child becomes an adult
 	// and may mate.
 	MatureAge int
@@ -269,6 +272,7 @@ func DefaultConfig() Config {
 		ProvisionEachWith:  0.0055,
 		ProvisionEachAlone: 0.00275,
 		RestBurn:           0.5,
+		Lifespan:           3000,
 		Collide:            true,
 	}
 }
