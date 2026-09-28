@@ -335,3 +335,34 @@ func TestRequest(t *testing.T) {
 		t.Fatalf("requests %d %d, want none", w2.bodies[0].Requested, w2.bodies[1].Requested)
 	}
 }
+
+// An old body cannot mate (stage 3-8): it has no mate to offer, sends no
+// request, and is neither a mate in sight nor a requester to anyone.
+func TestOldBarren(t *testing.T) {
+	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 80, Born: -100}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 80})
+	w.cfg.OldAge, w.cfg.Lifespan = 100, 200
+	w.cfg.Requests, w.cfg.RequestRange, w.cfg.RequestTicks = true, 5, 100
+	she, he := &w.bodies[0], &w.bodies[1]
+	if !w.cfg.OldBarren {
+		t.Fatal("OldBarren is off by default")
+	}
+	if len(w.mateOptions(nil, she)) != 0 || hasMate(w.mateOptions(nil, he), 0) {
+		t.Fatal("the old body is offered a mate or is one")
+	}
+	w.request(she)
+	if she.Requested != 0 {
+		t.Fatalf("the old body sent a request: %d", she.Requested)
+	}
+	// Out of his sight, an open request of hers reaches no one.
+	she.X, she.Requested = 7.5, w.tick+100
+	w.buildGrid()
+	w.listAsking()
+	if hasMate(w.mateOptions(nil, he), 0) {
+		t.Fatal("the old body's request reached him")
+	}
+	// Off, the old mate on (stage M-3).
+	w.cfg.OldBarren = false
+	if !hasMate(w.mateOptions(nil, he), 0) {
+		t.Fatal("with OldBarren off, the old body is no mate")
+	}
+}

@@ -131,6 +131,10 @@ type Config struct {
 	ChildAbility               float64
 	OldAge                     int
 	AgeStep                    float64
+	// OldBarren keeps a body OldAge old or older from mating (stage 3-8):
+	// like a child, it has no mate to offer, sends no request and is no
+	// one's mate. Off: stage M-3, where the old mate on.
+	OldBarren bool
 	// MatureAge is how many ticks after its birth a child becomes an adult
 	// and may mate.
 	MatureAge int
@@ -290,6 +294,7 @@ func DefaultConfig() Config {
 		ChildAbility:       0.5,
 		OldAge:             3200,
 		AgeStep:            0.25,
+		OldBarren:          true,
 		Requests:           true,
 		RequestRange:       5,
 		RequestTicks:       100,

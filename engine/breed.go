@@ -27,8 +27,11 @@ import "math"
 // move. It can be rebuilt from the bodies, so it is neither saved nor
 // fingerprinted.
 
-// adult reports whether body b may mate now.
-func (w *World) adult(b *Body) bool { return w.tick >= b.Mature }
+// fertile reports whether body b may mate now: of age, and with OldBarren
+// not yet OldAge old (stage 3-8) - a baby and an old body alike cannot.
+func (w *World) fertile(b *Body) bool {
+	return w.tick >= b.Mature && !(w.cfg.OldBarren && w.cfg.OldAge > 0 && w.tick-b.Born >= int64(w.cfg.OldAge))
+}
 
 // Sex is a body's sex (with Sexes). It changes nothing a body can do but
 // whom it can mate with.
@@ -132,7 +135,7 @@ func (w *World) moved(i, from, to int) {
 	}
 }
 
-// mates calls f with every adult other than body b standing on a tile
+// mates calls f with every fertile body other than b standing on a tile
 // within Sight of b's tile, in the order of the grid.
 func (w *World) mates(b *Body, f func(*Body)) {
 	if !w.cfg.Breed || w.cfg.Sight < 0 || w.grid == nil {
@@ -146,7 +149,7 @@ func (w *World) mates(b *Body, f func(*Body)) {
 			}
 			for _, j := range w.grid[w.m.index(x, y)] {
 				o := &w.bodies[j]
-				if o.ID != b.ID && w.adult(o) && (!w.cfg.Sexes || o.Sex != b.Sex) && !w.resting(o) {
+				if o.ID != b.ID && w.fertile(o) && (!w.cfg.Sexes || o.Sex != b.Sex) && !w.resting(o) {
 					f(o)
 				}
 			}
@@ -154,12 +157,12 @@ func (w *World) mates(b *Body, f func(*Body)) {
 	}
 }
 
-// sawMates hashes the adults body b sees. The hash does not depend on the
+// sawMates hashes the fertile bodies body b sees. The hash does not depend on the
 // order they are found in.
 func (w *World) sawMates(b *Body) uint64 {
 	var h uint64
 	w.mates(b, func(o *Body) { h += mix(uint64(o.ID)) })
-	if w.adult(b) && w.canPay(b) && !w.resting(b) {
+	if w.fertile(b) && w.canPay(b) && !w.resting(b) {
 		// Only a body that can mate is moved by a request coming in
 		// range: to any other it is no option.
 		w.requesters(b, func(o *Body) { h += mix(uint64(o.ID)) })
@@ -176,10 +179,10 @@ func mix(x uint64) uint64 {
 	return x ^ (x >> 31)
 }
 
-// mateOptions appends a mate with every adult body b sees, if b is an adult
-// and can pay.
+// mateOptions appends a mate with every fertile body b sees, if b is
+// fertile and can pay.
 func (w *World) mateOptions(dst []Action, b *Body) []Action {
-	if !w.cfg.Breed || !w.adult(b) || !w.canPay(b) || w.resting(b) {
+	if !w.cfg.Breed || !w.fertile(b) || !w.canPay(b) || w.resting(b) {
 		return dst
 	}
 	w.mates(b, func(o *Body) { dst = append(dst, Action{Kind: ActMate, Mate: o.ID}) })
@@ -195,12 +198,12 @@ func (w *World) mateOptions(dst []Action, b *Body) []Action {
 	return dst
 }
 
-// request has body b broadcast a request to mate if it can mate - an
-// adult, not resting, able to pay its share - sees no mate and has none
+// request has body b broadcast a request to mate if it can mate -
+// fertile, not resting, able to pay its share - sees no mate and has none
 // open (stage M-3). It spends no turn: sent as a choice among moves, read
 // as a wait that may bring a child, it outvalued eating.
 func (w *World) request(b *Body) {
-	if !w.cfg.Requests || !w.cfg.Breed || b.Requested > w.tick || !w.adult(b) || !w.canPay(b) || w.resting(b) {
+	if !w.cfg.Requests || !w.cfg.Breed || b.Requested > w.tick || !w.fertile(b) || !w.canPay(b) || w.resting(b) {
 		return
 	}
 	seen := false
@@ -236,7 +239,7 @@ func (w *World) listAsking() {
 	}
 }
 
-// requesters calls f with every body of the other sex, adult and not
+// requesters calls f with every body of the other sex, fertile and not
 // resting, out of b's sight but within RequestRange of it, whose request to
 // mate is open (Requests).
 func (w *World) requesters(b *Body, f func(*Body)) {
@@ -246,7 +249,7 @@ func (w *World) requesters(b *Body, f func(*Body)) {
 	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
 	for _, i := range w.asking {
 		o := &w.bodies[i]
-		if o.Requested <= w.tick || o.ID == b.ID || o.Sex == b.Sex || !w.adult(o) || w.resting(o) {
+		if o.Requested <= w.tick || o.ID == b.ID || o.Sex == b.Sex || !w.fertile(o) || w.resting(o) {
 			continue
 		}
 		d := max(abs(int(math.Floor(o.X))-bx), abs(int(math.Floor(o.Y))-by))
