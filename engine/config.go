@@ -45,6 +45,11 @@ type Config struct {
 	// within Sight of the one it stands on, which is 3x3 at 1. Zero sees
 	// the tile it stands on only; a negative Sight sees nothing.
 	Sight int
+	// DayTicks is the length of a day, NightTicks the night at its end and
+	// NightSight the sight radius at night (stage 7-1). Every perception
+	// reads the sight of the hour (World.Sight); the valuation does not
+	// know the hour. DayTicks zero for no night.
+	DayTicks, NightTicks, NightSight int
 	// KeepHeading breaks ties by the body's last move: when the options of
 	// least risk include moving the way it last moved, it moves that way,
 	// and it draws at random among them otherwise - where the land ends,
@@ -284,6 +289,8 @@ func DefaultConfig() Config {
 		Speed:              0.25,
 		Window:             1000,
 		Sight:              1,
+		DayTicks:           1000,
+		NightTicks:         500,
 		KeepHeading:        true,
 		TurnOffReverse:     true,
 		Recheck:            300,

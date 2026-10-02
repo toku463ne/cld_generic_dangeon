@@ -104,7 +104,7 @@ func TestValueChangesNothing(t *testing.T) {
 // waiting on the unit and eating it next tick is a plan too.)
 func TestEatingAgainstTheWindow(t *testing.T) {
 	cfg := testConfig(2)
-	cfg.Sight = -1
+	cfg.Sight, cfg.DayTicks = -1, 0
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)

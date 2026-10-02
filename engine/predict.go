@@ -439,12 +439,13 @@ func gapTo(p float64, t int) float64 {
 // stands on, row by row. A body sees the tile it stands on and the square
 // of tiles around it; the food is all a body perceives.
 func (w *World) inSight(dst []Food, b *Body) []Food {
-	if w.cfg.Sight < 0 {
+	sight := w.Sight()
+	if sight < 0 {
 		return dst
 	}
 	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
-	for y := by - w.cfg.Sight; y <= by+w.cfg.Sight; y++ {
-		for x := bx - w.cfg.Sight; x <= bx+w.cfg.Sight; x++ {
+	for y := by - sight; y <= by+sight; y++ {
+		for x := bx - sight; x <= bx+sight; x++ {
 			if w.m.InBounds(x, y) && w.foodOn(w.m.index(x, y)) >= 0 {
 				dst = append(dst, Food{X: x, Y: y})
 			}

@@ -397,14 +397,14 @@ func (w *World) rateTable(rs *rates, r RegionID, meal, full int, speed float64) 
 // were, and leaving the walks out made them read three times as poor (food
 // ahead is seen, and walked to, before it is stepped on).
 func (w *World) stepped(b *Body, from, to int) {
-	if !w.cfg.Learn || from == to || to < 0 || w.cfg.Sight < 0 {
+	if !w.cfg.Learn || from == to || to < 0 || w.Sight() < 0 {
 		return
 	}
 	mem := &b.Memory
 	if mem.Walked == nil {
 		mem.Walked = map[int]int64{}
 	}
-	s := w.cfg.Sight
+	s := w.Sight()
 	tx, ty := to%w.m.Width, to/w.m.Width
 	fx, fy := -1<<20, -1<<20
 	if from >= 0 {

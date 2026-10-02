@@ -29,12 +29,13 @@ import "sort"
 // tell passes evidence between body b and every body in its sight it has
 // not met.
 func (w *World) tell(b *Body) {
-	if !w.cfg.Learn || !w.cfg.Tell || w.grid == nil || w.cfg.Sight < 0 {
+	sight := w.Sight()
+	if !w.cfg.Learn || !w.cfg.Tell || w.grid == nil || sight < 0 {
 		return
 	}
 	bx, by := w.tileOf(b.X, b.Y)%w.m.Width, w.tileOf(b.X, b.Y)/w.m.Width
-	for y := by - w.cfg.Sight; y <= by+w.cfg.Sight; y++ {
-		for x := bx - w.cfg.Sight; x <= bx+w.cfg.Sight; x++ {
+	for y := by - sight; y <= by+sight; y++ {
+		for x := bx - sight; x <= bx+sight; x++ {
 			if !w.m.InBounds(x, y) {
 				continue
 			}

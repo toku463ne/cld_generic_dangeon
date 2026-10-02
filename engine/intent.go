@@ -126,16 +126,17 @@ func (w *World) perceive(b *Body) (under bool, saw uint64) {
 	// lists them, and their count.
 	const prime = 1099511628211
 	saw = 14695981039346656037
-	if w.cfg.Sight < 0 {
+	sight := w.Sight()
+	if sight < 0 {
 		return under, saw
 	}
 	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
 	n := uint64(0)
-	for y := by - w.cfg.Sight; y <= by+w.cfg.Sight; y++ {
-		for x := bx - w.cfg.Sight; x <= bx+w.cfg.Sight; x++ {
+	for y := by - sight; y <= by+sight; y++ {
+		for x := bx - sight; x <= bx+sight; x++ {
 			if w.m.InBounds(x, y) {
 				if t := w.m.index(x, y); w.foodOn(t) >= 0 {
-					off := (y-by+w.cfg.Sight)*(2*w.cfg.Sight+1) + x - bx + w.cfg.Sight
+					off := (y-by+sight)*(2*sight+1) + x - bx + sight
 					saw = (saw ^ uint64(off)) * prime
 					n++
 				}

@@ -85,8 +85,24 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0x6688fcd65831b06f)
+	const want = uint64(0x63b06a64b606edc8)
 	w := newTestWorld(t, 1)
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// With no night, the world is stage 4-4: its fingerprint is the one pinned
+// then.
+func TestDaylongIsStage44(t *testing.T) {
+	const want = uint64(0x6688fcd65831b06f)
+	cfg := testConfig(1)
+	cfg.DayTicks = 0
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
 		t.Fatalf("fingerprint = %#x, want %#x", got, want)
@@ -98,6 +114,8 @@ func TestFingerprint(t *testing.T) {
 func TestUnrecalledIsStage51(t *testing.T) {
 	const want = uint64(0xfd78c54bf2471c88)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0 // before stage 7-1
+	cfg.FoodLife = 0 // before stage 4-4
 	cfg.SpotRead = 0
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
@@ -114,6 +132,8 @@ func TestUnrecalledIsStage51(t *testing.T) {
 func TestHalflifeIsStage41(t *testing.T) {
 	const want = uint64(0x971f95e7534adb93)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0 // before stage 7-1
+	cfg.FoodLife = 0 // before stage 4-4
 	cfg.SpotRead = 0 // before stage 5-2
 	cfg.AgeBand = 0
 	w, err := NewWorld(cfg, testMap())
@@ -131,6 +151,8 @@ func TestHalflifeIsStage41(t *testing.T) {
 func TestUnheldIsStage40(t *testing.T) {
 	const want = uint64(0xb89f1a88f75406bd)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0 // before stage 7-1
+	cfg.FoodLife = 0 // before stage 4-4
 	cfg.SpotRead = 0 // before stage 5-2
 	cfg.AgeBand = 0  // before stage 5-1
 	cfg.Carry = 0
@@ -149,6 +171,8 @@ func TestUnheldIsStage40(t *testing.T) {
 func TestRestblindIsStage38(t *testing.T) {
 	const want = uint64(0xd5089edccdd2163a)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0 // before stage 7-1
+	cfg.FoodLife = 0 // before stage 4-4
 	cfg.SpotRead = 0 // before stage 5-2
 	cfg.AgeBand = 0  // before stage 5-1
 	cfg.Carry = 0    // before stage 4-1
@@ -168,6 +192,8 @@ func TestRestblindIsStage38(t *testing.T) {
 func TestUnaskedIsStage37(t *testing.T) {
 	const want = uint64(0xd1e6c04e0a38b0dd)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0      // before stage 7-1
+	cfg.FoodLife = 0      // before stage 4-4
 	cfg.SpotRead = 0      // before stage 5-2
 	cfg.AgeBand = 0       // before stage 5-1
 	cfg.Carry = 0         // before stage 4-1
@@ -188,6 +214,8 @@ func TestUnaskedIsStage37(t *testing.T) {
 func TestUnagedIsStage36(t *testing.T) {
 	const want = uint64(0x58f5fb5146e6aeb2)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0      // before stage 7-1
+	cfg.FoodLife = 0      // before stage 4-4
 	cfg.SpotRead = 0      // before stage 5-2
 	cfg.AgeBand = 0       // before stage 5-1
 	cfg.Carry = 0         // before stage 4-1
@@ -210,6 +238,8 @@ func TestUnagedIsStage36(t *testing.T) {
 func TestSlowgrowIsStage35b(t *testing.T) {
 	const want = uint64(0x8a059c7590e3f58e)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0      // before stage 7-1
+	cfg.FoodLife = 0      // before stage 4-4
 	cfg.SpotRead = 0      // before stage 5-2
 	cfg.AgeBand = 0       // before stage 5-1
 	cfg.Carry = 0         // before stage 4-1
@@ -232,6 +262,8 @@ func TestSlowgrowIsStage35b(t *testing.T) {
 func TestAgelessIsStage34(t *testing.T) {
 	const want = uint64(0x5dc9e29b78aa406e)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0      // before stage 7-1
+	cfg.FoodLife = 0      // before stage 4-4
 	cfg.SpotRead = 0      // before stage 5-2
 	cfg.AgeBand = 0       // before stage 5-1
 	cfg.Carry = 0         // before stage 4-1
@@ -255,6 +287,8 @@ func TestAgelessIsStage34(t *testing.T) {
 func TestBusyIsStage33d(t *testing.T) {
 	const want = uint64(0x384173ebd067a28b)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -278,6 +312,8 @@ func TestBusyIsStage33d(t *testing.T) {
 func TestDoubledIsStage33c(t *testing.T) {
 	const want = uint64(0xe3831b583507fd10)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -302,6 +338,8 @@ func TestDoubledIsStage33c(t *testing.T) {
 func TestLeanIsStage33b(t *testing.T) {
 	const want = uint64(0x6bd4f31ce603a4df)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -326,6 +364,8 @@ func TestLeanIsStage33b(t *testing.T) {
 func TestPerunitIsStage33(t *testing.T) {
 	const want = uint64(0xde7a3d9c0a25b1db)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0          // before stage 7-1
+	cfg.FoodLife = 0          // before stage 4-4
 	cfg.SpotRead = 0          // before stage 5-2
 	cfg.AgeBand = 0           // before stage 5-1
 	cfg.Carry = 0             // before stage 4-1
@@ -350,6 +390,8 @@ func TestPerunitIsStage33(t *testing.T) {
 func TestUnfedIsStage32(t *testing.T) {
 	const want = uint64(0xa1d282e1ee3e8c90)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -374,6 +416,8 @@ func TestUnfedIsStage32(t *testing.T) {
 func TestEvenIsStage31(t *testing.T) {
 	const want = uint64(0x8b3ca5a0fba68811)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -398,6 +442,8 @@ func TestEvenIsStage31(t *testing.T) {
 func TestSexlessIsStage24(t *testing.T) {
 	const want = uint64(0x6b3c0afd0521ffad)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -421,6 +467,8 @@ func TestSexlessIsStage24(t *testing.T) {
 func TestAgedIsStage23(t *testing.T) {
 	const want = uint64(0x7adba2aacb1d8238)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -445,6 +493,8 @@ func TestAgedIsStage23(t *testing.T) {
 func TestKinIsStage22(t *testing.T) {
 	const want = uint64(0xc2470db84a940725)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -469,6 +519,8 @@ func TestKinIsStage22(t *testing.T) {
 func TestNearIsThird21(t *testing.T) {
 	const want = uint64(0x93985c1a1c5ca120)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -493,6 +545,8 @@ func TestNearIsThird21(t *testing.T) {
 func TestMixedIsSecond21(t *testing.T) {
 	const want = uint64(0xc91b803c2f04cb5a)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -517,6 +571,8 @@ func TestMixedIsSecond21(t *testing.T) {
 func TestUndecayedIsFirst21(t *testing.T) {
 	const want = uint64(0xbaee248a8a9a5bc)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -541,6 +597,8 @@ func TestUndecayedIsFirst21(t *testing.T) {
 func TestUntoldIsStage20(t *testing.T) {
 	const want = uint64(0xe85e05167296fc73)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -565,6 +623,8 @@ func TestUntoldIsStage20(t *testing.T) {
 func TestTruthIsBeforeStage16(t *testing.T) {
 	const want = uint64(0x6031cdab7f6ff3fb)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -589,6 +649,8 @@ func TestTruthIsBeforeStage16(t *testing.T) {
 func TestBounceIsStage15(t *testing.T) {
 	const want = uint64(0x8f80778b1d21631e)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -613,6 +675,8 @@ func TestBounceIsStage15(t *testing.T) {
 func TestDrawnIsCollisions(t *testing.T) {
 	const want = uint64(0xe4ce1d34b72b02f4)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -638,6 +702,8 @@ func TestDrawnIsCollisions(t *testing.T) {
 func TestOverlapIsStage14(t *testing.T) {
 	const want = uint64(0x6dda229acfd53e93)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -663,6 +729,8 @@ func TestOverlapIsStage14(t *testing.T) {
 func TestFixedIsStage13(t *testing.T) {
 	const want = uint64(0x31db5a227bba52b8)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -688,6 +756,8 @@ func TestFixedIsStage13(t *testing.T) {
 func TestNoBreedIsStage12e(t *testing.T) {
 	const want = uint64(0xc6343895ef84fe4d)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -713,6 +783,8 @@ func TestNoBreedIsStage12e(t *testing.T) {
 func TestEverytickIsStage12r(t *testing.T) {
 	const want = uint64(0x72d49e5113ca37a8)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -738,6 +810,8 @@ func TestEverytickIsStage12r(t *testing.T) {
 func TestStraightbackIsStage12q(t *testing.T) {
 	const want = uint64(0x598db45e1aaf44c7)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -763,6 +837,8 @@ func TestStraightbackIsStage12q(t *testing.T) {
 func TestNoHeadingIsStage12p(t *testing.T) {
 	const want = uint64(0x46ffb00b8b64a80)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -788,6 +864,8 @@ func TestNoHeadingIsStage12p(t *testing.T) {
 func TestNoSightIsFirstStage12(t *testing.T) {
 	const want = uint64(0x51de0e4034431e90)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -813,6 +891,8 @@ func TestNoSightIsFirstStage12(t *testing.T) {
 func TestNoWindowIsStage11(t *testing.T) {
 	const want = uint64(0xa43263b50e366b1e)
 	cfg := testConfig(1)
+	cfg.DayTicks = 0     // before stage 7-1
+	cfg.FoodLife = 0     // before stage 4-4
 	cfg.SpotRead = 0     // before stage 5-2
 	cfg.AgeBand = 0      // before stage 5-1
 	cfg.Carry = 0        // before stage 4-1
@@ -896,5 +976,40 @@ func TestTablesAreForgotten(t *testing.T) {
 				t.Fatalf("region %d table %+v last read at %d, now %d", r, k, tb.used, w.tick)
 			}
 		}
+	}
+}
+
+// Night is the last NightTicks of each day, from tick 1; at night every
+// perception reads NightSight, and a world without days has no night.
+func TestNight(t *testing.T) {
+	w, b := soloWorld(t, 50)
+	w.cfg.DayTicks, w.cfg.NightTicks, w.cfg.NightSight = 10, 4, 0
+	for tick, night := range map[int64]bool{1: false, 6: false, 7: true, 10: true, 11: false, 17: true} {
+		w.tick = tick
+		if w.Night() != night {
+			t.Fatalf("tick %d: night %v, want %v", tick, w.Night(), night)
+		}
+	}
+	tile := w.tileOf(b.X, b.Y)
+	next := tile + 1
+	w.food.foods = append(w.food.foods, Food{X: next % w.m.Width, Y: next / w.m.Width})
+	w.food.born = append(w.food.born, w.tick)
+	w.food.foodAt[next] = int32(len(w.food.foods))
+	w.tick = 1
+	if got := len(w.inSight(nil, b)); got != 2 || w.Sight() != w.cfg.Sight {
+		t.Fatalf("day: %d units in sight, sight %d", got, w.Sight())
+	}
+	w.tick = 7
+	if got := len(w.inSight(nil, b)); got != 1 || w.Sight() != 0 {
+		t.Fatalf("night: %d units in sight, sight %d", got, w.Sight())
+	}
+	w.cfg.DayTicks = 0
+	if w.Night() {
+		t.Fatal("night without days")
+	}
+	cfg := testConfig(1)
+	cfg.DayTicks, cfg.NightTicks = 10, 11
+	if _, err := NewWorld(cfg, testMap()); err == nil {
+		t.Fatal("a night longer than the day was accepted")
 	}
 }

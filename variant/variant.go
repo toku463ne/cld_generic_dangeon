@@ -27,6 +27,9 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Daylong is stage 4-4: no night.
+const Daylong = "daylong"
+
 // Unspoiled is stage 5-2 (and the lock count): food never decays.
 const Unspoiled = "unspoiled"
 
@@ -177,7 +180,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func unspoiled(c *engine.Config)  { c.FoodLife = 0 }
+func daylong(c *engine.Config)    { c.DayTicks = 0 }
+func unspoiled(c *engine.Config)  { daylong(c); c.FoodLife = 0 }
 func unrecalled(c *engine.Config) { unspoiled(c); c.SpotRead = 0 }
 func halflife(c *engine.Config)   { unrecalled(c); c.AgeBand = 0 }
 func unheld(c *engine.Config)     { halflife(c); c.Carry = 0 }
@@ -219,6 +223,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Daylong:      daylong,
 	Unspoiled:    unspoiled,
 	Unrecalled:   unrecalled,
 	Halflife:     halflife,

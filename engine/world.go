@@ -76,6 +76,9 @@ func NewWorld(cfg Config, m Map) (*World, error) {
 	if cfg.AgeBand > 0 && (cfg.AgeEpoch <= 0 || len(cfg.AgeTrust) == 0) {
 		return nil, fmt.Errorf("AgeBand needs AgeEpoch above zero and AgeTrust")
 	}
+	if cfg.DayTicks > 0 && (cfg.NightTicks < 0 || cfg.NightTicks > cfg.DayTicks || cfg.NightSight > cfg.Sight) {
+		return nil, fmt.Errorf("a night (NightTicks) must fit in a day (DayTicks), and see no further than the day (Sight)")
+	}
 	w := &World{cfg: cfg, m: m.Clone()}
 	w.rng, w.draws = newCountingRand(cfg.Seed)
 	w.initFood()
@@ -144,6 +147,24 @@ func (w *World) removeDead() {
 		alive = append(alive, b)
 	}
 	w.bodies = alive
+}
+
+// Night reports whether it is night now: the last NightTicks of each day
+// of DayTicks (stage 7-1). The first day starts at tick 1.
+func (w *World) Night() bool {
+	if w.cfg.DayTicks <= 0 || w.cfg.NightTicks <= 0 {
+		return false
+	}
+	return int((w.tick-1)%int64(w.cfg.DayTicks)) >= w.cfg.DayTicks-w.cfg.NightTicks
+}
+
+// Sight is the sight radius now: NightSight at night, Sight by day. Every
+// perception reads it; the survival tables' reach keeps the day's.
+func (w *World) Sight() int {
+	if w.Night() {
+		return w.cfg.NightSight
+	}
+	return w.cfg.Sight
 }
 
 // Tick returns how many ticks the world has run.

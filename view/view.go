@@ -31,6 +31,8 @@ type View struct {
 	// under it.
 	mapW, MapH int
 	ground     *image.RGBA
+	// groundNight is the ground darkened, drawn at night (stage 7-1).
+	groundNight *image.RGBA
 
 	// hist has one sample per tick, from tick 0.
 	hist   []sample
@@ -141,6 +143,14 @@ func New(w *engine.World, scale int) *View {
 				c = waterColor
 			}
 			fillRect(v.ground, x*scale, y*scale, scale, scale, c)
+		}
+	}
+	v.groundNight = image.NewRGBA(v.ground.Rect)
+	for i, p := range v.ground.Pix {
+		if i%4 == 3 {
+			v.groundNight.Pix[i] = p
+		} else {
+			v.groundNight.Pix[i] = p / 2
 		}
 	}
 	w.SetTrace(v.trace)
@@ -320,7 +330,11 @@ func (v *View) followed() (engine.Body, bool) {
 // Render draws the world and the history panel into dst, which must be
 // v.Size() large.
 func (v *View) Render(dst *image.RGBA) {
-	copy(dst.Pix[:len(v.ground.Pix)], v.ground.Pix)
+	ground := v.ground
+	if v.W.Night() {
+		ground = v.groundNight
+	}
+	copy(dst.Pix[:len(ground.Pix)], ground.Pix)
 	s := float32(v.scale)
 	px := func(x float64) int { return int(float32(x) * s) }
 
@@ -341,7 +355,7 @@ func (v *View) Render(dst *image.RGBA) {
 			v.drawTrail(dst, t, followColor)
 		}
 		// What it sees.
-		r := v.W.Config().Sight
+		r := v.W.Sight()
 		tx, ty := int(math.Floor(fb.X)), int(math.Floor(fb.Y))
 		if r >= 0 {
 			strokeRect(dst, (tx-r)*v.scale, (ty-r)*v.scale, (2*r+1)*v.scale, (2*r+1)*v.scale, followColor)
@@ -518,8 +532,12 @@ func (v *View) Status() string {
 	if h.culture >= 0 {
 		culture = fmt.Sprintf("  path knowledge from the dead %.0f%%", float64(h.culture)/10)
 	}
-	return fmt.Sprintf("tick %d  bodies %d  food %d%s  history: %d ticks (%d/px, grid %s)",
-		v.W.Tick(), h.bodies, h.food, culture, v.mapW*tpp, tpp, map[bool]string{true: "10000", false: "1000"}[tpp > 16])
+	night := ""
+	if v.W.Night() {
+		night = "  night"
+	}
+	return fmt.Sprintf("tick %d%s  bodies %d  food %d%s  history: %d ticks (%d/px, grid %s)",
+		v.W.Tick(), night, h.bodies, h.food, culture, v.mapW*tpp, tpp, map[bool]string{true: "10000", false: "1000"}[tpp > 16])
 }
 
 // FollowText describes the followed body and its last decision, with the
