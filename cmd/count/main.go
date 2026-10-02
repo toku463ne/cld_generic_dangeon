@@ -95,6 +95,10 @@
 //	       long a unit is carried before it is eaten, and how much is lost
 //	       with the dead.
 //
+//	placeroom (stage 5-2) whether a tile tells anything: food coming back
+//	       to a tile a body ate on, and food a body saw and left still
+//	       there when it comes back.
+//
 //	meet   (stage 1-2) in the worlds of the random and base variants, the
 //	       share of tiles a body enters that hold food, against what the
 //	       truth table's third row reads: the food of the region over its land.
@@ -119,7 +123,7 @@ import (
 )
 
 func main() {
-	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage | cycle | explore | shuttle | change | breed | mate | turnover | invade | collide | generations | learn | room | culture | erase | drift | walked | regions | seasons | sex | stages | payers | provision | allee | mating | request | oldbirths | ties | carryroom | carry")
+	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage | cycle | explore | shuttle | change | breed | mate | turnover | invade | collide | generations | learn | room | culture | erase | drift | walked | regions | seasons | sex | stages | payers | provision | allee | mating | request | oldbirths | ties | carryroom | carry | placeroom")
 	mapName := flag.String("map", "", "map (required)")
 	width := flag.Int("w", 0, "map width in tiles (required)")
 	height := flag.Int("h", 0, "map height in tiles (required)")
@@ -127,10 +131,10 @@ func main() {
 	seed0 := flag.Int64("seed0", 1, "first seed")
 	ticks := flag.Int("ticks", 0, "ticks per run (underfoot, split, meet, sight, forage, cycle and explore, required there)")
 	every := flag.Int("every", 50, "split: read the world every this many ticks")
-	vname := flag.String("variant", variant.Base, "erase, drift, walked, regions, seasons, sex, stages, payers, provision, allee, mating, request, oldbirths, ties, carryroom and carry: the variant to run")
+	vname := flag.String("variant", variant.Base, "erase, drift, walked, regions, seasons, sex, stages, payers, provision, allee, mating, request, oldbirths, ties, carryroom, carry and placeroom: the variant to run")
 	flag.Parse()
 
-	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" && *what != "cycle" && *what != "explore" && *what != "shuttle" && *what != "change" && *what != "breed" && *what != "mate" && *what != "turnover" && *what != "invade" && *what != "collide" && *what != "generations" && *what != "learn" && *what != "room" && *what != "culture" && *what != "erase" && *what != "drift" && *what != "walked" && *what != "regions" && *what != "seasons" && *what != "sex" && *what != "stages" && *what != "payers" && *what != "provision" && *what != "allee" && *what != "mating" && *what != "request" && *what != "oldbirths" && *what != "ties" && *what != "carryroom" && *what != "carry" {
+	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" && *what != "cycle" && *what != "explore" && *what != "shuttle" && *what != "change" && *what != "breed" && *what != "mate" && *what != "turnover" && *what != "invade" && *what != "collide" && *what != "generations" && *what != "learn" && *what != "room" && *what != "culture" && *what != "erase" && *what != "drift" && *what != "walked" && *what != "regions" && *what != "seasons" && *what != "sex" && *what != "stages" && *what != "payers" && *what != "provision" && *what != "allee" && *what != "mating" && *what != "request" && *what != "oldbirths" && *what != "ties" && *what != "carryroom" && *what != "carry" && *what != "placeroom" {
 		fail(fmt.Errorf("unknown count %q", *what))
 	}
 	if *seeds <= 0 || *width <= 0 || *height <= 0 || *mapName == "" {
@@ -140,7 +144,7 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" || *what == "cycle" || *what == "explore" || *what == "shuttle" || *what == "change" || *what == "breed" || *what == "mate" || *what == "turnover" || *what == "invade" || *what == "collide" || *what == "generations" || *what == "learn" || *what == "room" || *what == "culture" || *what == "erase" || *what == "drift" || *what == "walked" || *what == "regions" || *what == "seasons" || *what == "sex" || *what == "stages" || *what == "payers" || *what == "provision" || *what == "allee" || *what == "mating" || *what == "request" || *what == "oldbirths" || *what == "ties" || *what == "carryroom" || *what == "carry" {
+	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" || *what == "cycle" || *what == "explore" || *what == "shuttle" || *what == "change" || *what == "breed" || *what == "mate" || *what == "turnover" || *what == "invade" || *what == "collide" || *what == "generations" || *what == "learn" || *what == "room" || *what == "culture" || *what == "erase" || *what == "drift" || *what == "walked" || *what == "regions" || *what == "seasons" || *what == "sex" || *what == "stages" || *what == "payers" || *what == "provision" || *what == "allee" || *what == "mating" || *what == "request" || *what == "oldbirths" || *what == "ties" || *what == "carryroom" || *what == "carry" || *what == "placeroom" {
 		if *ticks <= 0 {
 			fail(fmt.Errorf("-ticks is required for %s", *what))
 		}
@@ -158,6 +162,10 @@ func main() {
 		}
 		if *what == "carry" {
 			carry(m, *mapName, *seeds, *seed0, *ticks, *vname)
+			return
+		}
+		if *what == "placeroom" {
+			placeRoom(m, *mapName, *seeds, *seed0, *ticks, *vname)
 			return
 		}
 		if *what == "request" {

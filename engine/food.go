@@ -241,6 +241,10 @@ func (w *World) provision(r RegionID, list *[]int) bool {
 	return true
 }
 
+// FoodOn reports whether tile t holds food now. It reads and changes
+// nothing.
+func (w *World) FoodOn(t int) bool { return w.foodOn(t) >= 0 }
+
 // foodOn returns the index of the unit on tile t, or -1.
 func (w *World) foodOn(t int) int {
 	return int(w.food.foodAt[t]) - 1
