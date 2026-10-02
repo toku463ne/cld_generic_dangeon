@@ -20,7 +20,7 @@ import (
 // saved, so that a loaded world can build them before play (World.Warm).
 
 // snapshotVersion changes whenever the format does.
-const snapshotVersion = 18
+const snapshotVersion = 19
 
 type snapshot struct {
 	Version int    `json:"version"`
@@ -35,6 +35,10 @@ type snapshot struct {
 	Eaten    int64     `json:"eaten"`
 
 	Provisioned int64 `json:"provisioned,omitempty"`
+	// Picked and Lost count the units picked up and lost with the dead
+	// (Carry); what bodies hold now is in Bodies.
+	Picked int64 `json:"picked,omitempty"`
+	Lost   int64 `json:"lost,omitempty"`
 
 	Bodies []Body `json:"bodies"`
 	NextID int64  `json:"nextID"`
@@ -60,6 +64,8 @@ func (w *World) Save(out io.Writer) error {
 		Eaten:    w.food.eaten,
 
 		Provisioned: w.food.provisioned,
+		Picked:      w.food.picked,
+		Lost:        w.food.lost,
 		Bodies:      w.bodies,
 		NextID:      w.nextID,
 		Stats:       w.stats,
@@ -87,6 +93,10 @@ func Load(in io.Reader) (*World, error) {
 	}
 	copy(w.food.owed, s.FoodOwed)
 	w.food.appeared, w.food.eaten, w.food.provisioned = s.Appeared, s.Eaten, s.Provisioned
+	w.food.picked, w.food.lost = s.Picked, s.Lost
+	for _, b := range w.bodies {
+		w.food.held += b.Held
+	}
 	for _, f := range s.Foods {
 		if !w.m.InBounds(f.X, f.Y) {
 			return nil, fmt.Errorf("food at (%d,%d) is off the map", f.X, f.Y)

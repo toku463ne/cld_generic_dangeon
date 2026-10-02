@@ -457,7 +457,8 @@ func TestTraceChangesNothing(t *testing.T) {
 }
 
 // A body with food underfoot and energy that does not outlast the window
-// eats: eating is the one best option.
+// eats: eating is the one best option, or ties with picking the unit up,
+// which eats it at once where a meal fits (Carry).
 func TestHungryBodyEats(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.Bodies = 0
@@ -468,7 +469,7 @@ func TestHungryBodyEats(t *testing.T) {
 	f := w.Foods()[0]
 	b := Body{X: float64(f.X) + 0.5, Y: float64(f.Y) + 0.5, Energy: 20}
 	for i := 0; i < 20; i++ {
-		if a := w.decide(&b); a.Kind != ActEat {
+		if a := w.decide(&b); a.Kind != ActEat && a.Kind != ActPick {
 			t.Fatalf("draw %d: took %v with food underfoot", i, a)
 		}
 	}

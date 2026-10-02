@@ -58,6 +58,8 @@ type Body struct {
 	// Requested is the tick its request to mate stays open until (with
 	// Requests); zero or past for none.
 	Requested int64 `json:",omitempty"`
+	// Held is how many units of food it holds (with Carry).
+	Held int `json:",omitempty"`
 	// Build is its own speed, most energy and burn (build.go), and Share
 	// the share of its budget it was born with for speed (with Allot).
 	Build Build
@@ -78,6 +80,8 @@ const (
 	ActEat
 	ActMove
 	ActMate
+	// ActPick picks up the unit underfoot (Carry, stage 4-1).
+	ActPick
 	NumActionKinds
 )
 
@@ -138,6 +142,8 @@ type Stats struct {
 	// Provisioned counts, per region, the food that went straight to a
 	// resting mother (Provision, food.go).
 	Provisioned []int64 `json:",omitempty"`
+	// EatenHeld counts the units bodies ate from what they held (Carry).
+	EatenHeld int64 `json:",omitempty"`
 }
 
 // RowCount counts, for one learned row, the observations bodies added to it
@@ -193,6 +199,9 @@ func (w *World) possibleActions(dst []Action, b *Body) []Action {
 	dst = append(dst, Action{Kind: ActWait})
 	if t := w.tileOf(b.X, b.Y); t >= 0 && w.foodOn(t) >= 0 {
 		dst = append(dst, Action{Kind: ActEat})
+		if b.Held < w.cfg.Carry {
+			dst = append(dst, Action{Kind: ActPick})
+		}
 	}
 	for d, v := range moveDirs {
 		x, y := b.X+v[0]*w.speedOf(b), b.Y+v[1]*w.speedOf(b)
@@ -224,6 +233,11 @@ func (w *World) act(i int, b *Body, a Action) {
 		t := w.tileOf(b.X, b.Y)
 		w.eatFood(w.foodOn(t))
 		b.Energy = math.Min(b.Energy+w.cfg.FoodEnergy, w.maxOf(b))
+	case ActPick:
+		t := w.tileOf(b.X, b.Y)
+		w.takeFood(w.foodOn(t))
+		b.Held++
+		w.eatHeld(b) // where a meal fits, picking it up is eating it
 	case ActMove:
 		w.step(i, b, a.Dir)
 	}

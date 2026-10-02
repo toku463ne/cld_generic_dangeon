@@ -10,8 +10,12 @@ package engine
 // new food. On a map with seasons (Map.SeasonFood) the shares are the
 // season's; food on the ground does not move, so it follows the seasons late.
 //
-// The ledger (FoodLedger) counts every unit that appears and every unit that
-// is eaten, so that a test can check the total tick by tick.
+// A unit can also be held by a body (Carry): it is then neither on the
+// ground nor vacant. A unit held by a body that dies is lost: it becomes a
+// vacancy.
+//
+// The ledger (FoodLedger) counts every unit that appears, is eaten or is
+// lost, so that a test can check the total tick by tick.
 
 // Food is one unit of food on a tile.
 type Food struct {
@@ -27,13 +31,18 @@ type FoodLedger struct {
 	// Provisioned counts the units that went straight to a resting mother
 	// (Provision): each appeared and was eaten in the same tick.
 	Provisioned int64
+	// Held is the units bodies hold now (Carry), and Picked and Lost the
+	// units picked up, and held by bodies that died, since the world was
+	// built.
+	Held         int
+	Picked, Lost int64
 }
 
 // Balanced reports whether the account closes: nothing appeared or vanished
 // except by coming back and being eaten, and the map never held more than the
 // cap.
 func (l FoodLedger) Balanced() bool {
-	return int64(l.OnGround) == l.Appeared-l.Eaten && l.OnGround <= l.Cap && l.OnGround >= 0
+	return int64(l.OnGround+l.Held) == l.Appeared-l.Eaten-l.Lost && l.OnGround+l.Held <= l.Cap && l.OnGround >= 0 && l.Held >= 0
 }
 
 // foodState is the world's food. foodAt maps a tile to the index of the unit
@@ -49,6 +58,10 @@ type foodState struct {
 	owed []float64
 
 	appeared, eaten, provisioned int64
+	// held is the units bodies hold now; picked and lost count units
+	// picked up and units held by bodies that died (Carry).
+	held         int
+	picked, lost int64
 
 	// regionLand lists each region's land tiles, which is where its food can
 	// appear.
@@ -144,7 +157,7 @@ func (w *World) placeFood(r RegionID) bool {
 // others carries over.
 func (w *World) returnFood() {
 	f := &w.food
-	vacant := w.cfg.FoodCap - len(f.foods)
+	vacant := w.cfg.FoodCap - len(f.foods) - f.held
 	shares := w.m.FoodShares(w.tick)
 	sum := w.shareSum(shares)
 	if vacant <= 0 || sum == 0 {
@@ -157,7 +170,7 @@ func (w *World) returnFood() {
 			continue
 		}
 		f.owed[r] += w.cfg.FoodReturn * float64(vacant) * s / sum
-		for f.owed[r] >= 1 && len(f.foods) < w.cfg.FoodCap {
+		for f.owed[r] >= 1 && len(f.foods)+f.held < w.cfg.FoodCap {
 			if resting == nil {
 				resting = w.restingMothers()
 			}
@@ -233,9 +246,43 @@ func (w *World) foodOn(t int) int {
 	return int(w.food.foodAt[t]) - 1
 }
 
-// eatFood removes unit i. The last unit moves into its slot, so indices are
-// not stable across an eat.
+// eatFood removes unit i, eaten. The last unit moves into its slot, so
+// indices are not stable across an eat.
 func (w *World) eatFood(i int) {
+	w.liftFood(i)
+	w.food.eaten++
+}
+
+// takeFood lifts unit i off the ground into a body's hold (Carry).
+func (w *World) takeFood(i int) {
+	w.liftFood(i)
+	w.food.held++
+	w.food.picked++
+}
+
+// eatHeld has body b eat the units it holds while a whole meal fits; it
+// spends no turn (Carry). A body eats what it holds as soon as nothing of it
+// is lost, which is when its valuation reads it.
+func (w *World) eatHeld(b *Body) {
+	for b.Held > 0 && b.Energy <= w.maxOf(b)-w.cfg.FoodEnergy {
+		b.Held--
+		b.Energy += w.cfg.FoodEnergy
+		w.food.held--
+		w.food.eaten++
+		w.stats.EatenHeld++
+	}
+}
+
+// loseHeld drops what a dead body held out of the world: the units become
+// vacancies (Carry).
+func (w *World) loseHeld(b *Body) {
+	w.food.held -= b.Held
+	w.food.lost += int64(b.Held)
+	b.Held = 0
+}
+
+// liftFood takes unit i off the ground. The last unit moves into its slot.
+func (w *World) liftFood(i int) {
 	f := &w.food
 	gone := f.foods[i]
 	f.foodAt[gone.Y*w.m.Width+gone.X] = 0
@@ -246,7 +293,6 @@ func (w *World) eatFood(i int) {
 		f.foodAt[moved.Y*w.m.Width+moved.X] = int32(i + 1)
 	}
 	f.foods = f.foods[:last]
-	f.eaten++
 	w.foodMoved(w.m.RegionAt(gone.X, gone.Y), -1)
 }
 
@@ -266,6 +312,9 @@ func (w *World) FoodLedger() FoodLedger {
 		Eaten:    w.food.eaten,
 
 		Provisioned: w.food.provisioned,
+		Held:        w.food.held,
+		Picked:      w.food.picked,
+		Lost:        w.food.lost,
 	}
 }
 

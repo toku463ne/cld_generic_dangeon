@@ -177,6 +177,9 @@ func TestMateIsValued(t *testing.T) {
 func TestWorthlessChildIsNotMated(t *testing.T) {
 	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 100}, Body{ID: 1, X: 2.5, Y: 2.5, Energy: 100})
 	w.cfg.ChildWorth = 0
+	// With room to hold the food in sight, paying the share costs a full
+	// body nothing it can read in the window, and the mate ties (Carry).
+	w.cfg.Carry = 0
 	if a := w.decide(&w.bodies[0]); a.Kind == ActMate {
 		t.Fatalf("mated for a child worth nothing: %+v", w.valuation)
 	}

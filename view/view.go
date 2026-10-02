@@ -647,6 +647,8 @@ func actionName(a engine.Action) string {
 		return "wait"
 	case engine.ActEat:
 		return "eat"
+	case engine.ActPick:
+		return "pick"
 	case engine.ActMate:
 		return fmt.Sprintf("mate #%d", a.Mate)
 	}

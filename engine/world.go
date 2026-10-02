@@ -96,6 +96,7 @@ func (w *World) Step() {
 			// Old age lowers the most a body can hold (stage 3-7).
 			b.Energy = math.Min(b.Energy, w.maxOf(b))
 		}
+		w.eatHeld(b)
 		w.request(b)
 		w.act(i, b, w.turn(b))
 		burn := w.burnOf(b)
@@ -124,6 +125,7 @@ func (w *World) removeDead() {
 				w.died = map[int64]int64{}
 			}
 			w.died[b.ID] = w.tick
+			w.loseHeld(&b)
 			w.stats.Deaths[cause]++
 			w.stats.BudgetOut += b.Budget
 			if w.tick < b.Mature {
@@ -280,6 +282,9 @@ func (w *World) Fingerprint() uint64 {
 			}
 			if w.cfg.Requests {
 				put(uint64(b.Requested))
+			}
+			if b.Held > 0 {
+				put(uint64(b.Held))
 			}
 		}
 	}

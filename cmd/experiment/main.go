@@ -645,7 +645,7 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 
 	p("### 5. 行動の選択割合（%s）\n\n", base)
 	p("| 行動 | 割合 |\n| --- | --- |\n")
-	for k, name := range []string{"待つ", "食べる", "移動", "交配"} {
+	for k, name := range []string{"待つ", "食べる", "移動", "交配", "拾う"} {
 		p("| %s | %s%% |\n", name, fmtMeanSE(collect(rs, func(r result) float64 { return 100 * r.actions[k] }), 2))
 	}
 	p("\n")

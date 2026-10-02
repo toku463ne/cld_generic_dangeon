@@ -27,6 +27,9 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Unheld is stage 4-0: no body holds food.
+const Unheld = "unheld"
+
 // Restblind is stage 3-8: a resting mother reads her whole window at her
 // resting burn.
 const Restblind = "restblind"
@@ -159,7 +162,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func restblind(c *engine.Config) { c.RestAhead = false }
+func unheld(c *engine.Config)    { c.Carry = 0 }
+func restblind(c *engine.Config) { unheld(c); c.RestAhead = false }
 func oldmating(c *engine.Config) { restblind(c); c.OldBarren = false }
 func unasked(c *engine.Config)   { oldmating(c); c.Requests = false }
 func unaged(c *engine.Config)    { unasked(c); c.ChildAbility = 1 }
@@ -196,6 +200,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Unheld:       unheld,
 	Restblind:    restblind,
 	Oldmating:    oldmating,
 	Unasked:      unasked,

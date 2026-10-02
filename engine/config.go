@@ -142,6 +142,12 @@ type Config struct {
 	// whenever that leaves her no way to starve in the window every option
 	// ties.
 	RestAhead bool
+	// Carry is how many units of food a body can hold (stage 4-1). It
+	// picks a unit up from underfoot as an action, carries it as it moves,
+	// and eats one without spending a turn whenever a whole meal fits; it
+	// values what it holds as energy a meal's cap does not limit. Zero:
+	// stage 4-0, where no body holds food.
+	Carry int
 	// MatureAge is how many ticks after its birth a child becomes an adult
 	// and may mate.
 	MatureAge int
@@ -303,6 +309,7 @@ func DefaultConfig() Config {
 		AgeStep:            0.25,
 		OldBarren:          true,
 		RestAhead:          true,
+		Carry:              1,
 		Requests:           true,
 		RequestRange:       5,
 		RequestTicks:       100,

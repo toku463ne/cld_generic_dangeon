@@ -424,7 +424,7 @@ func (w *World) learnedTable(p float64, meal, full int, speed float64) Survival 
 	t, ok := w.pred.learned[k]
 	if !ok {
 		ahead := w.pathTicks(speed)
-		tt := TruthTable{Meal: meal, Full: full, Reach: w.reach(speed)}
+		tt := TruthTable{Meal: meal, Full: full, Reach: w.reach(speed), Over: w.cfg.Carry * meal}
 		win := w.cfg.Window
 		tt.Extra = []int{win - ahead, win - ahead/2 - 1}
 		t = &table{s: tt.NewSurvival(w.levelRate(level)*math.Min(speed, 1), w.pred.windows), used: w.tick}

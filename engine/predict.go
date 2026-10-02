@@ -46,6 +46,10 @@ type TruthTable struct {
 	Reach int
 	// Extra are more window lengths a survival table keeps (learn.go).
 	Extra []int
+	// Over is how many ticks of energy past Full the table reads: food a
+	// body holds (Carry, stage 4-1). Past Full a meal met on the ground
+	// fits nowhere and is passed by.
+	Over int
 }
 
 // TruthTable reads the true rules and the food on the ground now.
@@ -56,6 +60,7 @@ func (w *World) TruthTable() TruthTable {
 		Meet:  make([]float64, len(w.m.RegionFood)),
 		Reach: w.reach(w.slowest()),
 	}
+	t.Over = w.cfg.Carry * t.Meal
 	for r := range t.Meet {
 		t.Meet[r] = w.meet(RegionID(r), w.cfg.Speed)
 	}
@@ -145,8 +150,9 @@ func (t TruthTable) NewSurvival(meet float64, windows []int) Survival {
 			want[l] = true
 		}
 	}
-	cur := make([]float64, t.Full+1)
-	next := make([]float64, t.Full+1)
+	top := t.Full + t.Over
+	cur := make([]float64, top+1)
+	next := make([]float64, top+1)
 	cur[0] = 1
 	keep := func(step int) {
 		if want[step+1] {
@@ -159,8 +165,8 @@ func (t TruthTable) NewSurvival(meet float64, windows []int) Survival {
 		// A body with more ticks of energy than the steps so far cannot be
 		// dead yet: those entries stay 0, as they were made, and are not
 		// worked out. It halves the work and changes no number.
-		for n := 1; n <= min(step, t.Full); n++ {
-			fed := min(n+t.Meal, t.Full) - 1
+		for n := 1; n <= min(step, top); n++ {
+			fed := max(min(n+t.Meal, t.Full), n) - 1
 			next[n] = meet*cur[fed] + (1-meet)*cur[n-1]
 		}
 		cur, next = next, cur
@@ -239,10 +245,16 @@ func (w *World) Value(t TruthTable, survival []Survival, b Body) Valuation {
 func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive func(RegionID) Survival, child float64, rs *rates, b *Body) {
 	path := rs != nil
 	speed, burn := w.speedOf(b), w.planBurn(b)
-	// A resting mother's reserve is energy she has not got yet: it adds to
-	// what she can last, but not to what a meal can fill (stage 4-0).
-	reserve := w.restReserve(b)
+	// A resting mother's reserve is energy she has not got yet (stage 4-0),
+	// and the food a body holds is energy it eats as soon as a whole meal
+	// fits (stage 4-1): both add to what it can last, but not to what a
+	// meal can fill.
+	reserve := w.restReserve(b) + b.Held*meal
 	most := full + reserve
+	// top is what a meal can fill up to after the option under way: a unit
+	// picked up raises it by a meal. room is whether a unit walked to and
+	// found full can still be held.
+	top, room := most, b.Held < w.cfg.Carry
 	v.Options = w.possibleActions(v.Options[:0], b)
 	v.Seen = w.inSight(v.Seen[:0], b)
 	v.Plan, v.Arrive = v.Plan[:0], v.Arrive[:0]
@@ -272,7 +284,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			// here instead, it did by a step, and a body waited tick after
 			// tick for a start it never made).
 			if a.Kind == ActMove {
-				risk = w.keepReading(b, rs, a.Dir, x, y, win, after, meal, most, s, risk)
+				risk = w.keepReading(b, rs, a.Dir, x, y, win, after, meal, top, s, risk)
 			} else {
 				best := math.Inf(1)
 				for _, o := range v.Options {
@@ -282,7 +294,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 					d := moveDirs[o.Dir]
 					mx, my := b.X+d[0]*speed, b.Y+d[1]*speed
 					ms := alive(w.m.RegionAt(int(math.Floor(mx)), int(math.Floor(my))))
-					best = math.Min(best, w.keepReading(b, rs, o.Dir, mx, my, win, after, meal, most, ms, ms.deadIn(win, after)))
+					best = math.Min(best, w.keepReading(b, rs, o.Dir, mx, my, win, after, meal, top, ms, ms.deadIn(win, after)))
 				}
 				if !math.IsInf(best, 1) {
 					risk = best
@@ -299,7 +311,13 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			k := walkTicks(gapTo(x, food.X), gapTo(y, food.Y), speed)
 			r := 1.0
 			if after-k > 0 {
-				r = alive(w.m.RegionAt(food.X, food.Y)).deadIn(win-1-k, min(after-k+meal, most)-1)
+				// It eats the unit, or holds it where a meal does not
+				// fit and it has room (Carry, stage 4-1).
+				fill := top
+				if room {
+					fill += meal
+				}
+				r = alive(w.m.RegionAt(food.X, food.Y)).deadIn(win-1-k, min(after-k+meal, fill)-1)
 			}
 			if r < risk {
 				risk, plan, arrive = r, f, k
@@ -311,10 +329,16 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 		// Where the option leaves the body, and with how much energy.
 		x, y, after := b.X, b.Y, n-1
 		eaten := -1
+		top, room = most, b.Held < w.cfg.Carry
 		switch a.Kind {
 		case ActEat:
 			after = min(n+meal, most) - 1
 			eaten = w.m.index(int(math.Floor(b.X)), int(math.Floor(b.Y)))
+		case ActPick:
+			// Held, the unit is a meal it eats once one fits (stage 4-1).
+			after = n + meal - 1
+			eaten = w.m.index(int(math.Floor(b.X)), int(math.Floor(b.Y)))
+			top, room = most+meal, b.Held+1 < w.cfg.Carry
 		case ActMove:
 			d := moveDirs[a.Dir]
 			x, y = b.X+d[0]*speed, b.Y+d[1]*speed
@@ -489,7 +513,7 @@ func (w *World) tableAt(r RegionID, k survKey) *table {
 	p := &w.pred
 	t, ok := p.cache[r][k]
 	if !ok {
-		tt := TruthTable{Meal: k.meal, Full: k.full, Reach: w.reach(k.speed)}
+		tt := TruthTable{Meal: k.meal, Full: k.full, Reach: w.reach(k.speed), Over: w.cfg.Carry * k.meal}
 		t = &table{s: tt.NewSurvival(w.meetAt(r, k.food, k.speed), p.windows), used: w.tick}
 		p.cache[r][k] = t
 	}
