@@ -127,6 +127,11 @@ const (
 	Mature400 = "mature400"
 )
 
+// Unprovided is the base world with no food going straight to resting
+// mothers (Provision off): stage 4-3 asks whether mothers who carry food
+// manage without it.
+const Unprovided = "unprovided"
+
 // Food2 and Food4 are the base world with food coming back twice and four
 // times as fast (FoodReturn): a sweep of how rich the map is, the rules
 // left as they are.
@@ -197,6 +202,7 @@ var rewrites = map[string]func(*engine.Config){
 	Base:         func(*engine.Config) {},
 	Mature750:    func(c *engine.Config) { c.MatureAge = 750 },
 	Mature400:    func(c *engine.Config) { c.MatureAge = 400 },
+	Unprovided:   func(c *engine.Config) { c.Provision = false },
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
