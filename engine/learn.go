@@ -34,7 +34,9 @@ import (
 //
 // With EvidenceHalfLife, evidence weighs less the older it is: all of a
 // tally is kept as of tick T, and halves every EvidenceHalfLife ticks
-// after (age, Fresh).
+// after (age, Fresh). With AgeBand instead (stage 5-1), N and K are all
+// the tally ever counted, and Chunks hold it by when it was observed; it is
+// read in steps of age (trust, Fresh).
 type Tally struct {
 	N, K   float64 `json:",omitempty"`
 	Heard  []Heard `json:",omitempty"`
@@ -44,6 +46,15 @@ type Tally struct {
 	// stands for 1). Ageing scales S rather than every entry; passing
 	// evidence brings the entries to scale (settle).
 	S float64 `json:",omitempty"`
+	// Chunks are the observations by the AgeEpoch they were made in,
+	// oldest first (with AgeBand).
+	Chunks []Chunk `json:",omitempty"`
+}
+
+// Chunk is the part of a tally observed in one AgeEpoch from tick T: K of N.
+type Chunk struct {
+	T    int64
+	N, K float64
 }
 
 // Heard is evidence received from one observer: K of N came out one way. A
@@ -83,8 +94,10 @@ type Memory struct {
 	// Walked holds the tiles the body left within PathRecall ticks, and
 	// when.
 	Walked map[int]int64 `json:",omitempty"`
-	// Asks and Kids: mates asked and children had.
+	// Asks and Kids: mates asked and children had. With AgeBand, Mate holds
+	// the same by when (stage 5-1), and the mate row reads it.
 	Asks, Kids float64 `json:",omitempty"`
+	Mate       Tally   `json:",omitempty"`
 	// Met are the bodies it has passed evidence with (tell.go).
 	Met map[int64]bool `json:",omitempty"`
 	// Ver counts the changes to the rows it can pass on; Told holds, for
@@ -113,15 +126,69 @@ func (w *World) decay(t int64) float64 {
 	return math.Exp2(-float64(w.tick-t) / w.cfg.EvidenceHalfLife)
 }
 
+// trust is how much evidence observed at tick t is relied on now, with
+// AgeBand (stage 5-1): the trust of its step of age. It is the one place
+// the time of an observation is read; a body judges by the step alone.
+func (w *World) trust(t int64) float64 {
+	band := int((w.tick - t) / int64(w.cfg.AgeBand))
+	if band >= len(w.cfg.AgeTrust) {
+		band = len(w.cfg.AgeTrust) - 1
+	}
+	return w.cfg.AgeTrust[max(band, 0)]
+}
+
 // Fresh returns tally t's sums as they weigh now (its Heard entries are left
-// as they were kept; age brings those to now as well).
+// as they were kept; age brings those to now as well). With AgeBand each
+// chunk weighs the trust of its step of age.
 func (w *World) Fresh(t Tally) Tally {
+	if w.cfg.AgeBand > 0 {
+		var f Tally
+		for _, c := range t.Chunks {
+			s := w.trust(c.T)
+			f.N += s * c.N
+			f.K += s * c.K
+		}
+		f.T = w.tick
+		return f
+	}
 	f := w.decay(t.T)
 	return Tally{N: f * t.N, K: f * t.K, HN: f * t.HN, HK: f * t.HK, T: w.tick}
 }
 
-// age brings tally t to now: its sums, and the scale of its entries.
+// observe adds K of N to tally t, observed now. With AgeBand they join the
+// chunk of this AgeEpoch, and chunks old enough to share the last step of
+// age are merged (they read the same); the steps of the rest are left as
+// they were. Without, the tally is aged first.
+func (w *World) observe(t *Tally, n, k float64) {
+	if w.cfg.AgeBand <= 0 {
+		w.age(t)
+		t.N += n
+		t.K += k
+		return
+	}
+	t.N += n
+	t.K += k
+	epoch := w.tick - w.tick%int64(w.cfg.AgeEpoch)
+	if c := len(t.Chunks); c > 0 && t.Chunks[c-1].T == epoch {
+		t.Chunks[c-1].N += n
+		t.Chunks[c-1].K += k
+	} else {
+		t.Chunks = append(t.Chunks, Chunk{T: epoch, N: n, K: k})
+	}
+	old := int64(w.cfg.AgeBand) * int64(len(w.cfg.AgeTrust)-1)
+	for len(t.Chunks) >= 2 && w.tick-t.Chunks[1].T >= old {
+		c := t.Chunks[1]
+		t.Chunks[1] = Chunk{T: c.T, N: t.Chunks[0].N + c.N, K: t.Chunks[0].K + c.K}
+		t.Chunks = t.Chunks[1:]
+	}
+}
+
+// age brings tally t to now: its sums, and the scale of its entries. With
+// AgeBand nothing is brought: a tally is read by the age of its chunks.
 func (w *World) age(t *Tally) {
+	if w.cfg.AgeBand > 0 {
+		return
+	}
 	f := w.decay(t.T)
 	t.T = w.tick
 	if f == 1 {
@@ -199,6 +266,9 @@ func (w *World) pathRate(b *Body, r RegionID) float64 {
 // without AgePath it does not age (stage 2-2): that tiles walked lately
 // hold less than their region was taken for a fact that does not change.
 func (w *World) pathTally(b *Body) Tally {
+	if w.cfg.AgeBand > 0 {
+		return w.Fresh(b.Memory.Path) // one rule for every row (stage 5-1)
+	}
 	if !w.pathAges() {
 		return b.Memory.Path
 	}
@@ -237,7 +307,11 @@ func (w *World) pathFrom(t Tally, p float64) float64 {
 }
 
 // childRate is a body's estimate of the chance a mate becomes a child.
+// With AgeBand it ages as every row does (stage 5-1).
 func (w *World) childRate(b *Body) float64 {
+	if w.cfg.AgeBand > 0 {
+		return w.Fresh(b.Memory.Mate).estimate(w.cfg.PriorChild, w.cfg.ChildWeight)
+	}
 	return Tally{N: b.Memory.Asks, K: b.Memory.Kids}.estimate(w.cfg.PriorChild, w.cfg.ChildWeight)
 }
 
@@ -349,23 +423,25 @@ func (w *World) stepped(b *Body, from, to int) {
 			for int(r) >= len(mem.Regions) {
 				mem.Regions = append(mem.Regions, Tally{T: w.tick})
 			}
-			w.age(&mem.Regions[r])
-			mem.Regions[r].N++
-			mem.Regions[r].K += food
+			w.observe(&mem.Regions[r], 1, food)
 			w.regionRow(r).Learned++
 			if !w.cfg.StableRows {
 				mem.Ver++ // the regions' rows pass too
 			}
 			if w.walked(b, t) {
 				w.stats.PathRow.Learned++
-				w.agePath(&mem.Path)
+				n := 1.0
 				if w.cfg.StableRows {
 					// Against what the region was believed to hold.
-					mem.Path.N += w.regionRate(b, r)
-				} else {
-					mem.Path.N++
+					n = w.regionRate(b, r)
 				}
-				mem.Path.K += food
+				if w.cfg.AgeBand > 0 {
+					w.observe(&mem.Path, n, food)
+				} else {
+					w.agePath(&mem.Path)
+					mem.Path.N += n
+					mem.Path.K += food
+				}
 				if w.cfg.PassPath {
 					mem.Ver++
 				}

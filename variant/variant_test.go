@@ -1,6 +1,7 @@
 package variant
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/toku463ne/cld_generic_dangeon/engine"
@@ -13,7 +14,7 @@ func TestBaseIsDefault(t *testing.T) {
 	}
 	want := engine.DefaultConfig()
 	want.Seed = 7
-	if cfg != want {
+	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("base config %+v, want %+v", cfg, want)
 	}
 }

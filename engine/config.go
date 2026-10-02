@@ -197,6 +197,15 @@ type Config struct {
 	// The world changes; evidence of how it was misleads. Zero keeps all
 	// evidence at full weight: the first run of stage 2-1.
 	EvidenceHalfLife float64
+	// AgeBand, with AgeTrust and AgeEpoch, reads the age of evidence in
+	// steps (stage 5-1), the same for every row: evidence AgeBand ticks old
+	// or less is trusted AgeTrust[0], up to twice that AgeTrust[1], and so
+	// on, the last for all older. A row keeps its observations by when they
+	// were made, to AgeEpoch ticks. Zero: evidence ages by EvidenceHalfLife
+	// and AgePath, and the mate row not at all (stage 4-1). Rows that pass
+	// between bodies (PassPath, StableRows off) need it zero.
+	AgeBand, AgeEpoch int
+	AgeTrust          []float64
 	// StableRows keeps apart the rows of facts that do not change from those
 	// that do (learn.go, tell.go): the path row is read as how much less
 	// food tiles walked lately hold than their region - a ratio, which
@@ -290,6 +299,9 @@ func DefaultConfig() Config {
 		StableRows:         true,
 		AgePath:            true,
 		EvidenceHalfLife:   1200,
+		AgeBand:            1200,
+		AgeEpoch:           100,
+		AgeTrust:           []float64{1, 0.5, 0.25, 0.125},
 		HeardLimit:         64,
 		Kin:                true,
 		Sexes:              true,

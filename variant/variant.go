@@ -27,6 +27,10 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Halflife is stage 4-1: evidence ages by a continuous half-life, and the
+// mate row does not age.
+const Halflife = "halflife"
+
 // Unheld is stage 4-0: no body holds food.
 const Unheld = "unheld"
 
@@ -167,7 +171,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func unheld(c *engine.Config)    { c.Carry = 0 }
+func halflife(c *engine.Config)  { c.AgeBand = 0 }
+func unheld(c *engine.Config)    { halflife(c); c.Carry = 0 }
 func restblind(c *engine.Config) { unheld(c); c.RestAhead = false }
 func oldmating(c *engine.Config) { restblind(c); c.OldBarren = false }
 func unasked(c *engine.Config)   { oldmating(c); c.Requests = false }
@@ -206,6 +211,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Halflife:     halflife,
 	Unheld:       unheld,
 	Restblind:    restblind,
 	Oldmating:    oldmating,

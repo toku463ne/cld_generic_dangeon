@@ -2,6 +2,7 @@ package engine
 
 import (
 	"encoding/binary"
+	"fmt"
 	"hash/fnv"
 	"math"
 	"math/rand"
@@ -68,6 +69,12 @@ type World struct {
 func NewWorld(cfg Config, m Map) (*World, error) {
 	if err := m.Validate(); err != nil {
 		return nil, err
+	}
+	if cfg.AgeBand > 0 && cfg.Learn && (cfg.PassPath || !cfg.StableRows) {
+		return nil, fmt.Errorf("age bands (AgeBand) do not carry evidence passed between bodies: turn PassPath off and StableRows on")
+	}
+	if cfg.AgeBand > 0 && (cfg.AgeEpoch <= 0 || len(cfg.AgeTrust) == 0) {
+		return nil, fmt.Errorf("AgeBand needs AgeEpoch above zero and AgeTrust")
 	}
 	w := &World{cfg: cfg, m: m.Clone()}
 	w.rng, w.draws = newCountingRand(cfg.Seed)
@@ -222,9 +229,14 @@ func (w *World) Fingerprint() uint64 {
 			tally := func(t Tally) {
 				putF(t.N)
 				putF(t.K)
-				if w.cfg.EvidenceHalfLife > 0 {
+				if w.cfg.EvidenceHalfLife > 0 && w.cfg.AgeBand <= 0 {
 					put(uint64(t.T))
 					putF(t.S)
+				}
+				for _, c := range t.Chunks {
+					put(uint64(c.T))
+					putF(c.N)
+					putF(c.K)
 				}
 				if !w.cfg.Tell {
 					return
@@ -251,6 +263,9 @@ func (w *World) Fingerprint() uint64 {
 			}
 			putF(mem.Asks)
 			putF(mem.Kids)
+			if w.cfg.AgeBand > 0 {
+				tally(mem.Mate)
+			}
 			tiles := make([]int, 0, len(mem.Walked))
 			for tl, when := range mem.Walked {
 				if w.tick-when <= int64(w.cfg.PathRecall) {

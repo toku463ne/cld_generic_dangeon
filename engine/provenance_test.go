@@ -30,6 +30,7 @@ func TestOrphanEvidence(t *testing.T) {
 	cfg := testConfig(4)
 	cfg.Tell = false // only the evidence handed over below is heard
 	cfg.EvidenceHalfLife = 0
+	cfg.AgeBand = 0 // the half-life world (before stage 5-1)
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)

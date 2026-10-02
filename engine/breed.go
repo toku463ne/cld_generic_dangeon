@@ -316,6 +316,10 @@ func (w *World) mate(b *Body, id int64) {
 	if w.cfg.Learn {
 		b.Memory.Kids++
 		p.Memory.Kids++
+		if w.cfg.AgeBand > 0 {
+			w.observe(&b.Memory.Mate, 0, 1)
+			w.observe(&p.Memory.Mate, 0, 1)
+		}
 	}
 	b.Intent, p.Intent = Action{Kind: ActWait}, Action{Kind: ActWait}
 	child := Body{

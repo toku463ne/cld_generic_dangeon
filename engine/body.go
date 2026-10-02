@@ -226,6 +226,9 @@ func (w *World) act(i int, b *Body, a Action) {
 		}
 		if w.cfg.Learn {
 			b.Memory.Asks++
+			if w.cfg.AgeBand > 0 {
+				w.observe(&b.Memory.Mate, 1, 0)
+			}
 			w.stats.MateRow.Learned++
 		}
 		w.mate(b, a.Mate)

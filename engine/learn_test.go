@@ -28,6 +28,7 @@ func TestSteppingTeaches(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.Bodies, cfg.FoodCap = 0, 0
 	cfg.EvidenceHalfLife = 0 // counts, not ages
+	cfg.AgeBand = 0          // the half-life world (before stage 5-1)
 	cfg.StableRows = false   // tiles counted, not against the region
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
@@ -205,6 +206,7 @@ func TestValueWithOwnEstimates(t *testing.T) {
 // alike, and an estimate reads it as it weighs now.
 func TestEvidenceAges(t *testing.T) {
 	w := newTestWorld(t, 1)
+	w.cfg.AgeBand = 0 // the half-life world (before stage 5-1)
 	hl := int64(w.cfg.EvidenceHalfLife)
 	tl := Tally{N: 100, K: 10, Heard: []Heard{{ID: 7, N: 40, K: 4}}, HN: 40, HK: 4, T: w.tick}
 	w.tick += hl

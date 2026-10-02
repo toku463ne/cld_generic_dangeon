@@ -13,6 +13,7 @@ func tallyOf(n, k float64) Tally { return Tally{N: n, K: k} }
 func TestTellPassesOnce(t *testing.T) {
 	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 100}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100})
 	w.cfg.StableRows = false // regions pass too
+	w.cfg.AgeBand = 0        // the half-life world (before stage 5-1)
 	w.cfg.Kin = false        // to everyone met (2-1)
 	w.cfg.PassPath = true    // the path row too (2-1 to 2-3)
 	a, b := &w.bodies[0], &w.bodies[1]
@@ -57,6 +58,7 @@ func TestTellPassesOnce(t *testing.T) {
 func TestHeardLimitAndEstimate(t *testing.T) {
 	w := newTestWorld(t, 1)
 	w.cfg.StableRows = false // regions pass too
+	w.cfg.AgeBand = 0        // the half-life world (before stage 5-1)
 	w.cfg.HeardLimit = 3
 	dst := &Body{ID: 99, Goal: -1}
 	for i := int64(0); i < 6; i++ {
@@ -80,6 +82,7 @@ func TestHeardLimitAndEstimate(t *testing.T) {
 func TestEvidenceOutlivesObservers(t *testing.T) {
 	cfg := testConfig(4)
 	cfg.PassPath = true // the path row passes (2-3); by default nothing does
+	cfg.AgeBand = 0     // the half-life world (before stage 5-1)
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -103,6 +106,7 @@ func TestStableRows(t *testing.T) {
 	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 100}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100})
 	w.cfg.Kin = false     // to everyone met (2-1)
 	w.cfg.AgePath = false // the path row never ages (2-1, 2-2)
+	w.cfg.AgeBand = 0     // the half-life world (before stage 5-1)
 	w.cfg.PassPath = true // and passes (2-1 to 2-3)
 	a, b := &w.bodies[0], &w.bodies[1]
 	a.Memory.Regions = []Tally{{N: 100, K: 5, T: w.tick}}
@@ -180,6 +184,7 @@ func TestKinPassesToChildren(t *testing.T) {
 func TestAgePath(t *testing.T) {
 	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 100}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100})
 	w.cfg.PassPath = true // the path row passes (2-3)
+	w.cfg.AgeBand = 0     // the half-life world (before stage 5-1)
 	a, b := &w.bodies[0], &w.bodies[1]
 	b.Parents = [2]int64{0, -1}
 	a.Memory.Path, a.Memory.Ver = Tally{N: 8, K: 2, T: w.tick}, 1

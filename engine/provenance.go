@@ -56,6 +56,12 @@ func (w *World) Provenance() []RowProvenance {
 			if name == "path" && !w.pathAges() {
 				f = 1 // the path row does not age
 			}
+			if w.cfg.AgeBand > 0 {
+				f = 0
+				if t.N > 0 {
+					f = w.Fresh(t).N / t.N
+				}
+			}
 			fe := f * t.scale()
 			rp.Held += f * t.N
 			if len(t.Heard) > 0 {
