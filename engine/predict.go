@@ -238,12 +238,16 @@ func (w *World) Value(t TruthTable, survival []Survival, b Body) Valuation {
 // (learn.go).
 func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive func(RegionID) Survival, child float64, rs *rates, b *Body) {
 	path := rs != nil
-	speed, burn := w.speedOf(b), w.burnOf(b)
+	speed, burn := w.speedOf(b), w.planBurn(b)
+	// A resting mother's reserve is energy she has not got yet: it adds to
+	// what she can last, but not to what a meal can fill (stage 4-0).
+	reserve := w.restReserve(b)
+	most := full + reserve
 	v.Options = w.possibleActions(v.Options[:0], b)
 	v.Seen = w.inSight(v.Seen[:0], b)
 	v.Plan, v.Arrive = v.Plan[:0], v.Arrive[:0]
 	v.Child = v.Child[:0]
-	n := energyTicks(b.Energy, burn)
+	n := energyTicks(b.Energy, burn) + reserve
 	for len(v.Risk) < len(windows) {
 		v.Risk = append(v.Risk, nil)
 	}
@@ -268,7 +272,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			// here instead, it did by a step, and a body waited tick after
 			// tick for a start it never made).
 			if a.Kind == ActMove {
-				risk = w.keepReading(b, rs, a.Dir, x, y, win, after, meal, full, s, risk)
+				risk = w.keepReading(b, rs, a.Dir, x, y, win, after, meal, most, s, risk)
 			} else {
 				best := math.Inf(1)
 				for _, o := range v.Options {
@@ -278,7 +282,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 					d := moveDirs[o.Dir]
 					mx, my := b.X+d[0]*speed, b.Y+d[1]*speed
 					ms := alive(w.m.RegionAt(int(math.Floor(mx)), int(math.Floor(my))))
-					best = math.Min(best, w.keepReading(b, rs, o.Dir, mx, my, win, after, meal, full, ms, ms.deadIn(win, after)))
+					best = math.Min(best, w.keepReading(b, rs, o.Dir, mx, my, win, after, meal, most, ms, ms.deadIn(win, after)))
 				}
 				if !math.IsInf(best, 1) {
 					risk = best
@@ -295,7 +299,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			k := walkTicks(gapTo(x, food.X), gapTo(y, food.Y), speed)
 			r := 1.0
 			if after-k > 0 {
-				r = alive(w.m.RegionAt(food.X, food.Y)).deadIn(win-1-k, min(after-k+meal, full)-1)
+				r = alive(w.m.RegionAt(food.X, food.Y)).deadIn(win-1-k, min(after-k+meal, most)-1)
 			}
 			if r < risk {
 				risk, plan, arrive = r, f, k
@@ -309,7 +313,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 		eaten := -1
 		switch a.Kind {
 		case ActEat:
-			after = min(n+meal, full) - 1
+			after = min(n+meal, most) - 1
 			eaten = w.m.index(int(math.Floor(b.X)), int(math.Floor(b.Y)))
 		case ActMove:
 			d := moveDirs[a.Dir]
@@ -319,7 +323,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			// chance child, and otherwise a tick spent as a wait. A
 			// requester out of sight is reached first, k ticks of walking
 			// (Requests).
-			after = energyTicks(b.Energy-w.birthShare(b), burn) - 1 - w.farTicks(a.Mate)
+			after = energyTicks(b.Energy-w.birthShare(b), burn) + reserve - 1 - w.farTicks(a.Mate)
 		}
 		c := 0.0
 		if a.Kind == ActMate {
@@ -580,7 +584,7 @@ func (w *World) decide(b *Body) Action {
 	v := &w.valuation
 	switch {
 	case w.cfg.Window > 0 && w.cfg.Learn:
-		burn, speed := w.burnOf(b), w.speedOf(b)
+		burn, speed := w.planBurn(b), w.speedOf(b)
 		meal, full := energyTicks(w.cfg.FoodEnergy, burn), energyTicks(w.maxOf(b), burn)
 		rs := &w.rates
 		w.ratesOf(b, rs)
@@ -590,7 +594,7 @@ func (w *World) decide(b *Body) Action {
 	case w.cfg.Window > 0 && b.Build == (Build{}):
 		w.valueInto(v, w.pred.meal, w.pred.full, w.pred.windows, w.survival, 1, nil, b)
 	case w.cfg.Window > 0:
-		burn, speed := w.burnOf(b), w.speedOf(b)
+		burn, speed := w.planBurn(b), w.speedOf(b)
 		meal, full := energyTicks(w.cfg.FoodEnergy, burn), energyTicks(w.maxOf(b), burn)
 		w.valueInto(v, meal, full, w.pred.windows, func(r RegionID) Survival { return w.survivalFor(r, meal, full, speed) }, 1, nil, b)
 	default:

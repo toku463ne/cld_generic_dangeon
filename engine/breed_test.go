@@ -366,3 +366,48 @@ func TestOldBarren(t *testing.T) {
 		t.Fatal("with OldBarren off, the old body is no mate")
 	}
 }
+
+// With RestAhead a resting mother values her options at the burn she goes
+// back to, with what the rest of her rest saves as a reserve: well above
+// half, she can still starve in the window, so eating the food underfoot
+// is strictly better than waiting (a wait is read as eating it a tick
+// later). Without it she reads the window at her resting burn, cannot
+// starve in it, and eating ties with waiting.
+func TestRestingMotherReadsHerRestEnding(t *testing.T) {
+	for _, ahead := range []bool{true, false} {
+		w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 50}, Body{ID: 1, X: 10.5, Y: 7.5, Energy: 60})
+		w.cfg.FemaleBears, w.cfg.RestBurn, w.cfg.RestAhead = true, 0.5, ahead
+		mother := &w.bodies[0]
+		mother.Rested = w.tick + 300
+		tile := w.tileOf(mother.X, mother.Y)
+		if w.foodOn(tile) < 0 {
+			w.food.foods = append(w.food.foods, Food{X: tile % w.m.Width, Y: tile / w.m.Width})
+			w.food.foodAt[tile] = int32(len(w.food.foods))
+			w.food.onGround[w.m.Region[tile]]++
+		}
+		if got, want := w.restReserve(mother), map[bool]int{true: 150, false: 0}[ahead]; got != want {
+			t.Fatalf("ahead %v: reserve %d, want %d", ahead, got, want)
+		}
+		w.decide(mother)
+		v := w.valuation
+		eat, wait := -1, -1
+		for j, o := range v.Options {
+			switch o.Kind {
+			case ActEat:
+				eat = j
+			case ActWait:
+				wait = j
+			}
+		}
+		if eat < 0 || wait < 0 {
+			t.Fatalf("ahead %v: options %+v", ahead, v.Options)
+		}
+		re, rw := v.Risk[0][eat], v.Risk[0][wait]
+		if ahead && !(re < rw) {
+			t.Errorf("knowing her rest ends, eating risk %v is not below waiting %v", re, rw)
+		}
+		if !ahead && (re != 0 || rw != 0) {
+			t.Errorf("at her resting burn, eating %v and waiting %v, want both 0", re, rw)
+		}
+	}
+}

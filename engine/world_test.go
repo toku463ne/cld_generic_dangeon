@@ -85,8 +85,24 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0xd5089edccdd2163a)
+	const want = uint64(0xb89f1a88f75406bd)
 	w := newTestWorld(t, 1)
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// With resting mothers reading their whole window at their resting burn,
+// the world is stage 3-8: its fingerprint is the one pinned then.
+func TestRestblindIsStage38(t *testing.T) {
+	const want = uint64(0xd5089edccdd2163a)
+	cfg := testConfig(1)
+	cfg.RestAhead = false
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
 		t.Fatalf("fingerprint = %#x, want %#x", got, want)
@@ -98,6 +114,7 @@ func TestFingerprint(t *testing.T) {
 func TestUnaskedIsStage37(t *testing.T) {
 	const want = uint64(0xd1e6c04e0a38b0dd)
 	cfg := testConfig(1)
+	cfg.RestAhead = false // before stage 4-0
 	cfg.Requests = false
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
@@ -114,7 +131,8 @@ func TestUnaskedIsStage37(t *testing.T) {
 func TestUnagedIsStage36(t *testing.T) {
 	const want = uint64(0x58f5fb5146e6aeb2)
 	cfg := testConfig(1)
-	cfg.Requests = false // before stage M-3
+	cfg.RestAhead = false // before stage 4-0
+	cfg.Requests = false  // before stage M-3
 	cfg.ChildAbility = 1
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
@@ -132,8 +150,9 @@ func TestUnagedIsStage36(t *testing.T) {
 func TestSlowgrowIsStage35b(t *testing.T) {
 	const want = uint64(0x8a059c7590e3f58e)
 	cfg := testConfig(1)
-	cfg.Requests = false // before stage M-3
-	cfg.ChildAbility = 1 // before stage 3-7
+	cfg.RestAhead = false // before stage 4-0
+	cfg.Requests = false  // before stage M-3
+	cfg.ChildAbility = 1  // before stage 3-7
 	cfg.MatureAge = 1000
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
@@ -150,9 +169,10 @@ func TestSlowgrowIsStage35b(t *testing.T) {
 func TestAgelessIsStage34(t *testing.T) {
 	const want = uint64(0x5dc9e29b78aa406e)
 	cfg := testConfig(1)
-	cfg.Requests = false // before stage M-3
-	cfg.ChildAbility = 1 // before stage 3-7
-	cfg.MatureAge = 1000 // before stage 3-6
+	cfg.RestAhead = false // before stage 4-0
+	cfg.Requests = false  // before stage M-3
+	cfg.ChildAbility = 1  // before stage 3-7
+	cfg.MatureAge = 1000  // before stage 3-6
 	cfg.Lifespan = 0
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {

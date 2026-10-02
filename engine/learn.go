@@ -503,7 +503,7 @@ func (w *World) ValueWith(b Body, region, path []float64) Valuation {
 	if w.cfg.Window <= 0 {
 		return v
 	}
-	burn, speed := w.burnOf(&b), w.speedOf(&b)
+	burn, speed := w.planBurn(&b), w.speedOf(&b)
 	meal, full := energyTicks(w.cfg.FoodEnergy, burn), energyTicks(w.maxOf(&b), burn)
 	var rs rates
 	w.ratesOf(&b, &rs)

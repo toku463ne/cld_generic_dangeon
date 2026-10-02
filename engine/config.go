@@ -135,6 +135,13 @@ type Config struct {
 	// like a child, it has no mate to offer, sends no request and is no
 	// one's mate. Off: stage M-3, where the old mate on.
 	OldBarren bool
+	// RestAhead has a resting mother value her options knowing her rest
+	// ends (stage 4-0): she reads them at the burn she will go back to,
+	// with the energy the rest of her rest saves her as a reserve. Off,
+	// she reads the whole window at her resting burn (stage 3-8), and
+	// whenever that leaves her no way to starve in the window every option
+	// ties.
+	RestAhead bool
 	// MatureAge is how many ticks after its birth a child becomes an adult
 	// and may mate.
 	MatureAge int
@@ -295,6 +302,7 @@ func DefaultConfig() Config {
 		OldAge:             3200,
 		AgeStep:            0.25,
 		OldBarren:          true,
+		RestAhead:          true,
 		Requests:           true,
 		RequestRange:       5,
 		RequestTicks:       100,

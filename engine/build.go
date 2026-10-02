@@ -77,6 +77,30 @@ func (w *World) burnOf(b *Body) float64 {
 	return burn
 }
 
+// planBurn is the burn body b values its options at: its own, but for a
+// resting mother with RestAhead the burn she goes back to when her rest
+// ends (stage 4-0).
+func (w *World) planBurn(b *Body) float64 {
+	if w.cfg.RestAhead && w.resting(b) {
+		burn := w.cfg.EnergyBurn
+		if b.Build.EnergyBurn > 0 {
+			burn = b.Build.EnergyBurn
+		}
+		return burn
+	}
+	return w.burnOf(b)
+}
+
+// restReserve is, for a resting mother with RestAhead, the ticks of
+// planBurn the rest of her rest saves her: she burns RestBurn of it each
+// tick until Rested. Zero for every other body.
+func (w *World) restReserve(b *Body) int {
+	if !w.cfg.RestAhead || !w.resting(b) || w.cfg.RestBurn >= 1 {
+		return 0
+	}
+	return int(math.Floor(float64(b.Rested-w.tick) * (1 - w.cfg.RestBurn)))
+}
+
 // SetBuild gives the living body with the given ID a build, for experiments
 // that set bodies apart; no rule calls it. Its energy is held to the new
 // most. It reports whether the body was found.

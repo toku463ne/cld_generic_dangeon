@@ -27,6 +27,10 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Restblind is stage 3-8: a resting mother reads her whole window at her
+// resting burn.
+const Restblind = "restblind"
+
 // Oldmating is stage M-3: the old mate on.
 const Oldmating = "oldmating"
 
@@ -155,7 +159,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func oldmating(c *engine.Config) { c.OldBarren = false }
+func restblind(c *engine.Config) { c.RestAhead = false }
+func oldmating(c *engine.Config) { restblind(c); c.OldBarren = false }
 func unasked(c *engine.Config)   { oldmating(c); c.Requests = false }
 func unaged(c *engine.Config)    { unasked(c); c.ChildAbility = 1 }
 func slowgrow(c *engine.Config)  { unaged(c); c.MatureAge = 1000 }
@@ -191,6 +196,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Restblind:    restblind,
 	Oldmating:    oldmating,
 	Unasked:      unasked,
 	Unaged:       unaged,
