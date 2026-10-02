@@ -16,6 +16,7 @@ func spotWorld(t *testing.T, energy float64) (*World, *Body) {
 func place(w *World, x, y int) {
 	t := w.m.index(x, y)
 	w.food.foods = append(w.food.foods, Food{X: x, Y: y})
+	w.food.born = append(w.food.born, w.tick)
 	w.food.foodAt[t] = int32(len(w.food.foods))
 	w.food.appeared++
 	w.foodMoved(w.m.Region[t], +1)

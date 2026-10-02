@@ -156,6 +156,7 @@ func TestSightIsFromTheBody(t *testing.T) {
 		t.Error("with no food, the next tile looks different")
 	}
 	w.food.foods = append(w.food.foods, Food{X: 3, Y: 3})
+	w.food.born = append(w.food.born, w.tick)
 	w.food.foodAt[w.m.index(3, 3)] = int32(len(w.food.foods))
 	_, a = w.perceive(&here)
 	if _, b := w.perceive(&next); a == b {

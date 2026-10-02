@@ -52,6 +52,7 @@ func TestOwnBuild(t *testing.T) {
 	}
 	b.Energy = 50
 	w.food.foods = append(w.food.foods, Food{})
+	w.food.born = append(w.food.born, w.tick)
 	tile := w.tileOf(b.X, b.Y)
 	if w.foodOn(tile) < 0 {
 		f := Food{X: tile % w.m.Width, Y: tile / w.m.Width}
@@ -60,6 +61,7 @@ func TestOwnBuild(t *testing.T) {
 		w.food.onGround[w.m.Region[tile]]++
 	} else {
 		w.food.foods = w.food.foods[:len(w.food.foods)-1]
+		w.food.born = w.food.born[:len(w.food.born)-1]
 	}
 	w.act(0, b, Action{Kind: ActEat})
 	if b.Energy != 60 {

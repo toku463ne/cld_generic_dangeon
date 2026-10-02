@@ -20,6 +20,11 @@ type Config struct {
 	FoodReturn float64
 	// FoodEnergy is how much energy eating one unit gives.
 	FoodEnergy float64
+	// FoodLife is how many ticks a unit lasts after it appears, on the
+	// ground or held (stage 4-4); then it decays and becomes a vacancy,
+	// which comes back by the region shares like any other. Zero for food
+	// that never decays.
+	FoodLife int
 
 	// Bodies is how many bodies the world starts with, placed on land.
 	Bodies int
@@ -272,6 +277,7 @@ func DefaultConfig() Config {
 		FoodCap:            300,
 		FoodReturn:         0.002,
 		FoodEnergy:         30,
+		FoodLife:           1000,
 		Bodies:             200,
 		EnergyMax:          100,
 		EnergyBurn:         0.1,

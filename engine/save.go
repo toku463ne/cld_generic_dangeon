@@ -20,7 +20,7 @@ import (
 // saved, so that a loaded world can build them before play (World.Warm).
 
 // snapshotVersion changes whenever the format does.
-const snapshotVersion = 21
+const snapshotVersion = 22
 
 type snapshot struct {
 	Version int    `json:"version"`
@@ -31,6 +31,7 @@ type snapshot struct {
 
 	Foods    []Food    `json:"foods"`
 	FoodOwed []float64 `json:"foodOwed"`
+	FoodBorn []int64   `json:"foodBorn"`
 	Appeared int64     `json:"appeared"`
 	Eaten    int64     `json:"eaten"`
 
@@ -39,6 +40,8 @@ type snapshot struct {
 	// (Carry); what bodies hold now is in Bodies.
 	Picked int64 `json:"picked,omitempty"`
 	Lost   int64 `json:"lost,omitempty"`
+	// Decayed counts the units that decayed (FoodLife).
+	Decayed int64 `json:"decayed,omitempty"`
 
 	Bodies []Body `json:"bodies"`
 	NextID int64  `json:"nextID"`
@@ -60,12 +63,14 @@ func (w *World) Save(out io.Writer) error {
 		Draws:    w.draws.draws,
 		Foods:    w.food.foods,
 		FoodOwed: w.food.owed,
+		FoodBorn: w.food.born,
 		Appeared: w.food.appeared,
 		Eaten:    w.food.eaten,
 
 		Provisioned: w.food.provisioned,
 		Picked:      w.food.picked,
 		Lost:        w.food.lost,
+		Decayed:     w.food.decayed,
 		Bodies:      w.bodies,
 		NextID:      w.nextID,
 		Stats:       w.stats,
@@ -93,7 +98,11 @@ func Load(in io.Reader) (*World, error) {
 	}
 	copy(w.food.owed, s.FoodOwed)
 	w.food.appeared, w.food.eaten, w.food.provisioned = s.Appeared, s.Eaten, s.Provisioned
-	w.food.picked, w.food.lost = s.Picked, s.Lost
+	w.food.picked, w.food.lost, w.food.decayed = s.Picked, s.Lost, s.Decayed
+	if len(s.FoodBorn) != len(s.Foods) {
+		return nil, fmt.Errorf("snapshot has %d food ages for %d units", len(s.FoodBorn), len(s.Foods))
+	}
+	w.food.born = append(w.food.born, s.FoodBorn...)
 	for _, b := range w.bodies {
 		w.food.held += b.Held
 	}

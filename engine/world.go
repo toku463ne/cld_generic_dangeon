@@ -93,6 +93,7 @@ func NewWorld(cfg Config, m Map) (*World, error) {
 func (w *World) Step() {
 	w.tick++
 	w.listAsking()
+	w.decayFood()
 	w.returnFood()
 	for i := range w.bodies {
 		b := &w.bodies[i]

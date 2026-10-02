@@ -27,6 +27,9 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Unspoiled is stage 5-2 (and the lock count): food never decays.
+const Unspoiled = "unspoiled"
+
 // Unrecalled is stage 5-1: a body knows only the food in sight.
 const Unrecalled = "unrecalled"
 
@@ -174,7 +177,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func unrecalled(c *engine.Config) { c.SpotRead = 0 }
+func unspoiled(c *engine.Config)  { c.FoodLife = 0 }
+func unrecalled(c *engine.Config) { unspoiled(c); c.SpotRead = 0 }
 func halflife(c *engine.Config)   { unrecalled(c); c.AgeBand = 0 }
 func unheld(c *engine.Config)     { halflife(c); c.Carry = 0 }
 func restblind(c *engine.Config)  { unheld(c); c.RestAhead = false }
@@ -215,6 +219,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Unspoiled:    unspoiled,
 	Unrecalled:   unrecalled,
 	Halflife:     halflife,
 	Unheld:       unheld,

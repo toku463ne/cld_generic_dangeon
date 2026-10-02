@@ -60,6 +60,9 @@ type Body struct {
 	Requested int64 `json:",omitempty"`
 	// Held is how many units of food it holds (with Carry).
 	Held int `json:",omitempty"`
+	// HeldBorn is the tick each held unit appeared, oldest first (with
+	// FoodLife): a held unit decays like one on the ground.
+	HeldBorn []int64 `json:",omitempty"`
 	// Build is its own speed, most energy and burn (build.go), and Share
 	// the share of its budget it was born with for speed (with Allot).
 	Build Build
@@ -241,8 +244,7 @@ func (w *World) act(i int, b *Body, a Action) {
 		b.Energy = math.Min(b.Energy+w.cfg.FoodEnergy, w.maxOf(b))
 	case ActPick:
 		t := w.tileOf(b.X, b.Y)
-		w.takeFood(w.foodOn(t))
-		b.Held++
+		w.takeFood(w.foodOn(t), b)
 		w.eatHeld(b) // where a meal fits, picking it up is eating it
 	case ActMove:
 		w.step(i, b, a.Dir)

@@ -24,6 +24,7 @@ func soloWorld(t *testing.T, energy float64) (*World, *Body) {
 	b := &w.bodies[0]
 	tile := w.tileOf(b.X, b.Y)
 	w.food.foods = append(w.food.foods, Food{X: tile % w.m.Width, Y: tile / w.m.Width})
+	w.food.born = append(w.food.born, w.tick)
 	w.food.foodAt[tile] = int32(len(w.food.foods))
 	w.food.appeared++
 	w.foodMoved(w.m.Region[tile], +1)
@@ -50,6 +51,7 @@ func TestPickUp(t *testing.T) {
 	w.cfg.Carry = 1
 	tile := w.tileOf(b.X, b.Y)
 	w.food.foods = append(w.food.foods, Food{X: tile % w.m.Width, Y: tile / w.m.Width})
+	w.food.born = append(w.food.born, w.tick)
 	w.food.foodAt[tile] = int32(len(w.food.foods))
 	if hasKind(w.possibleActions(nil, b), ActPick) {
 		t.Fatal("pick offered with the hold full")

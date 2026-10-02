@@ -14,6 +14,10 @@ package engine
 // ground nor vacant. A unit held by a body that dies is lost: it becomes a
 // vacancy.
 //
+// A unit lasts FoodLife ticks from when it appears, on the ground or held
+// (stage 4-4); then it decays and becomes a vacancy. Without it, food on land
+// no body can reach any more would hold the cap there for ever.
+//
 // The ledger (FoodLedger) counts every unit that appears, is eaten or is
 // lost, so that a test can check the total tick by tick.
 
@@ -36,13 +40,16 @@ type FoodLedger struct {
 	// built.
 	Held         int
 	Picked, Lost int64
+	// Decayed counts the units that decayed (FoodLife), on the ground or
+	// held.
+	Decayed int64
 }
 
 // Balanced reports whether the account closes: nothing appeared or vanished
 // except by coming back and being eaten, and the map never held more than the
 // cap.
 func (l FoodLedger) Balanced() bool {
-	return int64(l.OnGround+l.Held) == l.Appeared-l.Eaten-l.Lost && l.OnGround+l.Held <= l.Cap && l.OnGround >= 0 && l.Held >= 0
+	return int64(l.OnGround+l.Held) == l.Appeared-l.Eaten-l.Lost-l.Decayed && l.OnGround+l.Held <= l.Cap && l.OnGround >= 0 && l.Held >= 0
 }
 
 // foodState is the world's food. foodAt maps a tile to the index of the unit
@@ -50,6 +57,8 @@ func (l FoodLedger) Balanced() bool {
 type foodState struct {
 	foods  []Food
 	foodAt []int32
+	// born is the tick each unit of foods appeared, in the same order.
+	born []int64
 
 	// owed is, per region, the fraction of a unit that region has been
 	// promised by FoodReturn and not yet received. Returning food as whole
@@ -60,8 +69,8 @@ type foodState struct {
 	appeared, eaten, provisioned int64
 	// held is the units bodies hold now; picked and lost count units
 	// picked up and units held by bodies that died (Carry).
-	held         int
-	picked, lost int64
+	held                  int
+	picked, lost, decayed int64
 
 	// regionLand lists each region's land tiles, which is where its food can
 	// appear.
@@ -142,6 +151,7 @@ func (w *World) placeFood(r RegionID) bool {
 			continue
 		}
 		f.foods = append(f.foods, Food{X: t % w.m.Width, Y: t / w.m.Width})
+		f.born = append(f.born, w.tick)
 		f.foodAt[t] = int32(len(f.foods))
 		f.appeared++
 		w.foodMoved(r, +1)
@@ -257,11 +267,15 @@ func (w *World) eatFood(i int) {
 	w.food.eaten++
 }
 
-// takeFood lifts unit i off the ground into a body's hold (Carry).
-func (w *World) takeFood(i int) {
+// takeFood lifts unit i off the ground into body b's hold (Carry). The
+// unit keeps the tick it appeared.
+func (w *World) takeFood(i int, b *Body) {
+	born := w.food.born[i]
 	w.liftFood(i)
 	w.food.held++
 	w.food.picked++
+	b.Held++
+	b.HeldBorn = append(b.HeldBorn, born)
 }
 
 // eatHeld has body b eat the units it holds while a whole meal fits; it
@@ -270,6 +284,7 @@ func (w *World) takeFood(i int) {
 func (w *World) eatHeld(b *Body) {
 	for b.Held > 0 && b.Energy <= w.maxOf(b)-w.cfg.FoodEnergy {
 		b.Held--
+		b.HeldBorn = dropOldest(b.HeldBorn)
 		b.Energy += w.cfg.FoodEnergy
 		w.food.held--
 		w.food.eaten++
@@ -283,6 +298,44 @@ func (w *World) loseHeld(b *Body) {
 	w.food.held -= b.Held
 	w.food.lost += int64(b.Held)
 	b.Held = 0
+	b.HeldBorn = nil
+}
+
+// dropOldest removes the first (oldest) of the ticks a body's held units
+// appeared: a body eats the oldest first.
+func dropOldest(born []int64) []int64 {
+	if len(born) == 0 {
+		return born
+	}
+	return append(born[:0], born[1:]...)
+}
+
+// decayFood turns the units that have lasted FoodLife ticks into vacancies:
+// those on the ground, then those held. It draws nothing from the random
+// source.
+func (w *World) decayFood() {
+	if w.cfg.FoodLife <= 0 {
+		return
+	}
+	f := &w.food
+	end := w.tick - int64(w.cfg.FoodLife)
+	for i := 0; i < len(f.foods); {
+		if f.born[i] <= end {
+			w.liftFood(i) // the last unit moves into slot i: look at it next
+			f.decayed++
+			continue
+		}
+		i++
+	}
+	for i := range w.bodies {
+		b := &w.bodies[i]
+		for len(b.HeldBorn) > 0 && b.HeldBorn[0] <= end {
+			b.HeldBorn = dropOldest(b.HeldBorn)
+			b.Held--
+			f.held--
+			f.decayed++
+		}
+	}
 }
 
 // liftFood takes unit i off the ground. The last unit moves into its slot.
@@ -294,9 +347,11 @@ func (w *World) liftFood(i int) {
 	if i != last {
 		moved := f.foods[last]
 		f.foods[i] = moved
+		f.born[i] = f.born[last]
 		f.foodAt[moved.Y*w.m.Width+moved.X] = int32(i + 1)
 	}
 	f.foods = f.foods[:last]
+	f.born = f.born[:last]
 	w.foodMoved(w.m.RegionAt(gone.X, gone.Y), -1)
 }
 
@@ -319,6 +374,7 @@ func (w *World) FoodLedger() FoodLedger {
 		Held:        w.food.held,
 		Picked:      w.food.picked,
 		Lost:        w.food.lost,
+		Decayed:     w.food.decayed,
 	}
 }
 

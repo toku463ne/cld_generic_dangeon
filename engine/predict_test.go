@@ -163,6 +163,7 @@ func TestWalksToFoodInSight(t *testing.T) {
 		t.Fatal(err)
 	}
 	w.food.foods = append(w.food.foods, Food{X: 5, Y: 4})
+	w.food.born = append(w.food.born, w.tick)
 	w.food.foodAt[m.index(5, 4)] = 1
 	w.food.onGround[0] = 1
 	w.refreshRegion(0)
@@ -325,6 +326,7 @@ func TestBouncesOffPoorerRegion(t *testing.T) {
 	// Food on the left only, away from the body's sight.
 	for _, p := range [][2]int{{0, 0}, {0, 8}, {2, 8}} {
 		w.food.foods = append(w.food.foods, Food{X: p[0], Y: p[1]})
+		w.food.born = append(w.food.born, w.tick)
 		w.food.foodAt[m.index(p[0], p[1])] = int32(len(w.food.foods))
 		w.food.onGround[0]++
 	}

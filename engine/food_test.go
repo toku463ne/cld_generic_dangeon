@@ -287,3 +287,68 @@ func TestProvisionEach(t *testing.T) {
 		t.Fatalf("rested mother keeps %d asks", w.bodies[0].Asks)
 	}
 }
+
+// A unit decays FoodLife ticks after it appears, on the ground or held,
+// and not before; it becomes a vacancy, and the ledger still closes.
+func TestFoodDecays(t *testing.T) {
+	w, b := soloWorld(t, 90)
+	w.cfg.FoodLife = 10
+	w.cfg.FoodReturn = 0 // nothing comes back, so the ground holds only the test's units
+	w.cfg.Carry = 1
+	w.act(0, b, Action{Kind: ActPick})
+	if b.Held != 1 || len(b.HeldBorn) != 1 {
+		t.Fatalf("held %d, ages %v", b.Held, b.HeldBorn)
+	}
+	tile := w.tileOf(b.X, b.Y)
+	w.food.foods = append(w.food.foods, Food{X: tile % w.m.Width, Y: tile / w.m.Width})
+	w.food.born = append(w.food.born, w.tick+5) // appears five ticks later
+	w.food.foodAt[tile] = int32(len(w.food.foods))
+	w.food.appeared++
+	w.foodMoved(w.m.Region[tile], +1)
+	w.tick = 9
+	w.decayFood()
+	if l := w.FoodLedger(); l.Decayed != 0 || l.OnGround != 1 || l.Held != 1 {
+		t.Fatalf("decayed early: %+v", l)
+	}
+	w.tick = 10
+	w.decayFood()
+	l := w.FoodLedger()
+	if l.Decayed != 1 || l.Held != 0 || b.Held != 0 || len(b.HeldBorn) != 0 || l.OnGround != 1 || !l.Balanced() {
+		t.Fatalf("held unit at its life: %+v, body held %d", l, b.Held)
+	}
+	w.tick = 15
+	w.decayFood()
+	l = w.FoodLedger()
+	if l.Decayed != 2 || l.OnGround != 0 || w.foodOn(tile) >= 0 || !l.Balanced() {
+		t.Fatalf("ground unit at its life: %+v", l)
+	}
+	w.cfg.FoodLife = 0
+	w.food.foods = append(w.food.foods, Food{X: tile % w.m.Width, Y: tile / w.m.Width})
+	w.food.born = append(w.food.born, 0)
+	w.food.foodAt[tile] = int32(len(w.food.foods))
+	w.tick = 1000
+	w.decayFood()
+	if len(w.food.foods) != 1 {
+		t.Fatal("decayed with FoodLife 0")
+	}
+}
+
+// Over a long run with decay, the ledger closes every tick and some units
+// decay.
+func TestFoodLedgerClosesWithDecay(t *testing.T) {
+	cfg := testConfig(3)
+	cfg.FoodLife = 50
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 400; i++ {
+		w.Step()
+		if l := w.FoodLedger(); !l.Balanced() {
+			t.Fatalf("tick %d: %+v", w.Tick(), l)
+		}
+	}
+	if w.FoodLedger().Decayed == 0 {
+		t.Fatal("nothing decayed")
+	}
+}
