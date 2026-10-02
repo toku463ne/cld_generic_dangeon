@@ -71,6 +71,14 @@ func (w *World) birthShare(b *Body) float64 {
 // canPay reports whether body b can pay its share of a birth and live.
 func (w *World) canPay(b *Body) bool { return b.Energy-w.birthShare(b) > 0 }
 
+// Fertile, Resting and CanMate read, for counts, whether body b may mate
+// at all, is a mother resting, and could mate now (fertile, not resting,
+// able to pay): the conditions a request to mate is sent under. They change
+// nothing.
+func (w *World) Fertile(b Body) bool { return w.fertile(&b) }
+func (w *World) Resting(b Body) bool { return w.resting(&b) }
+func (w *World) CanMate(b Body) bool { return w.fertile(&b) && !w.resting(&b) && w.canPay(&b) }
+
 // resting reports whether body b is a mother that cannot mate yet.
 func (w *World) resting(b *Body) bool { return w.bears() && w.tick < b.Rested }
 
