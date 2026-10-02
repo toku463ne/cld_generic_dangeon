@@ -367,14 +367,26 @@ func (w *World) ratesOf(b *Body, rs *rates) {
 	rs.tables, rs.built = rs.tables[:0], rs.built[:0]
 	for r := 0; r < n; r++ {
 		p := w.Fresh(b.Memory.region(RegionID(r))).estimate(land, w.cfg.RegionWeight)
-		rs.region = append(rs.region, p)
-		rs.path = append(rs.path, w.pathFrom(path, p))
+		g := w.sightGain()
+		rs.region = append(rs.region, math.Min(p*g, 1))
+		rs.path = append(rs.path, math.Min(w.pathFrom(path, p)*g, 1))
 		rs.tables = append(rs.tables, Survival{})
 		rs.built = append(rs.built, false)
 	}
 	for d := range rs.rays {
 		rs.rays[d].start = -1
 	}
+}
+
+// sightGain is how many tiles come into view per tile a body crosses at the
+// light now, over the one it steps on (SightRead, stage 7-2a): the factor
+// on the chance per tile of meeting food when keeping on the move. One
+// without SightRead or sight.
+func (w *World) sightGain() float64 {
+	if !w.cfg.SightRead || w.cfg.Sight < 0 {
+		return 1
+	}
+	return float64(2*w.cfg.NightSight+1) + 2*float64(w.cfg.Sight-w.cfg.NightSight)*w.Brightness()
 }
 
 // table returns region r's survival table for the rates and a build.

@@ -52,6 +52,12 @@ type Config struct {
 	// is above a threshold fixed by the body and the tile (World.sees). The
 	// valuation does not know the hour. DayTicks zero for no night.
 	DayTicks, NightTicks, TwilightTicks, NightSight int
+	// SightRead has the valuation read keeping on the move with what the
+	// body would see at the light now (stage 7-2a): each tile crossed
+	// brings (2*NightSight+1) + 2*(Sight-NightSight)*light tiles into view,
+	// where off it only the tile stepped on, so the chance per tile of
+	// meeting food is multiplied by that. The light is read as staying.
+	SightRead bool
 	// KeepHeading breaks ties by the body's last move: when the options of
 	// least risk include moving the way it last moved, it moves that way,
 	// and it draws at random among them otherwise - where the land ends,
@@ -294,6 +300,7 @@ func DefaultConfig() Config {
 		DayTicks:           1000,
 		NightTicks:         500,
 		TwilightTicks:      100,
+		SightRead:          true,
 		KeepHeading:        true,
 		TurnOffReverse:     true,
 		Recheck:            300,
