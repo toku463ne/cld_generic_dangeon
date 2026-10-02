@@ -587,6 +587,20 @@ func (w *World) keepReading(b *Body, rs *rates, dir int, x, y float64, win, afte
 	return math.Min(math.Max(base+read(noneHere)-read(noneRegion), 0), 1)
 }
 
+// Rates returns body b's estimates of food per tile as its valuation reads
+// them now - per region, and of the tiles it walked lately - with the sight
+// gain of the light (SightRead) on them. It is for counts; it reads and
+// changes nothing.
+func (w *World) Rates(b Body) (region, path []float64) {
+	var rs rates
+	w.ratesOf(&b, &rs)
+	return append([]float64(nil), rs.region...), append([]float64(nil), rs.path...)
+}
+
+// SightGain is the factor sight puts on keeping on the move at the light
+// now (SightRead); 1 without it. For counts.
+func (w *World) SightGain() float64 { return w.sightGain() }
+
 // ValueWith values body b's options as a learning body would, but with the
 // given estimates of food per tile - per region, and of the tiles it walked
 // lately, per region - in place of its own; the chance a mate makes a child
