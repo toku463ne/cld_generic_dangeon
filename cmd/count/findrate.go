@@ -23,12 +23,28 @@ func lightBand(l float64) int {
 	return 3
 }
 
+// findKinds split the hungry adults' ticks by the intent they followed:
+// foraging (moving, eating, picking up) or going to a mate (mating, or a
+// step towards a requester), or waiting.
+var findKinds = []string{"探す（移動・食べる・拾う）", "相手へ（交配・要求の主へ歩く）", "待つ"}
+
+func findKind(a engine.ActionKind) int {
+	switch a {
+	case engine.ActMate:
+		return 1
+	case engine.ActWait:
+		return 2
+	}
+	return 0
+}
+
 type findRateTally struct {
-	// per light band, after tick 5000: ticks of hungry adults (a meal fits,
-	// not resting, at their full most), of them those that ate, and the
-	// model's chance per tick of standing on food in their region (the
-	// truth table's keep-moving row), summed.
-	ticks, ate, model [4]float64
+	// per light band and intent kind, after tick 5000: ticks of hungry
+	// adults (a meal fits, not resting, at their full most, holding
+	// nothing), of them those that ate, and the model's chance per tick of
+	// standing on food in their region (the truth table's keep-moving
+	// row), summed.
+	ticks, ate, model [4][3]float64
 }
 
 // runFindRate follows each hungry adult tick by tick: whether its energy
@@ -43,6 +59,8 @@ func runFindRate(cfg engine.Config, m engine.Map, ticks int) (findRateTally, err
 		energy float64
 		region engine.RegionID
 	}
+	kind := map[int64]int{} // the intent each body took this tick
+	w.SetTrace(func(b engine.Body, v engine.Valuation, a engine.Action) { kind[b.ID] = findKind(a.Kind) })
 	prev := map[int64]before{}
 	for tick := 1; tick <= ticks; tick++ {
 		var meet []float64
@@ -57,6 +75,10 @@ func runFindRate(cfg engine.Config, m engine.Map, ticks int) (findRateTally, err
 				prev[b.ID] = before{b.Energy, m.RegionAt(int(b.X), int(b.Y))}
 			}
 		}
+		clear(kind)
+		for _, b := range w.Bodies() {
+			kind[b.ID] = findKind(b.Intent.Kind) // a tick it follows its intent
+		}
 		w.Step()
 		if tick <= 5000 {
 			continue
@@ -68,10 +90,11 @@ func runFindRate(cfg engine.Config, m engine.Map, ticks int) (findRateTally, err
 			if !ok {
 				continue
 			}
-			t.ticks[k]++
-			t.model[k] += meet[p.region]
+			j := kind[b.ID]
+			t.ticks[k][j]++
+			t.model[k][j] += meet[p.region]
 			if b.Energy > p.energy {
-				t.ate[k]++
+				t.ate[k][j]++
 			}
 		}
 		if len(w.Bodies()) <= lockCollapse {
@@ -117,14 +140,19 @@ func findRate(m engine.Map, name string, seeds int, seed0 int64, ticks int, vnam
 		}
 		return a / b
 	}
-	fmt.Printf("| 明るさ | 空腹の成人の tick（1シードあたり） | 食べた割合（/tick） | モデルの見込み（/tick） | 食べた ÷ モデル |\n| --- | --- | --- | --- | --- |\n")
+	sum := func(x [3]float64) float64 { return x[0] + x[1] + x[2] }
+	fmt.Printf("| 明るさ | 空腹の成人の tick（1シードあたり） | うち探す | うち相手へ | うち待つ | 食べた割合（/tick） | モデルの見込み（/tick） | 食べた ÷ モデル | 探す tick だけの 食べた ÷ モデル |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n")
 	for k, l := range lightBands {
 		k := k
-		fmt.Printf("| %s | %s | %s | %s | %s |\n", l,
-			cell(func(t findRateTally) float64 { return t.ticks[k] }, 0),
-			cell(func(t findRateTally) float64 { return ratio(t.ate[k], t.ticks[k]) }, 5),
-			cell(func(t findRateTally) float64 { return ratio(t.model[k], t.ticks[k]) }, 5),
-			cell(func(t findRateTally) float64 { return ratio(t.ate[k], t.model[k]) }, 2))
+		fmt.Printf("| %s | %s | %s | %s | %s | %s | %s | %s | %s |\n", l,
+			cell(func(t findRateTally) float64 { return sum(t.ticks[k]) }, 0),
+			cell(func(t findRateTally) float64 { return ratio(t.ticks[k][0], sum(t.ticks[k])) }, 3),
+			cell(func(t findRateTally) float64 { return ratio(t.ticks[k][1], sum(t.ticks[k])) }, 3),
+			cell(func(t findRateTally) float64 { return ratio(t.ticks[k][2], sum(t.ticks[k])) }, 3),
+			cell(func(t findRateTally) float64 { return ratio(sum(t.ate[k]), sum(t.ticks[k])) }, 5),
+			cell(func(t findRateTally) float64 { return ratio(sum(t.model[k]), sum(t.ticks[k])) }, 5),
+			cell(func(t findRateTally) float64 { return ratio(sum(t.ate[k]), sum(t.model[k])) }, 2),
+			cell(func(t findRateTally) float64 { return ratio(t.ate[k][0], t.model[k][0]) }, 2))
 	}
 	fmt.Println()
 }
