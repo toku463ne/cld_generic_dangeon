@@ -134,7 +134,7 @@ func (w *World) perceive(b *Body) (under bool, saw uint64) {
 	n := uint64(0)
 	for y := by - sight; y <= by+sight; y++ {
 		for x := bx - sight; x <= bx+sight; x++ {
-			if w.m.InBounds(x, y) {
+			if w.m.InBounds(x, y) && w.seesFrom(b, bx, by, x, y) {
 				if t := w.m.index(x, y); w.foodOn(t) >= 0 {
 					off := (y-by+sight)*(2*sight+1) + x - bx + sight
 					saw = (saw ^ uint64(off)) * prime

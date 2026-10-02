@@ -418,6 +418,9 @@ func (w *World) stepped(b *Body, from, to int) {
 			if abs(x-fx) <= s && abs(y-fy) <= s {
 				continue // in view before the step
 			}
+			if !w.seesFrom(b, tx, ty, x, y) {
+				continue // too dark to see it
+			}
 			t := w.m.index(x, y)
 			food := 0.0
 			if w.foodOn(t) >= 0 {

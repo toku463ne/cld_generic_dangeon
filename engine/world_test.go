@@ -2,6 +2,7 @@ package engine
 
 import (
 	"bytes"
+	"math"
 	"testing"
 )
 
@@ -85,7 +86,7 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0x63b06a64b606edc8)
+	const want = uint64(0x69e0e1827d1dfdff)
 	w := newTestWorld(t, 1)
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
@@ -979,37 +980,69 @@ func TestTablesAreForgotten(t *testing.T) {
 	}
 }
 
-// Night is the last NightTicks of each day, from tick 1; at night every
-// perception reads NightSight, and a world without days has no night.
+// The light follows the trapezoid: full from tick 0, half at each change,
+// dark through the night, back by the next day; a day's light averages a
+// half here. Within NightSight a body always sees; out to Sight it sees a
+// share of the tiles that follows the light, the same tiles at the same
+// light, and nothing past Sight. Settings whose twilight does not fit are
+// refused, and a world without days is always light.
 func TestNight(t *testing.T) {
 	w, b := soloWorld(t, 50)
-	w.cfg.DayTicks, w.cfg.NightTicks, w.cfg.NightSight = 10, 4, 0
-	for tick, night := range map[int64]bool{1: false, 6: false, 7: true, 10: true, 11: false, 17: true} {
-		w.tick = tick
-		if w.Night() != night {
-			t.Fatalf("tick %d: night %v, want %v", tick, w.Night(), night)
+	w.cfg.DayTicks, w.cfg.NightTicks, w.cfg.TwilightTicks, w.cfg.NightSight = 1000, 500, 100, 0
+	for tick, want := range map[int64]float64{0: 1, 100: 1, 450: 0.495, 500: 0, 700: 0, 949: 0.495, 1000: 1} {
+		if got := w.brightnessAt(tick); math.Abs(got-want) > 1e-9 {
+			t.Fatalf("tick %d: light %v, want %v", tick, got, want)
 		}
 	}
-	tile := w.tileOf(b.X, b.Y)
-	next := tile + 1
-	w.food.foods = append(w.food.foods, Food{X: next % w.m.Width, Y: next / w.m.Width})
-	w.food.born = append(w.food.born, w.tick)
-	w.food.foodAt[next] = int32(len(w.food.foods))
-	w.tick = 1
-	if got := len(w.inSight(nil, b)); got != 2 || w.Sight() != w.cfg.Sight {
-		t.Fatalf("day: %d units in sight, sight %d", got, w.Sight())
+	sum := 0.0
+	for tick := int64(1); tick <= 1000; tick++ {
+		sum += w.brightnessAt(tick)
 	}
-	w.tick = 7
-	if got := len(w.inSight(nil, b)); got != 1 || w.Sight() != 0 {
-		t.Fatalf("night: %d units in sight, sight %d", got, w.Sight())
+	if math.Abs(sum/1000-0.5) > 0.01 {
+		t.Fatalf("light over a day %v, want a half", sum/1000)
+	}
+	tx, ty := w.tileOf(b.X, b.Y)%w.m.Width, w.tileOf(b.X, b.Y)/w.m.Width
+	w.light, w.lightFor = 0.3, w.tick+1
+	seen, all := 0, 0
+	for id := int64(0); id < 2000; id++ {
+		o := Body{ID: id}
+		for dy := -1; dy <= 1; dy++ {
+			for dx := -1; dx <= 1; dx++ {
+				if dx == 0 && dy == 0 {
+					if !w.seesFrom(&o, tx, ty, tx, ty) {
+						t.Fatal("own tile unseen in the dark")
+					}
+					continue
+				}
+				all++
+				s := w.seesFrom(&o, tx, ty, tx+dx, ty+dy)
+				if s != w.seesFrom(&o, tx, ty, tx+dx, ty+dy) {
+					t.Fatal("the same tile at the same light seen and unseen")
+				}
+				if s {
+					seen++
+				}
+			}
+		}
+	}
+	if share := float64(seen) / float64(all); math.Abs(share-0.3) > 0.02 {
+		t.Fatalf("share seen at light 0.3: %v", share)
+	}
+	if w.seesFrom(b, tx, ty, tx+2, ty) {
+		t.Fatal("seen past Sight")
+	}
+	w.light = 0
+	if w.seesFrom(b, tx, ty, tx+1, ty) {
+		t.Fatal("seen past NightSight in the dark")
 	}
 	w.cfg.DayTicks = 0
-	if w.Night() {
-		t.Fatal("night without days")
+	w.lightFor = 0
+	if w.Brightness() != 1 {
+		t.Fatal("dark without days")
 	}
 	cfg := testConfig(1)
-	cfg.DayTicks, cfg.NightTicks = 10, 11
+	cfg.DayTicks, cfg.NightTicks, cfg.TwilightTicks = 1000, 500, 600
 	if _, err := NewWorld(cfg, testMap()); err == nil {
-		t.Fatal("a night longer than the day was accepted")
+		t.Fatal("a twilight longer than the night was accepted")
 	}
 }

@@ -36,7 +36,7 @@ func (w *World) tell(b *Body) {
 	bx, by := w.tileOf(b.X, b.Y)%w.m.Width, w.tileOf(b.X, b.Y)/w.m.Width
 	for y := by - sight; y <= by+sight; y++ {
 		for x := bx - sight; x <= bx+sight; x++ {
-			if !w.m.InBounds(x, y) {
+			if !w.m.InBounds(x, y) || !w.seesFrom(b, bx, by, x, y) {
 				continue
 			}
 			for _, j := range w.grid[w.m.index(x, y)] {

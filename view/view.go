@@ -31,8 +31,9 @@ type View struct {
 	// under it.
 	mapW, MapH int
 	ground     *image.RGBA
-	// groundNight is the ground darkened, drawn at night (stage 7-1).
-	groundNight *image.RGBA
+	// shades are the ground darkened in steps, drawn as the light falls
+	// (stage 7-1): shades[k] at light k/(len-1).
+	shades []*image.RGBA
 
 	// hist has one sample per tick, from tick 0.
 	hist   []sample
@@ -145,13 +146,18 @@ func New(w *engine.World, scale int) *View {
 			fillRect(v.ground, x*scale, y*scale, scale, scale, c)
 		}
 	}
-	v.groundNight = image.NewRGBA(v.ground.Rect)
-	for i, p := range v.ground.Pix {
-		if i%4 == 3 {
-			v.groundNight.Pix[i] = p
-		} else {
-			v.groundNight.Pix[i] = p / 2
+	const steps = 8
+	for k := 0; k <= steps; k++ {
+		img := image.NewRGBA(v.ground.Rect)
+		f := 0.4 + 0.6*float64(k)/steps // dark ground keeps 40% of its colour
+		for i, p := range v.ground.Pix {
+			if i%4 == 3 {
+				img.Pix[i] = p
+			} else {
+				img.Pix[i] = uint8(float64(p) * f)
+			}
 		}
+		v.shades = append(v.shades, img)
 	}
 	w.SetTrace(v.trace)
 	w.SetChooser(&v.drive)
@@ -330,10 +336,7 @@ func (v *View) followed() (engine.Body, bool) {
 // Render draws the world and the history panel into dst, which must be
 // v.Size() large.
 func (v *View) Render(dst *image.RGBA) {
-	ground := v.ground
-	if v.W.Night() {
-		ground = v.groundNight
-	}
+	ground := v.shades[int(math.Round(v.W.Brightness()*float64(len(v.shades)-1)))]
 	copy(dst.Pix[:len(ground.Pix)], ground.Pix)
 	s := float32(v.scale)
 	px := func(x float64) int { return int(float32(x) * s) }
@@ -533,8 +536,8 @@ func (v *View) Status() string {
 		culture = fmt.Sprintf("  path knowledge from the dead %.0f%%", float64(h.culture)/10)
 	}
 	night := ""
-	if v.W.Night() {
-		night = "  night"
+	if l := v.W.Brightness(); l < 1 {
+		night = fmt.Sprintf("  light %.2f", l)
 	}
 	return fmt.Sprintf("tick %d%s  bodies %d  food %d%s  history: %d ticks (%d/px, grid %s)",
 		v.W.Tick(), night, h.bodies, h.food, culture, v.mapW*tpp, tpp, map[bool]string{true: "10000", false: "1000"}[tpp > 16])

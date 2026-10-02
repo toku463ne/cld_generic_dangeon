@@ -33,7 +33,7 @@ func (w *World) noteSpots(b *Body) {
 	s := w.Sight()
 	for y := by - s; y <= by+s; y++ {
 		for x := bx - s; x <= bx+s; x++ {
-			if !w.m.InBounds(x, y) {
+			if !w.m.InBounds(x, y) || !w.seesFrom(b, bx, by, x, y) {
 				continue
 			}
 			t := w.m.index(x, y)
@@ -74,8 +74,6 @@ func (w *World) recalled(dst []Food, b *Body) []Food {
 	if !w.cfg.Learn || w.cfg.SpotRead <= 0 || len(b.Memory.Spots) == 0 {
 		return dst
 	}
-	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
-	s := w.Sight()
 	type cand struct {
 		d    float64
 		tile int
@@ -83,7 +81,7 @@ func (w *World) recalled(dst []Food, b *Body) []Food {
 	cs := make([]cand, 0, len(b.Memory.Spots))
 	for t := range b.Memory.Spots {
 		x, y := t%w.m.Width, t/w.m.Width
-		if abs(x-bx) <= s && abs(y-by) <= s {
+		if w.sees(b, x, y) {
 			continue
 		}
 		cs = append(cs, cand{octile(math.Abs(float64(x)+0.5-b.X), math.Abs(float64(y)+0.5-b.Y)), t})

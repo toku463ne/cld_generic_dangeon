@@ -15,6 +15,10 @@ type World struct {
 	cfg Config
 	m   Map
 
+	// light is the Brightness of tick lightFor-1 (zero: none worked out).
+	light    float64
+	lightFor int64
+
 	// rng is the single source of randomness of the simulation. Everything
 	// random draws from it, so a given seed always gives the same run.
 	rng   *rand.Rand
@@ -76,8 +80,8 @@ func NewWorld(cfg Config, m Map) (*World, error) {
 	if cfg.AgeBand > 0 && (cfg.AgeEpoch <= 0 || len(cfg.AgeTrust) == 0) {
 		return nil, fmt.Errorf("AgeBand needs AgeEpoch above zero and AgeTrust")
 	}
-	if cfg.DayTicks > 0 && (cfg.NightTicks < 0 || cfg.NightTicks > cfg.DayTicks || cfg.NightSight > cfg.Sight) {
-		return nil, fmt.Errorf("a night (NightTicks) must fit in a day (DayTicks), and see no further than the day (Sight)")
+	if cfg.DayTicks > 0 && (cfg.NightTicks < 0 || cfg.NightTicks > cfg.DayTicks || cfg.NightSight > cfg.Sight || cfg.TwilightTicks < 0 || cfg.TwilightTicks > cfg.NightTicks || cfg.TwilightTicks > cfg.DayTicks-cfg.NightTicks) {
+		return nil, fmt.Errorf("a night (NightTicks) must fit in a day (DayTicks), its twilights (TwilightTicks) in both, and see no further than the day (Sight)")
 	}
 	w := &World{cfg: cfg, m: m.Clone()}
 	w.rng, w.draws = newCountingRand(cfg.Seed)
@@ -149,22 +153,80 @@ func (w *World) removeDead() {
 	w.bodies = alive
 }
 
-// Night reports whether it is night now: the last NightTicks of each day
-// of DayTicks (stage 7-1). The first day starts at tick 1.
-func (w *World) Night() bool {
-	if w.cfg.DayTicks <= 0 || w.cfg.NightTicks <= 0 {
-		return false
+// Brightness is how light it is now, 0 to 1 (stage 7-1, O21). A day of
+// DayTicks has its last NightTicks as night. The light changes along a
+// trapezoid: 1 by day, 0 by night, and in between a straight ramp of
+// TwilightTicks centred on each change, so the light over a day is the same
+// as with no ramps. The clock starts half a twilight into the day: tick 0
+// is the first of full light. No days: always 1.
+func (w *World) Brightness() float64 {
+	if w.lightFor != w.tick+1 {
+		w.light, w.lightFor = w.brightnessAt(w.tick), w.tick+1
 	}
-	return int((w.tick-1)%int64(w.cfg.DayTicks)) >= w.cfg.DayTicks-w.cfg.NightTicks
+	return w.light
 }
 
-// Sight is the sight radius now: NightSight at night, Sight by day. Every
-// perception reads it; the survival tables' reach keeps the day's.
-func (w *World) Sight() int {
-	if w.Night() {
-		return w.cfg.NightSight
+func (w *World) brightnessAt(tick int64) float64 {
+	d, n := w.cfg.DayTicks, w.cfg.NightTicks
+	if d <= 0 || n <= 0 {
+		return 1
 	}
-	return w.cfg.Sight
+	x := float64((tick+int64(w.cfg.TwilightTicks/2))%int64(d)) + 0.5 // the middle of the tick
+	dark := float64(d - n)                                           // the night starts here
+	var into float64                                                 // signed ticks into the day (- into the night)
+	if x < dark {
+		into = math.Min(x, dark-x)
+	} else {
+		into = -math.Min(x-dark, float64(d)-x)
+	}
+	if w.cfg.TwilightTicks <= 0 {
+		if into > 0 {
+			return 1
+		}
+		return 0
+	}
+	return math.Max(0, math.Min(1, 0.5+into/float64(w.cfg.TwilightTicks)))
+}
+
+// Night reports whether it is darker than half light now.
+func (w *World) Night() bool { return w.Brightness() < 0.5 }
+
+// Sight is the radius of the square a body can see in daylight; the tiles
+// in it it sees now are those sees reports. The survival tables' reach
+// keeps it.
+func (w *World) Sight() int { return w.cfg.Sight }
+
+// sees reports whether body b sees tile (x, y) now: within NightSight of
+// its tile always, within Sight when the light is above the tile's
+// threshold for b, a number in [0, 1) fixed by the body and the tile. The
+// share of the square it sees follows the light, and at one light the same
+// tiles stay seen, so the light alone does not keep a body re-deciding.
+// Nothing is drawn from the random source.
+func (w *World) sees(b *Body, x, y int) bool {
+	t := w.tileOf(b.X, b.Y)
+	return w.seesFrom(b, t%w.m.Width, t/w.m.Width, x, y)
+}
+
+// seesFrom is sees with body b standing on tile (tx, ty).
+func (w *World) seesFrom(b *Body, tx, ty, x, y int) bool {
+	d := max(abs(x-tx), abs(y-ty))
+	if d > w.cfg.Sight {
+		return false
+	}
+	if d <= w.cfg.NightSight {
+		return true
+	}
+	light := w.Brightness()
+	if light >= 1 || light <= 0 {
+		return light >= 1
+	}
+	h := uint64(b.ID)*0x9e3779b97f4a7c15 ^ uint64(y*w.m.Width+x)
+	h ^= h >> 30
+	h *= 0xbf58476d1ce4e5b9
+	h ^= h >> 27
+	h *= 0x94d049bb133111eb
+	h ^= h >> 31
+	return float64(h>>11)/(1<<53) < light
 }
 
 // Tick returns how many ticks the world has run.

@@ -153,7 +153,7 @@ func (w *World) mates(b *Body, f func(*Body)) {
 	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
 	for y := by - sight; y <= by+sight; y++ {
 		for x := bx - sight; x <= bx+sight; x++ {
-			if !w.m.InBounds(x, y) {
+			if !w.m.InBounds(x, y) || !w.seesFrom(b, bx, by, x, y) {
 				continue
 			}
 			for _, j := range w.grid[w.m.index(x, y)] {
@@ -262,7 +262,7 @@ func (w *World) requesters(b *Body, f func(*Body)) {
 			continue
 		}
 		d := max(abs(int(math.Floor(o.X))-bx), abs(int(math.Floor(o.Y))-by))
-		if d > w.Sight() && d <= w.cfg.RequestRange {
+		if d <= w.cfg.RequestRange && (d > w.cfg.Sight || !w.seesFrom(b, bx, by, int(math.Floor(o.X)), int(math.Floor(o.Y)))) {
 			f(o)
 		}
 	}
