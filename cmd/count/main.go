@@ -111,6 +111,9 @@
 //	       body, how much food then lay there, and whether the world
 //	       collapsed.
 //
+//	foodage (stage 4-4) how long a unit lies on the ground before it is
+//	       taken, and how much is still there at the end.
+//
 //	meet   (stage 1-2) in the worlds of the random and base variants, the
 //	       share of tiles a body enters that hold food, against what the
 //	       truth table's third row reads: the food of the region over its land.
@@ -135,7 +138,7 @@ import (
 )
 
 func main() {
-	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage | cycle | explore | shuttle | change | breed | mate | turnover | invade | collide | generations | learn | room | culture | erase | drift | walked | regions | seasons | sex | stages | payers | provision | allee | mating | request | oldbirths | ties | carryroom | carry | placeroom | spots | materoom | lock")
+	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage | cycle | explore | shuttle | change | breed | mate | turnover | invade | collide | generations | learn | room | culture | erase | drift | walked | regions | seasons | sex | stages | payers | provision | allee | mating | request | oldbirths | ties | carryroom | carry | placeroom | spots | materoom | lock | foodage")
 	mapName := flag.String("map", "", "map (required)")
 	width := flag.Int("w", 0, "map width in tiles (required)")
 	height := flag.Int("h", 0, "map height in tiles (required)")
@@ -143,10 +146,10 @@ func main() {
 	seed0 := flag.Int64("seed0", 1, "first seed")
 	ticks := flag.Int("ticks", 0, "ticks per run (underfoot, split, meet, sight, forage, cycle and explore, required there)")
 	every := flag.Int("every", 50, "split: read the world every this many ticks")
-	vname := flag.String("variant", variant.Base, "erase, drift, walked, regions, seasons, sex, stages, payers, provision, allee, mating, request, oldbirths, ties, carryroom, carry, placeroom, spots, materoom and lock: the variant to run")
+	vname := flag.String("variant", variant.Base, "erase, drift, walked, regions, seasons, sex, stages, payers, provision, allee, mating, request, oldbirths, ties, carryroom, carry, placeroom, spots, materoom, lock and foodage: the variant to run")
 	flag.Parse()
 
-	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" && *what != "cycle" && *what != "explore" && *what != "shuttle" && *what != "change" && *what != "breed" && *what != "mate" && *what != "turnover" && *what != "invade" && *what != "collide" && *what != "generations" && *what != "learn" && *what != "room" && *what != "culture" && *what != "erase" && *what != "drift" && *what != "walked" && *what != "regions" && *what != "seasons" && *what != "sex" && *what != "stages" && *what != "payers" && *what != "provision" && *what != "allee" && *what != "mating" && *what != "request" && *what != "oldbirths" && *what != "ties" && *what != "carryroom" && *what != "carry" && *what != "placeroom" && *what != "spots" && *what != "materoom" && *what != "lock" {
+	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" && *what != "cycle" && *what != "explore" && *what != "shuttle" && *what != "change" && *what != "breed" && *what != "mate" && *what != "turnover" && *what != "invade" && *what != "collide" && *what != "generations" && *what != "learn" && *what != "room" && *what != "culture" && *what != "erase" && *what != "drift" && *what != "walked" && *what != "regions" && *what != "seasons" && *what != "sex" && *what != "stages" && *what != "payers" && *what != "provision" && *what != "allee" && *what != "mating" && *what != "request" && *what != "oldbirths" && *what != "ties" && *what != "carryroom" && *what != "carry" && *what != "placeroom" && *what != "spots" && *what != "materoom" && *what != "lock" && *what != "foodage" {
 		fail(fmt.Errorf("unknown count %q", *what))
 	}
 	if *seeds <= 0 || *width <= 0 || *height <= 0 || *mapName == "" {
@@ -156,7 +159,7 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" || *what == "cycle" || *what == "explore" || *what == "shuttle" || *what == "change" || *what == "breed" || *what == "mate" || *what == "turnover" || *what == "invade" || *what == "collide" || *what == "generations" || *what == "learn" || *what == "room" || *what == "culture" || *what == "erase" || *what == "drift" || *what == "walked" || *what == "regions" || *what == "seasons" || *what == "sex" || *what == "stages" || *what == "payers" || *what == "provision" || *what == "allee" || *what == "mating" || *what == "request" || *what == "oldbirths" || *what == "ties" || *what == "carryroom" || *what == "carry" || *what == "placeroom" || *what == "spots" || *what == "materoom" || *what == "lock" {
+	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" || *what == "cycle" || *what == "explore" || *what == "shuttle" || *what == "change" || *what == "breed" || *what == "mate" || *what == "turnover" || *what == "invade" || *what == "collide" || *what == "generations" || *what == "learn" || *what == "room" || *what == "culture" || *what == "erase" || *what == "drift" || *what == "walked" || *what == "regions" || *what == "seasons" || *what == "sex" || *what == "stages" || *what == "payers" || *what == "provision" || *what == "allee" || *what == "mating" || *what == "request" || *what == "oldbirths" || *what == "ties" || *what == "carryroom" || *what == "carry" || *what == "placeroom" || *what == "spots" || *what == "materoom" || *what == "lock" || *what == "foodage" {
 		if *ticks <= 0 {
 			fail(fmt.Errorf("-ticks is required for %s", *what))
 		}
@@ -182,6 +185,10 @@ func main() {
 		}
 		if *what == "spots" {
 			spots(m, *mapName, *seeds, *seed0, *ticks, *vname)
+			return
+		}
+		if *what == "foodage" {
+			foodAge(m, *mapName, *seeds, *seed0, *ticks, *vname)
 			return
 		}
 		if *what == "lock" {
