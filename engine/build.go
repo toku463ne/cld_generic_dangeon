@@ -37,6 +37,10 @@ func (w *World) maxOf(b *Body) float64 {
 	return most * w.ageFactor(b)
 }
 
+// MaxEnergy is the most energy body b can hold now, its build's scaled by
+// its age. It reads and changes nothing.
+func (w *World) MaxEnergy(b Body) float64 { return w.maxOf(&b) }
+
 // ageFactor scales a body's speed and most energy by its age (stage 3-7):
 // from ChildAbility at birth up to 1 when it comes of age, 1 through
 // adulthood, and down from OldAge to ChildAbility at Lifespan - a baby and
