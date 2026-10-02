@@ -99,7 +99,7 @@ func TestFingerprint(t *testing.T) {
 func TestSightblindIsStage71b(t *testing.T) {
 	const want = uint64(0x69e0e1827d1dfdff)
 	cfg := testConfig(1)
-	cfg.SightRead = false
+	cfg.SightRead, cfg.BurnRead = false, false
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -107,6 +107,57 @@ func TestSightblindIsStage71b(t *testing.T) {
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
 		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// A body feels its burn rise, smoothed over BurnSpan; one whose burn is not
+// rising values at planBurn exactly; one whose burn rises values at the
+// window's average burn, rounded up to a step of BurnStep; and a rising
+// burn reads keeping on the move as riskier.
+func TestBurnRead(t *testing.T) {
+	w, b := soloWorld(t, 30)
+	w.cfg.BurnRead, w.cfg.BurnSpan, w.cfg.BurnStep = true, 10, 1.05
+	base := w.planBurn(b)
+	if got := w.readBurn(b); got != base {
+		t.Fatalf("not rising: read %v, want %v", got, base)
+	}
+	w.feelBurn(b)
+	b.Build.EnergyBurn = base * 1.5 // the burn jumps
+	w.feelBurn(b)
+	if want := base * 0.5 / 10; math.Abs(b.BurnRise-want) > 1e-12 {
+		t.Fatalf("felt rise %v, want %v", b.BurnRise, want)
+	}
+	b.Build.EnergyBurn = 0
+	b.BurnRise = 0.0001 // per tick: the window's average is +0.05 over 0.1
+	ahead := base + 0.0001*float64(w.cfg.Window)/2
+	got := w.readBurn(b)
+	if got < ahead || got > ahead*1.05+1e-12 {
+		t.Fatalf("rising: read %v, want a step of 1.05 at or above %v", got, ahead)
+	}
+	k := math.Log(got/base) / math.Log(1.05)
+	if math.Abs(k-math.Round(k)) > 1e-9 {
+		t.Fatalf("read %v is not a whole step above %v", got, base)
+	}
+	risk := func() float64 {
+		w.decide(b)
+		v := w.valuation
+		for j, o := range v.Options {
+			if o.Kind == ActWait {
+				return v.Risk[0][j]
+			}
+		}
+		t.Fatal("no wait")
+		return 0
+	}
+	rising := risk()
+	b.BurnRise = 0
+	if steady := risk(); steady >= rising {
+		t.Fatalf("waiting risk steady %v, rising %v: a rising burn should read riskier", steady, rising)
+	}
+	w.cfg.BurnRead = false
+	b.BurnRise = 0.0001
+	if got := w.readBurn(b); got != base {
+		t.Fatalf("BurnRead off: read %v, want %v", got, base)
 	}
 }
 
@@ -141,7 +192,7 @@ func TestSightGain(t *testing.T) {
 func TestDaylongIsStage44(t *testing.T) {
 	const want = uint64(0x6688fcd65831b06f)
 	cfg := testConfig(1)
-	cfg.DayTicks, cfg.SightRead = 0, false
+	cfg.DayTicks, cfg.SightRead, cfg.BurnRead = 0, false, false
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -157,6 +208,7 @@ func TestDaylongIsStage44(t *testing.T) {
 func TestUnrecalledIsStage51(t *testing.T) {
 	const want = uint64(0xfd78c54bf2471c88)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -176,6 +228,7 @@ func TestUnrecalledIsStage51(t *testing.T) {
 func TestHalflifeIsStage41(t *testing.T) {
 	const want = uint64(0x971f95e7534adb93)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -196,6 +249,7 @@ func TestHalflifeIsStage41(t *testing.T) {
 func TestUnheldIsStage40(t *testing.T) {
 	const want = uint64(0xb89f1a88f75406bd)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -217,6 +271,7 @@ func TestUnheldIsStage40(t *testing.T) {
 func TestRestblindIsStage38(t *testing.T) {
 	const want = uint64(0xd5089edccdd2163a)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -239,6 +294,7 @@ func TestRestblindIsStage38(t *testing.T) {
 func TestUnaskedIsStage37(t *testing.T) {
 	const want = uint64(0xd1e6c04e0a38b0dd)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -262,6 +318,7 @@ func TestUnaskedIsStage37(t *testing.T) {
 func TestUnagedIsStage36(t *testing.T) {
 	const want = uint64(0x58f5fb5146e6aeb2)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -287,6 +344,7 @@ func TestUnagedIsStage36(t *testing.T) {
 func TestSlowgrowIsStage35b(t *testing.T) {
 	const want = uint64(0x8a059c7590e3f58e)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -312,6 +370,7 @@ func TestSlowgrowIsStage35b(t *testing.T) {
 func TestAgelessIsStage34(t *testing.T) {
 	const want = uint64(0x5dc9e29b78aa406e)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -338,6 +397,7 @@ func TestAgelessIsStage34(t *testing.T) {
 func TestBusyIsStage33d(t *testing.T) {
 	const want = uint64(0x384173ebd067a28b)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -364,6 +424,7 @@ func TestBusyIsStage33d(t *testing.T) {
 func TestDoubledIsStage33c(t *testing.T) {
 	const want = uint64(0xe3831b583507fd10)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -391,6 +452,7 @@ func TestDoubledIsStage33c(t *testing.T) {
 func TestLeanIsStage33b(t *testing.T) {
 	const want = uint64(0x6bd4f31ce603a4df)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -418,6 +480,7 @@ func TestLeanIsStage33b(t *testing.T) {
 func TestPerunitIsStage33(t *testing.T) {
 	const want = uint64(0xde7a3d9c0a25b1db)
 	cfg := testConfig(1)
+	cfg.BurnRead = false      // before stage 7-3a
 	cfg.SightRead = false     // before stage 7-2a
 	cfg.DayTicks = 0          // before stage 7-1
 	cfg.FoodLife = 0          // before stage 4-4
@@ -445,6 +508,7 @@ func TestPerunitIsStage33(t *testing.T) {
 func TestUnfedIsStage32(t *testing.T) {
 	const want = uint64(0xa1d282e1ee3e8c90)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -472,6 +536,7 @@ func TestUnfedIsStage32(t *testing.T) {
 func TestEvenIsStage31(t *testing.T) {
 	const want = uint64(0x8b3ca5a0fba68811)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -499,6 +564,7 @@ func TestEvenIsStage31(t *testing.T) {
 func TestSexlessIsStage24(t *testing.T) {
 	const want = uint64(0x6b3c0afd0521ffad)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -525,6 +591,7 @@ func TestSexlessIsStage24(t *testing.T) {
 func TestAgedIsStage23(t *testing.T) {
 	const want = uint64(0x7adba2aacb1d8238)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -552,6 +619,7 @@ func TestAgedIsStage23(t *testing.T) {
 func TestKinIsStage22(t *testing.T) {
 	const want = uint64(0xc2470db84a940725)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -579,6 +647,7 @@ func TestKinIsStage22(t *testing.T) {
 func TestNearIsThird21(t *testing.T) {
 	const want = uint64(0x93985c1a1c5ca120)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -606,6 +675,7 @@ func TestNearIsThird21(t *testing.T) {
 func TestMixedIsSecond21(t *testing.T) {
 	const want = uint64(0xc91b803c2f04cb5a)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -633,6 +703,7 @@ func TestMixedIsSecond21(t *testing.T) {
 func TestUndecayedIsFirst21(t *testing.T) {
 	const want = uint64(0xbaee248a8a9a5bc)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -660,6 +731,7 @@ func TestUndecayedIsFirst21(t *testing.T) {
 func TestUntoldIsStage20(t *testing.T) {
 	const want = uint64(0xe85e05167296fc73)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -687,6 +759,7 @@ func TestUntoldIsStage20(t *testing.T) {
 func TestTruthIsBeforeStage16(t *testing.T) {
 	const want = uint64(0x6031cdab7f6ff3fb)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -714,6 +787,7 @@ func TestTruthIsBeforeStage16(t *testing.T) {
 func TestBounceIsStage15(t *testing.T) {
 	const want = uint64(0x8f80778b1d21631e)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -741,6 +815,7 @@ func TestBounceIsStage15(t *testing.T) {
 func TestDrawnIsCollisions(t *testing.T) {
 	const want = uint64(0xe4ce1d34b72b02f4)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -769,6 +844,7 @@ func TestDrawnIsCollisions(t *testing.T) {
 func TestOverlapIsStage14(t *testing.T) {
 	const want = uint64(0x6dda229acfd53e93)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -797,6 +873,7 @@ func TestOverlapIsStage14(t *testing.T) {
 func TestFixedIsStage13(t *testing.T) {
 	const want = uint64(0x31db5a227bba52b8)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -825,6 +902,7 @@ func TestFixedIsStage13(t *testing.T) {
 func TestNoBreedIsStage12e(t *testing.T) {
 	const want = uint64(0xc6343895ef84fe4d)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -853,6 +931,7 @@ func TestNoBreedIsStage12e(t *testing.T) {
 func TestEverytickIsStage12r(t *testing.T) {
 	const want = uint64(0x72d49e5113ca37a8)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -881,6 +960,7 @@ func TestEverytickIsStage12r(t *testing.T) {
 func TestStraightbackIsStage12q(t *testing.T) {
 	const want = uint64(0x598db45e1aaf44c7)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -909,6 +989,7 @@ func TestStraightbackIsStage12q(t *testing.T) {
 func TestNoHeadingIsStage12p(t *testing.T) {
 	const want = uint64(0x46ffb00b8b64a80)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -937,6 +1018,7 @@ func TestNoHeadingIsStage12p(t *testing.T) {
 func TestNoSightIsFirstStage12(t *testing.T) {
 	const want = uint64(0x51de0e4034431e90)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4
@@ -965,6 +1047,7 @@ func TestNoSightIsFirstStage12(t *testing.T) {
 func TestNoWindowIsStage11(t *testing.T) {
 	const want = uint64(0xa43263b50e366b1e)
 	cfg := testConfig(1)
+	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
 	cfg.DayTicks = 0      // before stage 7-1
 	cfg.FoodLife = 0      // before stage 4-4

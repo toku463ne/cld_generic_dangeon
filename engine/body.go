@@ -63,6 +63,10 @@ type Body struct {
 	// HeldBorn is the tick each held unit appeared, oldest first (with
 	// FoodLife): a held unit decays like one on the ground.
 	HeldBorn []int64 `json:",omitempty"`
+	// BurnFelt is the burn it last felt (planBurn) and BurnRise how fast
+	// that has been rising per tick, smoothed over BurnSpan (stage 7-3a).
+	BurnFelt float64 `json:",omitempty"`
+	BurnRise float64 `json:",omitempty"`
 	// Build is its own speed, most energy and burn (build.go), and Share
 	// the share of its budget it was born with for speed (with Allot).
 	Build Build

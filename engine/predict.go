@@ -276,7 +276,7 @@ func (w *World) Value(t TruthTable, survival []Survival, b Body) Valuation {
 // (learn.go).
 func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive func(RegionID) Survival, child float64, rs *rates, b *Body) {
 	path := rs != nil
-	speed, burn := w.speedOf(b), w.planBurn(b)
+	speed, burn := w.speedOf(b), w.readBurn(b)
 	// A resting mother's reserve is energy she has not got yet (stage 4-0),
 	// and the food a body holds is energy it eats as soon as a whole meal
 	// fits (stage 4-1): both add to what it can last, but not to what a
@@ -663,7 +663,7 @@ func (w *World) decide(b *Body) Action {
 	v := &w.valuation
 	switch {
 	case w.cfg.Window > 0 && w.cfg.Learn:
-		burn, speed := w.planBurn(b), w.speedOf(b)
+		burn, speed := w.readBurn(b), w.speedOf(b)
 		meal, full := energyTicks(w.cfg.FoodEnergy, burn), energyTicks(w.maxOf(b), burn)
 		rs := &w.rates
 		w.ratesOf(b, rs)
@@ -673,7 +673,7 @@ func (w *World) decide(b *Body) Action {
 	case w.cfg.Window > 0 && b.Build == (Build{}):
 		w.valueInto(v, w.pred.meal, w.pred.full, w.pred.windows, w.survival, 1, nil, b)
 	case w.cfg.Window > 0:
-		burn, speed := w.planBurn(b), w.speedOf(b)
+		burn, speed := w.readBurn(b), w.speedOf(b)
 		meal, full := energyTicks(w.cfg.FoodEnergy, burn), energyTicks(w.maxOf(b), burn)
 		w.valueInto(v, meal, full, w.pred.windows, func(r RegionID) Survival { return w.survivalFor(r, meal, full, speed) }, 1, nil, b)
 	default:

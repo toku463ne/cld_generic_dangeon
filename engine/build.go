@@ -91,6 +91,36 @@ func (w *World) planBurn(b *Body) float64 {
 	return w.burnOf(b)
 }
 
+// readBurn is the burn body b values its options at (stage 7-3a): planBurn
+// now, and with BurnRead, its average over the window if it keeps rising as
+// the body feels it rising, in steps of BurnStep above planBurn. A burn
+// that is not rising reads as planBurn exactly.
+func (w *World) readBurn(b *Body) float64 {
+	burn := w.planBurn(b)
+	if !w.cfg.BurnRead || b.BurnRise <= 0 || w.cfg.Window <= 0 {
+		return burn
+	}
+	ahead := burn + b.BurnRise*float64(w.cfg.Window)/2
+	if w.cfg.BurnStep <= 1 {
+		return ahead
+	}
+	k := math.Ceil(math.Log(ahead/burn)/math.Log(w.cfg.BurnStep) - 1e-9)
+	return burn * math.Pow(w.cfg.BurnStep, k)
+}
+
+// feelBurn has body b feel its burn after a tick: how far planBurn moved
+// since it last felt it, smoothed into BurnRise (stage 7-3a).
+func (w *World) feelBurn(b *Body) {
+	if !w.cfg.BurnRead {
+		return
+	}
+	burn := w.planBurn(b)
+	if b.BurnFelt > 0 && w.cfg.BurnSpan > 0 {
+		b.BurnRise += (burn - b.BurnFelt - b.BurnRise) / float64(w.cfg.BurnSpan)
+	}
+	b.BurnFelt = burn
+}
+
 // restReserve is, for a resting mother with RestAhead, the ticks of
 // planBurn the rest of her rest saves her: she burns RestBurn of it each
 // tick until Rested. Zero for every other body.

@@ -58,6 +58,15 @@ type Config struct {
 	// where off it only the tile stepped on, so the chance per tile of
 	// meeting food is multiplied by that. The light is read as staying.
 	SightRead bool
+	// BurnRead has the valuation read the burn a body feels and how fast it
+	// is rising (stage 7-3a): over the window the burn is read as its
+	// average if it keeps rising as it does now, so a rising burn shortens
+	// the ticks the energy lasts - whatever raises it. BurnSpan is how many
+	// ticks the felt rise is smoothed over, and BurnStep the ratio between
+	// the burns valued at, so that a body's few survival tables stay few.
+	BurnRead bool
+	BurnSpan int
+	BurnStep float64
 	// KeepHeading breaks ties by the body's last move: when the options of
 	// least risk include moving the way it last moved, it moves that way,
 	// and it draws at random among them otherwise - where the land ends,
@@ -301,6 +310,9 @@ func DefaultConfig() Config {
 		NightTicks:         500,
 		TwilightTicks:      100,
 		SightRead:          true,
+		BurnRead:           true,
+		BurnSpan:           50,
+		BurnStep:           1.05,
 		KeepHeading:        true,
 		TurnOffReverse:     true,
 		Recheck:            300,

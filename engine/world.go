@@ -116,6 +116,7 @@ func (w *World) Step() {
 		w.act(i, b, w.turn(b))
 		burn := w.burnOf(b)
 		b.Energy -= burn
+		w.feelBurn(b)
 		w.stats.EnergyBurned += burn
 	}
 	w.removeDead()
