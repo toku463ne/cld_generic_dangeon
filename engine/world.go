@@ -266,6 +266,18 @@ func (w *World) Fingerprint() uint64 {
 			if w.cfg.AgeBand > 0 {
 				tally(mem.Mate)
 			}
+			if w.cfg.SpotRead > 0 {
+				tally(mem.Spot)
+				spots := make([]int, 0, len(mem.Spots))
+				for tl := range mem.Spots {
+					spots = append(spots, tl)
+				}
+				sort.Ints(spots)
+				for _, tl := range spots {
+					put(uint64(tl))
+					put(uint64(mem.Spots[tl]))
+				}
+			}
 			tiles := make([]int, 0, len(mem.Walked))
 			for tl, when := range mem.Walked {
 				if w.tick-when <= int64(w.cfg.PathRecall) {

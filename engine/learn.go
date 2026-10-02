@@ -98,6 +98,10 @@ type Memory struct {
 	// the same by when (stage 5-1), and the mate row reads it.
 	Asks, Kids float64 `json:",omitempty"`
 	Mate       Tally   `json:",omitempty"`
+	// Spots are the tiles it saw food on and left, and when (stage 5-2);
+	// Spot counts its walks to one: found it there, K times in N.
+	Spots map[int]int64 `json:",omitempty"`
+	Spot  Tally         `json:",omitempty"`
 	// Met are the bodies it has passed evidence with (tell.go).
 	Met map[int64]bool `json:",omitempty"`
 	// Ver counts the changes to the rows it can pass on; Told holds, for

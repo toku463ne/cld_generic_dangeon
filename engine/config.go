@@ -148,6 +148,13 @@ type Config struct {
 	// values what it holds as energy a meal's cap does not limit. Zero:
 	// stage 4-0, where no body holds food.
 	Carry int
+	// SpotRead is how many of the units of food a body saw and left, and
+	// remembers where, it reads when it decides: the nearest (stage 5-2).
+	// It learns whether a remembered unit is still there when it walks to
+	// one, a row pulled toward PriorSpot by SpotWeight. Zero: stage 5-1,
+	// where a body knows only the food in sight.
+	SpotRead              int
+	PriorSpot, SpotWeight float64
 	// MatureAge is how many ticks after its birth a child becomes an adult
 	// and may mate.
 	MatureAge int
@@ -322,6 +329,9 @@ func DefaultConfig() Config {
 		OldBarren:          true,
 		RestAhead:          true,
 		Carry:              1,
+		SpotRead:           3,
+		PriorSpot:          0.5,
+		SpotWeight:         5,
 		Requests:           true,
 		RequestRange:       5,
 		RequestTicks:       100,

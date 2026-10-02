@@ -89,12 +89,14 @@ func (t *trail) push(x, y float32, tick int64) {
 // decision is a copy of one traced decision of the followed body. The
 // engine reuses the valuation's slices, so they are copied out.
 type decision struct {
-	tick   int64
-	body   engine.Body
-	opts   []engine.Action
-	risk   []float64 // first window
-	child  []float64
-	seen   []engine.Food
+	tick  int64
+	body  engine.Body
+	opts  []engine.Action
+	risk  []float64 // first window
+	child []float64
+	seen  []engine.Food
+	// units are the food a plan can point to: seen, then remembered.
+	units  []engine.Food
 	plan   []int
 	arrive []int
 	chosen engine.Action
@@ -230,6 +232,7 @@ func (v *View) trace(b engine.Body, val engine.Valuation, a engine.Action) {
 		tick: v.W.Tick(), body: b, chosen: a, why: val.Why,
 		opts:   append([]engine.Action(nil), val.Options...),
 		seen:   append([]engine.Food(nil), val.Seen...),
+		units:  append(append([]engine.Food(nil), val.Seen...), val.Recalled...),
 		plan:   append([]int(nil), val.Plan...),
 		arrive: append([]int(nil), val.Arrive...),
 	}
@@ -346,7 +349,7 @@ func (v *View) Render(dst *image.RGBA) {
 		// Where its last decision planned to eat.
 		if d := v.last; d != nil && d.body.ID == fb.ID {
 			if j := optionIndex(d.opts, d.chosen); j >= 0 && j < len(d.plan) && d.plan[j] >= 0 {
-				f := d.seen[d.plan[j]]
+				f := d.units[d.plan[j]]
 				line(dst, px(fb.X), px(fb.Y), f.X*v.scale+v.scale/2, f.Y*v.scale+v.scale/2, followColor)
 			}
 		}
@@ -572,8 +575,11 @@ func (v *View) FollowText() string {
 		}
 		via := "keep moving in region"
 		if d.plan[j] >= 0 {
-			f := d.seen[d.plan[j]]
+			f := d.units[d.plan[j]]
 			via = fmt.Sprintf("walk to food (%d,%d) in %d", f.X, f.Y, d.arrive[j])
+			if d.plan[j] >= len(d.seen) {
+				via = fmt.Sprintf("walk to remembered food (%d,%d) in %d", f.X, f.Y, d.arrive[j])
+			}
 		}
 		if j < len(d.child) && d.child[j] > 0 {
 			via += fmt.Sprintf(", child %.0f", d.child[j])

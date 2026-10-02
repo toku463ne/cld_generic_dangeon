@@ -144,6 +144,9 @@ type Stats struct {
 	Provisioned []int64 `json:",omitempty"`
 	// EatenHeld counts the units bodies ate from what they held (Carry).
 	EatenHeld int64 `json:",omitempty"`
+	// SpotFound and SpotMissed count walks to a remembered unit that found
+	// it there and that did not (stage 5-2).
+	SpotFound, SpotMissed int64 `json:",omitempty"`
 }
 
 // RowCount counts, for one learned row, the observations bodies added to it

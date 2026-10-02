@@ -99,6 +99,9 @@
 //	       to a tile a body ate on, and food a body saw and left still
 //	       there when it comes back.
 //
+//	spots  (stage 5-2) in a world where bodies remember food they saw and
+//	       left, how often they walk to a remembered unit and find it.
+//
 //	meet   (stage 1-2) in the worlds of the random and base variants, the
 //	       share of tiles a body enters that hold food, against what the
 //	       truth table's third row reads: the food of the region over its land.
@@ -123,7 +126,7 @@ import (
 )
 
 func main() {
-	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage | cycle | explore | shuttle | change | breed | mate | turnover | invade | collide | generations | learn | room | culture | erase | drift | walked | regions | seasons | sex | stages | payers | provision | allee | mating | request | oldbirths | ties | carryroom | carry | placeroom")
+	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage | cycle | explore | shuttle | change | breed | mate | turnover | invade | collide | generations | learn | room | culture | erase | drift | walked | regions | seasons | sex | stages | payers | provision | allee | mating | request | oldbirths | ties | carryroom | carry | placeroom | spots")
 	mapName := flag.String("map", "", "map (required)")
 	width := flag.Int("w", 0, "map width in tiles (required)")
 	height := flag.Int("h", 0, "map height in tiles (required)")
@@ -131,10 +134,10 @@ func main() {
 	seed0 := flag.Int64("seed0", 1, "first seed")
 	ticks := flag.Int("ticks", 0, "ticks per run (underfoot, split, meet, sight, forage, cycle and explore, required there)")
 	every := flag.Int("every", 50, "split: read the world every this many ticks")
-	vname := flag.String("variant", variant.Base, "erase, drift, walked, regions, seasons, sex, stages, payers, provision, allee, mating, request, oldbirths, ties, carryroom, carry and placeroom: the variant to run")
+	vname := flag.String("variant", variant.Base, "erase, drift, walked, regions, seasons, sex, stages, payers, provision, allee, mating, request, oldbirths, ties, carryroom, carry, placeroom and spots: the variant to run")
 	flag.Parse()
 
-	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" && *what != "cycle" && *what != "explore" && *what != "shuttle" && *what != "change" && *what != "breed" && *what != "mate" && *what != "turnover" && *what != "invade" && *what != "collide" && *what != "generations" && *what != "learn" && *what != "room" && *what != "culture" && *what != "erase" && *what != "drift" && *what != "walked" && *what != "regions" && *what != "seasons" && *what != "sex" && *what != "stages" && *what != "payers" && *what != "provision" && *what != "allee" && *what != "mating" && *what != "request" && *what != "oldbirths" && *what != "ties" && *what != "carryroom" && *what != "carry" && *what != "placeroom" {
+	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" && *what != "cycle" && *what != "explore" && *what != "shuttle" && *what != "change" && *what != "breed" && *what != "mate" && *what != "turnover" && *what != "invade" && *what != "collide" && *what != "generations" && *what != "learn" && *what != "room" && *what != "culture" && *what != "erase" && *what != "drift" && *what != "walked" && *what != "regions" && *what != "seasons" && *what != "sex" && *what != "stages" && *what != "payers" && *what != "provision" && *what != "allee" && *what != "mating" && *what != "request" && *what != "oldbirths" && *what != "ties" && *what != "carryroom" && *what != "carry" && *what != "placeroom" && *what != "spots" {
 		fail(fmt.Errorf("unknown count %q", *what))
 	}
 	if *seeds <= 0 || *width <= 0 || *height <= 0 || *mapName == "" {
@@ -144,7 +147,7 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" || *what == "cycle" || *what == "explore" || *what == "shuttle" || *what == "change" || *what == "breed" || *what == "mate" || *what == "turnover" || *what == "invade" || *what == "collide" || *what == "generations" || *what == "learn" || *what == "room" || *what == "culture" || *what == "erase" || *what == "drift" || *what == "walked" || *what == "regions" || *what == "seasons" || *what == "sex" || *what == "stages" || *what == "payers" || *what == "provision" || *what == "allee" || *what == "mating" || *what == "request" || *what == "oldbirths" || *what == "ties" || *what == "carryroom" || *what == "carry" || *what == "placeroom" {
+	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" || *what == "cycle" || *what == "explore" || *what == "shuttle" || *what == "change" || *what == "breed" || *what == "mate" || *what == "turnover" || *what == "invade" || *what == "collide" || *what == "generations" || *what == "learn" || *what == "room" || *what == "culture" || *what == "erase" || *what == "drift" || *what == "walked" || *what == "regions" || *what == "seasons" || *what == "sex" || *what == "stages" || *what == "payers" || *what == "provision" || *what == "allee" || *what == "mating" || *what == "request" || *what == "oldbirths" || *what == "ties" || *what == "carryroom" || *what == "carry" || *what == "placeroom" || *what == "spots" {
 		if *ticks <= 0 {
 			fail(fmt.Errorf("-ticks is required for %s", *what))
 		}
@@ -166,6 +169,10 @@ func main() {
 		}
 		if *what == "placeroom" {
 			placeRoom(m, *mapName, *seeds, *seed0, *ticks, *vname)
+			return
+		}
+		if *what == "spots" {
+			spots(m, *mapName, *seeds, *seed0, *ticks, *vname)
 			return
 		}
 		if *what == "request" {
@@ -1802,7 +1809,7 @@ func runChange(cfg engine.Config, m engine.Map, ticks int) (changeTally, error) 
 			seen[Food2{f.X, f.Y}] = true
 		}
 		walks, target := false, Food2{}
-		if j := optionOf(v.Options, a); j >= 0 && j < len(v.Plan) && v.Plan[j] >= 0 {
+		if j := optionOf(v.Options, a); j >= 0 && j < len(v.Plan) && v.Plan[j] >= 0 && v.Plan[j] < len(v.Seen) {
 			f := v.Seen[v.Plan[j]]
 			walks, target = true, Food2{f.X, f.Y}
 		}

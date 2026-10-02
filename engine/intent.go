@@ -79,6 +79,7 @@ func (w *World) turn(b *Body) Action {
 		}
 	}
 	w.stats.Decisions[why]++
+	w.noteSpots(b)
 	w.valuation.Why = why
 	a := w.decide(b)
 	if taken {
@@ -106,7 +107,7 @@ func (w *World) goalOf(b *Body, a Action) int {
 	}
 	for j, o := range v.Options {
 		if o == a && j < len(v.Plan) && v.Plan[j] >= 0 {
-			f := v.Seen[v.Plan[j]]
+			f := v.unit(v.Plan[j])
 			if v.Arrive[j] < walkTicks(gapTo(b.X, f.X), gapTo(b.Y, f.Y), w.speedOf(b)) {
 				return w.m.index(f.X, f.Y)
 			}

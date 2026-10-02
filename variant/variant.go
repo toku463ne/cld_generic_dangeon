@@ -27,6 +27,9 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Unrecalled is stage 5-1: a body knows only the food in sight.
+const Unrecalled = "unrecalled"
+
 // Halflife is stage 4-1: evidence ages by a continuous half-life, and the
 // mate row does not age.
 const Halflife = "halflife"
@@ -171,35 +174,36 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func halflife(c *engine.Config)  { c.AgeBand = 0 }
-func unheld(c *engine.Config)    { halflife(c); c.Carry = 0 }
-func restblind(c *engine.Config) { unheld(c); c.RestAhead = false }
-func oldmating(c *engine.Config) { restblind(c); c.OldBarren = false }
-func unasked(c *engine.Config)   { oldmating(c); c.Requests = false }
-func unaged(c *engine.Config)    { unasked(c); c.ChildAbility = 1 }
-func slowgrow(c *engine.Config)  { unaged(c); c.MatureAge = 1000 }
-func short(c *engine.Config)     { slowgrow(c); c.Lifespan = 3000 }
-func ageless(c *engine.Config)   { short(c); c.Lifespan = 0 }
-func busy(c *engine.Config)      { ageless(c); c.RestBurn = 1 }
-func doubled(c *engine.Config)   { busy(c); c.ProvisionEachWith, c.ProvisionEachAlone = 0.0075, 0.00375 }
-func lean(c *engine.Config)      { busy(c); c.ProvisionEachWith, c.ProvisionEachAlone = 0.00375, 0.001875 }
-func perunit(c *engine.Config)   { lean(c); c.ProvisionEach = false }
-func unfed(c *engine.Config)     { perunit(c); c.Provision = false }
-func even(c *engine.Config)      { unfed(c); c.FemaleBears = false }
-func sexless(c *engine.Config)   { even(c); c.Sexes = false }
-func aged(c *engine.Config)      { sexless(c); c.PassPath = true }
-func kin(c *engine.Config)       { aged(c); c.AgePath = false }
-func near(c *engine.Config)      { kin(c); c.Kin = false }
-func mixed(c *engine.Config)     { near(c); c.StableRows = false }
-func undecayed(c *engine.Config) { mixed(c); c.EvidenceHalfLife = 0 }
-func untold(c *engine.Config)    { undecayed(c); c.Tell = false }
-func truth(c *engine.Config)     { untold(c); c.Learn = false }
-func bounced(c *engine.Config)   { truth(c); c.Bounce = true }
-func drawn(c *engine.Config)     { bounced(c); c.AllotInherit = false }
-func overlap(c *engine.Config)   { drawn(c); c.Collide = false }
-func fixed(c *engine.Config)     { overlap(c); c.Allot = false }
-func nobreed(c *engine.Config)   { fixed(c); c.Breed = false }
-func everytick(c *engine.Config) { nobreed(c); c.Recheck = 0 }
+func unrecalled(c *engine.Config) { c.SpotRead = 0 }
+func halflife(c *engine.Config)   { unrecalled(c); c.AgeBand = 0 }
+func unheld(c *engine.Config)     { halflife(c); c.Carry = 0 }
+func restblind(c *engine.Config)  { unheld(c); c.RestAhead = false }
+func oldmating(c *engine.Config)  { restblind(c); c.OldBarren = false }
+func unasked(c *engine.Config)    { oldmating(c); c.Requests = false }
+func unaged(c *engine.Config)     { unasked(c); c.ChildAbility = 1 }
+func slowgrow(c *engine.Config)   { unaged(c); c.MatureAge = 1000 }
+func short(c *engine.Config)      { slowgrow(c); c.Lifespan = 3000 }
+func ageless(c *engine.Config)    { short(c); c.Lifespan = 0 }
+func busy(c *engine.Config)       { ageless(c); c.RestBurn = 1 }
+func doubled(c *engine.Config)    { busy(c); c.ProvisionEachWith, c.ProvisionEachAlone = 0.0075, 0.00375 }
+func lean(c *engine.Config)       { busy(c); c.ProvisionEachWith, c.ProvisionEachAlone = 0.00375, 0.001875 }
+func perunit(c *engine.Config)    { lean(c); c.ProvisionEach = false }
+func unfed(c *engine.Config)      { perunit(c); c.Provision = false }
+func even(c *engine.Config)       { unfed(c); c.FemaleBears = false }
+func sexless(c *engine.Config)    { even(c); c.Sexes = false }
+func aged(c *engine.Config)       { sexless(c); c.PassPath = true }
+func kin(c *engine.Config)        { aged(c); c.AgePath = false }
+func near(c *engine.Config)       { kin(c); c.Kin = false }
+func mixed(c *engine.Config)      { near(c); c.StableRows = false }
+func undecayed(c *engine.Config)  { mixed(c); c.EvidenceHalfLife = 0 }
+func untold(c *engine.Config)     { undecayed(c); c.Tell = false }
+func truth(c *engine.Config)      { untold(c); c.Learn = false }
+func bounced(c *engine.Config)    { truth(c); c.Bounce = true }
+func drawn(c *engine.Config)      { bounced(c); c.AllotInherit = false }
+func overlap(c *engine.Config)    { drawn(c); c.Collide = false }
+func fixed(c *engine.Config)      { overlap(c); c.Allot = false }
+func nobreed(c *engine.Config)    { fixed(c); c.Breed = false }
+func everytick(c *engine.Config)  { nobreed(c); c.Recheck = 0 }
 
 // rewrites maps a variant name to the rewrite of the default config it
 // stands for.
@@ -211,6 +215,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Unrecalled:   unrecalled,
 	Halflife:     halflife,
 	Unheld:       unheld,
 	Restblind:    restblind,

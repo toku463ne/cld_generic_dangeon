@@ -192,6 +192,26 @@ func (s Survival) deadIn(l, n int) float64 {
 	return d[min(n, len(d)-1)]
 }
 
+// deadAtLeast is deadIn for a window of length l or, where the table does
+// not keep l, the shortest it keeps above it: a walk longer than Reach
+// (to a remembered unit, stage 5-2) is read as if it left more of the
+// window, which reads it no safer than it is.
+func (s Survival) deadAtLeast(l, n int) float64 {
+	if n <= 0 {
+		return 1
+	}
+	if l < 1 {
+		return 0
+	}
+	for l < len(s.dead) && s.dead[l] == nil {
+		l++
+	}
+	if l >= len(s.dead) {
+		l = len(s.dead) - 1
+	}
+	return s.deadIn(l, n)
+}
+
 // Alive is 1 - Dead, for reading; it loses what Dead keeps near 1.
 func (s Survival) Alive(i, n int) float64 { return 1 - s.Dead(i, n) }
 
@@ -215,13 +235,25 @@ type Valuation struct {
 	// truth table, learned with Learn), 0 otherwise. Score is what the
 	// choice is made on, the first window's risk minus ChildWorth times
 	// Child.
-	Child  []float64
-	Score  []float64
-	Seen   []Food
-	Plan   []int
-	Arrive []int
+	Child []float64
+	Score []float64
+	Seen  []Food
+	// Recalled are the remembered units read (stage 5-2), each there with
+	// chance SpotP; a Plan past the end of Seen points into them.
+	Recalled []Food
+	SpotP    float64
+	Plan     []int
+	Arrive   []int
 	// Belief is what the body's memory made of the world (with Learn).
 	Belief Belief
+}
+
+// unit is the food a Plan points to: in sight, or remembered (stage 5-2).
+func (v *Valuation) unit(i int) Food {
+	if i < len(v.Seen) {
+		return v.Seen[i]
+	}
+	return v.Recalled[i-len(v.Seen)]
 }
 
 // Value predicts and values every option body b has now. survival is the
@@ -257,6 +289,10 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 	top, room := most, b.Held < w.cfg.Carry
 	v.Options = w.possibleActions(v.Options[:0], b)
 	v.Seen = w.inSight(v.Seen[:0], b)
+	v.Recalled = w.recalled(v.Recalled[:0], b)
+	if len(v.Recalled) > 0 {
+		v.SpotP = w.spotRate(b)
+	}
 	v.Plan, v.Arrive = v.Plan[:0], v.Arrive[:0]
 	v.Child = v.Child[:0]
 	n := energyTicks(b.Energy, burn) + reserve
@@ -321,6 +357,24 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			}
 			if r < risk {
 				risk, plan, arrive = r, f, k
+			}
+		}
+		// Or walk to a remembered unit (stage 5-2): there with chance
+		// SpotP, eaten as one in sight; gone, the body keeps on the move
+		// from there.
+		for f, food := range v.Recalled {
+			k := walkTicks(gapTo(x, food.X), gapTo(y, food.Y), speed)
+			r := 1.0
+			if after-k > 0 {
+				fill := top
+				if room {
+					fill += meal
+				}
+				at := alive(w.m.RegionAt(food.X, food.Y))
+				r = v.SpotP*at.deadAtLeast(win-1-k, min(after-k+meal, fill)-1) + (1-v.SpotP)*at.deadAtLeast(win-k, after-k)
+			}
+			if r < risk {
+				risk, plan, arrive = r, len(v.Seen)+f, k
 			}
 		}
 		return risk, plan, arrive
@@ -624,6 +678,7 @@ func (w *World) decide(b *Body) Action {
 	default:
 		v.Options = w.possibleActions(v.Options[:0], b)
 		v.Seen, v.Plan, v.Arrive, v.Child = v.Seen[:0], v.Plan[:0], v.Arrive[:0], v.Child[:0]
+		v.Recalled = v.Recalled[:0]
 		if cap(v.Risk) == 0 {
 			v.Risk = make([][]float64, 1)
 		}
