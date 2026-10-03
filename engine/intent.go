@@ -80,6 +80,7 @@ func (w *World) turn(b *Body) Action {
 	}
 	w.stats.Decisions[why]++
 	w.noteSpots(b)
+	w.noteShelters(b)
 	w.valuation.Why = why
 	a := w.decide(b)
 	if taken {

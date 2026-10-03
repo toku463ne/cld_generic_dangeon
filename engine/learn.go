@@ -102,6 +102,11 @@ type Memory struct {
 	// Spot counts its walks to one: found it there, K times in N.
 	Spots map[int]int64 `json:",omitempty"`
 	Spot  Tally         `json:",omitempty"`
+	// Shelters are the tiles of places to rest it has seen (stage 6-1b),
+	// and Warm the burn it felt on one in the dark over the burn it knows
+	// of its own body: its sum and count.
+	Shelters map[int]bool `json:",omitempty"`
+	Warm     [2]float64   `json:",omitempty"`
 	// Met are the bodies it has passed evidence with (tell.go).
 	Met map[int64]bool `json:",omitempty"`
 	// Ver counts the changes to the rows it can pass on; Told holds, for

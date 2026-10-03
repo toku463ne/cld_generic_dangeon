@@ -359,8 +359,11 @@ type Valuation struct {
 	// chance SpotP; a Plan past the end of Seen points into them.
 	Recalled []Food
 	SpotP    float64
-	Plan     []int
-	Arrive   []int
+	// Shelter is the place to rest the body may walk to and sleep at
+	// (stage 6-1b), if any; a Plan past Recalled points to it.
+	Shelter []Food
+	Plan    []int
+	Arrive  []int
 	// Belief is what the body's memory made of the world (with Learn).
 	Belief Belief
 }
@@ -370,7 +373,10 @@ func (v *Valuation) unit(i int) Food {
 	if i < len(v.Seen) {
 		return v.Seen[i]
 	}
-	return v.Recalled[i-len(v.Seen)]
+	if i -= len(v.Seen); i < len(v.Recalled) {
+		return v.Recalled[i]
+	}
+	return v.Shelter[i-len(v.Recalled)]
 }
 
 // Value predicts and values every option body b has now. survival is the
@@ -411,6 +417,15 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 	v.Recalled = w.recalled(v.Recalled[:0], b)
 	if len(v.Recalled) > 0 {
 		v.SpotP = w.spotRate(b)
+	}
+	// A place to rest to walk to and sleep at (stage 6-1b): the sleep
+	// there burns warm, and the body wakes to its burn as from any sleep.
+	v.Shelter = v.Shelter[:0]
+	var warm, woken float64
+	if rs != nil {
+		if f, burn, ok := w.shelterAhead(b); ok {
+			v.Shelter, warm, woken = append(v.Shelter, f), burn, w.wokenBurn(b)
+		}
 	}
 	v.Plan, v.Arrive = v.Plan[:0], v.Arrive[:0]
 	v.Child = v.Child[:0]
@@ -498,6 +513,15 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 				risk, plan, arrive = r, len(v.Seen)+f, k
 			}
 		}
+		// Or walk to a place to rest and sleep there (stage 6-1b): k
+		// ticks of walking, SleepTicks asleep at the warm burn, then on
+		// the move from there at the burn woken to.
+		for f, place := range v.Shelter {
+			r, k := w.shelterRisk(b, rs, place, x, y, after, win, full, warm, woken)
+			if r < risk {
+				risk, plan, arrive = r, len(v.Seen)+len(v.Recalled)+f, k
+			}
+		}
 		return risk, plan, arrive
 	}
 	for _, a := range v.Options {
@@ -570,12 +594,7 @@ func (w *World) sleepRisk(b *Body, rs *rates, win, reserve int) float64 {
 	if ts >= win {
 		return 0
 	}
-	base := now / w.debtBurn(b)
-	debt := math.Max(0, b.Debt-w.cfg.DebtRepay*float64(ticks))
-	after := base * (1 + debt/w.cfg.DebtBurn)
-	// Woken, the pressure is what a sleep of ticks leaves of it now.
-	rise := base * b.Pressure * math.Exp(-float64(ticks)/w.cfg.PressureAsleep) / w.cfg.DebtBurn
-	burn := w.aheadBurn(after, rise)
+	burn := w.wokenBurn(b)
 	full := w.units(w.maxOf(b))
 	r := w.m.RegionAt(int(math.Floor(b.X)), int(math.Floor(b.Y)))
 	var s Survival
@@ -585,6 +604,20 @@ func (w *World) sleepRisk(b *Body, rs *rates, win, reserve int) float64 {
 		s = w.survivalFor(r, full, w.factorLevel(w.speedOf(b), burn))
 	}
 	return s.deadAtLeast(win-ts, w.units(left)+reserve-1)
+}
+
+// wokenBurn is the burn body b reads itself waking to from a sleep of
+// SleepTicks (sleepRisk): its burn now with the debt the sleep repays
+// taken off, rising as the debt then builds at the pressure the sleep
+// leaves.
+func (w *World) wokenBurn(b *Body) float64 {
+	ticks := w.cfg.SleepTicks
+	base := w.planBurn(b) / w.debtBurn(b)
+	debt := math.Max(0, b.Debt-w.cfg.DebtRepay*float64(ticks))
+	after := base * (1 + debt/w.cfg.DebtBurn)
+	// Woken, the pressure is what a sleep of ticks leaves of it now.
+	rise := base * b.Pressure * math.Exp(-float64(ticks)/w.cfg.PressureAsleep) / w.cfg.DebtBurn
+	return w.aheadBurn(after, rise)
 }
 
 // gapTo is how far p has to go along one axis to be on tile t.

@@ -176,6 +176,9 @@ type Stats struct {
 	// SpotFound and SpotMissed count walks to a remembered unit that found
 	// it there and that did not (stage 5-2).
 	SpotFound, SpotMissed int64 `json:",omitempty"`
+	// Slept counts sleeps begun, and SleptSheltered those begun on a place
+	// to rest (stage 6-1b).
+	Slept, SleptSheltered int64 `json:",omitempty"`
 }
 
 // RowCount counts, for one learned row, the observations bodies added to it
@@ -273,6 +276,10 @@ func (w *World) act(i int, b *Body, a Action) {
 		b.Energy = math.Min(b.Energy+w.cfg.FoodEnergy, w.maxOf(b))
 	case ActSleep:
 		b.Asleep, b.Woke = true, w.tick+int64(w.cfg.SleepTicks)
+		w.stats.Slept++
+		if w.m.ShelterAt(int(math.Floor(b.X)), int(math.Floor(b.Y))) {
+			w.stats.SleptSheltered++
+		}
 	case ActPick:
 		t := w.tileOf(b.X, b.Y)
 		w.takeFood(w.foodOn(t), b)

@@ -107,6 +107,12 @@ type Config struct {
 	// (Map.Shelter, stage 6-1a): a body on one burns no more for the cold.
 	// Bodies do not know it.
 	Shelter bool
+	// ShelterRead has bodies know places to rest (stage 6-1b): one is seen
+	// like food and its tiles remembered; on one in the dark a body learns
+	// the burn it feels over the burn it knows of its own body; and with
+	// that learned, every option can go on by walking to the nearest one
+	// remembered and sleeping there at the learned burn.
+	ShelterRead bool
 	// KeepHeading breaks ties by the body's last move: when the options of
 	// least risk include moving the way it last moved, it moves that way,
 	// and it draws at random among them otherwise - where the land ends,
@@ -371,6 +377,7 @@ func DefaultConfig() Config {
 		NormalTemp:         20,
 		TempBurn:           30,
 		Shelter:            true,
+		ShelterRead:        true,
 		KeepHeading:        true,
 		TurnOffReverse:     true,
 		Recheck:            300,

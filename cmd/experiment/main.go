@@ -75,6 +75,7 @@ type result struct {
 	starved   float64
 	sleepless float64
 	asleep    float64 // body-ticks asleep over all body-ticks
+	sheltered float64 // sleeps begun on a place to rest over all sleeps begun
 	aged      float64 // deaths of age (Lifespan)
 	burned    float64
 	actions   [engine.NumActionKinds]float64
@@ -367,6 +368,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		total += float64(n)
 	}
 	r.asleep = float64(st.Actions[engine.ActSleep]) / math.Max(total, 1)
+	r.sheltered = float64(st.SleptSheltered) / math.Max(float64(st.Slept), 1)
 	for k, n := range st.Actions {
 		if total > 0 {
 			r.actions[k] = float64(n) / total
@@ -789,6 +791,7 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"老いによる死", 2, func(r result) float64 { return r.aged }},
 		{"睡眠不足による死", 2, func(r result) float64 { return r.sleepless }},
 		{"眠っている割合", 4, func(r result) float64 { return r.asleep }},
+		{"休める場所で始まった眠りの割合", 4, func(r result) float64 { return r.sheltered }},
 		{"体力消耗（合計）", 2, func(r result) float64 { return r.burned }},
 		{"出生", 2, func(r result) float64 { return r.births }},
 		{"成人到達率", 4, func(r result) float64 { return r.adultRate }},

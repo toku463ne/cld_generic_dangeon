@@ -68,14 +68,22 @@ func (w *World) ageFactor(b *Body) float64 {
 }
 
 func (w *World) burnOf(b *Body) float64 {
+	return w.ownBurn(b, false) * w.tempBurn(b)
+}
+
+// ownBurn is the burn body b knows of its own body: its build's, a resting
+// mother's RestBurn of it (stage 3-4) unless ahead and RestAhead (she
+// values at the burn she goes back to, stage 4-0), and its sleep debt's
+// factor. What the place puts on it (the cold) it only feels.
+func (w *World) ownBurn(b *Body, ahead bool) float64 {
 	burn := w.cfg.EnergyBurn
 	if b.Build.EnergyBurn > 0 {
 		burn = b.Build.EnergyBurn
 	}
-	if w.resting(b) {
+	if w.resting(b) && !(ahead && w.cfg.RestAhead) {
 		burn *= w.cfg.RestBurn // a resting mother keeps still (stage 3-4)
 	}
-	return burn * w.debtBurn(b) * w.tempBurn(b)
+	return burn * w.debtBurn(b)
 }
 
 // TempAt returns the temperature on tile (x, y) now (stage 7-4): normal on
@@ -168,14 +176,7 @@ func (w *World) touched(b *Body) bool {
 // resting mother with RestAhead the burn she goes back to when her rest
 // ends (stage 4-0).
 func (w *World) planBurn(b *Body) float64 {
-	if w.cfg.RestAhead && w.resting(b) {
-		burn := w.cfg.EnergyBurn
-		if b.Build.EnergyBurn > 0 {
-			burn = b.Build.EnergyBurn
-		}
-		return burn * w.debtBurn(b) * w.tempBurn(b)
-	}
-	return w.burnOf(b)
+	return w.ownBurn(b, true) * w.tempBurn(b)
 }
 
 // readBurn is the burn body b values its options at (stage 7-3a): planBurn

@@ -130,6 +130,7 @@ func (w *World) Step() {
 		burn := w.burnOf(b)
 		b.Energy -= burn
 		w.feelBurn(b)
+		w.feelWarm(b)
 		w.sleepTick(b)
 		w.seeLight(b)
 		w.stats.EnergyBurned += burn
