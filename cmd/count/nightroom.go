@@ -9,7 +9,7 @@ import (
 	"github.com/toku463ne/cld_generic_dangeon/variant"
 )
 
-var actKindNames = map[engine.ActionKind]string{engine.ActWait: "待つ", engine.ActEat: "食べる", engine.ActMove: "移動", engine.ActMate: "交配", engine.ActPick: "拾う"}
+var actKindNames = map[engine.ActionKind]string{engine.ActWait: "待つ", engine.ActEat: "食べる", engine.ActMove: "移動", engine.ActMate: "交配", engine.ActPick: "拾う", engine.ActSleep: "寝る"}
 
 type nightRoomTally struct {
 	// per light band, after tick 5000: decisions of adults at their full
