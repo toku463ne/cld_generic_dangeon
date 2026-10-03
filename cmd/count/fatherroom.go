@@ -18,6 +18,9 @@ type fatherRoomTally struct {
 	// mate took (ate or picked up), and of those the ones the gate would
 	// send.
 	births, taken, sent float64
+	// and the units underfoot such fathers left where they were (food on
+	// their tile, not eaten or picked up): more they could send.
+	left float64
 }
 
 // runFatherRoom reads every decision of a father whose mate rests and who
@@ -30,7 +33,16 @@ func runFatherRoom(cfg engine.Config, m engine.Map, ticks int) (fatherRoomTally,
 	}
 	resting := map[int64]bool{} // fathers of resting mothers, this tick
 	w.SetTrace(func(b engine.Body, v engine.Valuation, a engine.Action) {
-		if w.Tick() <= 5000 || !resting[b.ID] || (a.Kind != engine.ActEat && a.Kind != engine.ActPick) {
+		if w.Tick() <= 5000 || !resting[b.ID] {
+			return
+		}
+		if a.Kind != engine.ActEat && a.Kind != engine.ActPick {
+			for _, o := range v.Options {
+				if o.Kind == engine.ActEat {
+					t.left++
+					break
+				}
+			}
 			return
 		}
 		t.taken++
@@ -107,5 +119,6 @@ func fatherRoom(m engine.Map, name string, seeds int, seed0 int64, ticks int, vn
 	fmt.Printf("| 出生（1シードあたり） | %s |\n", cell(func(t fatherRoomTally) float64 { return t.births }))
 	fmt.Printf("| 出生 1 回あたり、母の休みの間に父が取った食料 | %s |\n", cell(func(t fatherRoomTally) float64 { return ratio(t.taken, t.births) }))
 	fmt.Printf("| 　そのうち送れる（父の命に効かない） | %s |\n", cell(func(t fatherRoomTally) float64 { return ratio(t.sent, t.births) }))
+	fmt.Printf("| 出生 1 回あたり、父が足元に残した食料（決めた tick の数） | %s |\n", cell(func(t fatherRoomTally) float64 { return ratio(t.left, t.births) }))
 	fmt.Println()
 }
