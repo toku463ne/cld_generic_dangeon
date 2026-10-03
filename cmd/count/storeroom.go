@@ -22,6 +22,9 @@ type storeRoomTally struct {
 	// ticks from the surplus to the fall, and how far (tiles, Chebyshev)
 	// the body then was from where it saw the surplus.
 	wait, dist []float64
+	// by the light when decided (stage 7): decisions of adults at their
+	// full most, and of them those with a surplus.
+	adultBy, surplusBy [4]float64
 }
 
 // runStoreRoom reads every decision after tick 5000 for a surplus, and
@@ -46,10 +49,13 @@ func runStoreRoom(cfg engine.Config, m engine.Map, ticks int) (storeRoomTally, e
 		if w.MaxEnergy(b) < cfg.EnergyMax {
 			return // a child or an old body: one meal is a large part of its most
 		}
+		k := lightBand(w.Brightness())
+		t.adultBy[k]++
 		if len(v.Seen) == 0 || b.Energy <= w.MaxEnergy(b)-cfg.FoodEnergy || b.Held < cfg.Carry {
 			return
 		}
 		t.surplus++
+		t.surplusBy[k]++
 		if _, ok := opens[b.ID]; ok {
 			return
 		}
@@ -135,6 +141,11 @@ func storeRoom(m engine.Map, name string, seeds int, seed0 int64, ticks int, vna
 	fmt.Printf("| 　窓の中で体力が1食以下に落ちた割合 | %s |\n", cell(func(t storeRoomTally) float64 { return ratio(t.critical, t.followed) }))
 	fmt.Printf("| 　窓の中で老いで死んだ割合 | %s |\n", cell(func(t storeRoomTally) float64 { return ratio(t.aged, t.followed) }))
 	fmt.Printf("| 　窓の中で餓死した割合 | %s |\n", cell(func(t storeRoomTally) float64 { return ratio(t.starved, t.followed) }))
+	fmt.Printf("\n| 明るさ（決めたとき） | 成人（上限が満ち）の決定（1シードあたり） | そのうち余りを見た割合 |\n| --- | --- | --- |\n")
+	for k, l := range lightBands {
+		k := k
+		fmt.Printf("| %s | %s | %s |\n", l, cell(func(t storeRoomTally) float64 { return t.adultBy[k] }), cell(func(t storeRoomTally) float64 { return ratio(t.surplusBy[k], t.adultBy[k]) }))
+	}
 	q := func(xs []float64, p float64) float64 {
 		if len(xs) == 0 {
 			return math.NaN()
