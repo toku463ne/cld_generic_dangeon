@@ -79,11 +79,11 @@ type result struct {
 	// units fathers sent, delivered, and eaten by the mother sent to and
 	// by others (stage 6-4a)
 	sent, delivered, motherAte, othersAte float64
-	aged      float64 // deaths of age (Lifespan)
-	burned    float64
-	actions   [engine.NumActionKinds]float64
-	decided   float64 // decisions over actions (body-ticks)
-	births    float64
+	aged                                  float64 // deaths of age (Lifespan)
+	burned                                float64
+	actions                               [engine.NumActionKinds]float64
+	decided                               float64 // decisions over actions (body-ticks)
+	births                                float64
 	// provisioned is the food that went straight to resting mothers.
 	provisioned float64
 	// requests are the requests to mate sent, and requestBirths the
