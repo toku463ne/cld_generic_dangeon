@@ -92,6 +92,7 @@ func TestShelterWalk(t *testing.T) {
 func TestShelterblindIsStage61a(t *testing.T) {
 	const want = uint64(0x4837b6704b743d89)
 	cfg := testConfig(1)
+	cfg.ForceAt = 0
 	cfg.ShelterRead = false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {

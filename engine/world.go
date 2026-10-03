@@ -86,6 +86,9 @@ func NewWorld(cfg Config, m Map) (*World, error) {
 	if cfg.DuskRead && (cfg.LightStages <= 0 || cfg.LightBand <= 0 || cfg.LightBands <= 0) {
 		return nil, fmt.Errorf("DuskRead needs LightStages, LightBand and LightBands above zero")
 	}
+	if cfg.Sleep && cfg.ForceAt > 0 && (cfg.ForceAt <= cfg.WakeAt || cfg.ForceMax < cfg.ForceAt || cfg.ForceMax > 1) {
+		return nil, fmt.Errorf("sleep must be forced (ForceAt) above WakeAt and by ForceMax, at most 1")
+	}
 	if cfg.Temperature && !(cfg.TempBurn > 0) {
 		return nil, fmt.Errorf("Temperature needs TempBurn above zero")
 	}

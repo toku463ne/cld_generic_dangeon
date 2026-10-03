@@ -27,6 +27,9 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Unforced is stage 6-1b: sleep is never forced.
+const Unforced = "unforced"
+
 // Shelterblind is stage 6-1a: bodies do not know places to rest.
 const Shelterblind = "shelterblind"
 
@@ -203,7 +206,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func shelterblind(c *engine.Config) { c.ShelterRead = false }
+func unforced(c *engine.Config)     { c.ForceAt = 0 }
+func shelterblind(c *engine.Config) { unforced(c); c.ShelterRead = false }
 func shelterless(c *engine.Config)  { shelterblind(c); c.Shelter = false }
 func duskblind(c *engine.Config)    { shelterless(c); c.DuskRead = false }
 func templess(c *engine.Config)     { duskblind(c); c.Temperature = false }
@@ -253,6 +257,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Unforced:     unforced,
 	Shelterblind: shelterblind,
 	Shelterless:  shelterless,
 	Duskblind:    duskblind,

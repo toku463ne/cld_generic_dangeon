@@ -157,6 +157,39 @@ func (w *World) sleepTick(b *Body) {
 	b.Pressure += (1 - b.Pressure) / w.cfg.PressureAwake
 }
 
+// sleepDue reports whether body b's sleep is due (stage 7-3d): awake, with
+// its pressure at ForceAt or above.
+func (w *World) sleepDue(b *Body) bool {
+	return w.cfg.Sleep && w.cfg.ForceAt > 0 && !b.Asleep && b.Pressure >= w.cfg.ForceAt
+}
+
+// dueSleep is what body b, its sleep due, does instead of a: it sleeps,
+// unless its pressure is below ForceMax and sleeping now would raise its
+// chance of dying within the window by more than StayAwake over its best
+// waking option (life first), read from the decision just made.
+func (w *World) dueSleep(b *Body, a Action) Action {
+	sleep := Action{Kind: ActSleep}
+	if b.Pressure >= w.cfg.ForceMax {
+		return sleep
+	}
+	v := &w.valuation
+	asleep, awake := math.Inf(1), math.Inf(1)
+	for j, o := range v.Options {
+		if j >= len(v.Risk[0]) {
+			break
+		}
+		if o.Kind == ActSleep {
+			asleep = v.Risk[0][j]
+		} else {
+			awake = math.Min(awake, v.Risk[0][j])
+		}
+	}
+	if math.IsInf(asleep, 1) || asleep <= awake+w.cfg.StayAwake {
+		return sleep
+	}
+	return a
+}
+
 // touched reports whether another body that is awake stands on sleeping
 // body b's tile: the contact that wakes it (stage 7-3b; broadcasts and
 // threats will wake it too, once there are any).

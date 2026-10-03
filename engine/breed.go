@@ -77,7 +77,9 @@ func (w *World) canPay(b *Body) bool { return b.Energy-w.birthShare(b) > 0 }
 // nothing.
 func (w *World) Fertile(b Body) bool { return w.fertile(&b) }
 func (w *World) Resting(b Body) bool { return w.resting(&b) }
-func (w *World) CanMate(b Body) bool { return w.fertile(&b) && !w.resting(&b) && w.canPay(&b) }
+func (w *World) CanMate(b Body) bool {
+	return w.fertile(&b) && !w.resting(&b) && !w.sleepDue(&b) && w.canPay(&b)
+}
 
 // resting reports whether body b is a mother that cannot mate yet.
 func (w *World) resting(b *Body) bool { return w.bears() && w.tick < b.Rested }
@@ -158,7 +160,7 @@ func (w *World) mates(b *Body, f func(*Body)) {
 			}
 			for _, j := range w.grid[w.m.index(x, y)] {
 				o := &w.bodies[j]
-				if o.ID != b.ID && w.fertile(o) && (!w.cfg.Sexes || o.Sex != b.Sex) && !w.resting(o) && !o.Asleep {
+				if o.ID != b.ID && w.fertile(o) && (!w.cfg.Sexes || o.Sex != b.Sex) && !w.resting(o) && !o.Asleep && !w.sleepDue(o) {
 					f(o)
 				}
 			}
@@ -171,7 +173,7 @@ func (w *World) mates(b *Body, f func(*Body)) {
 func (w *World) sawMates(b *Body) uint64 {
 	var h uint64
 	w.mates(b, func(o *Body) { h += mix(uint64(o.ID)) })
-	if w.fertile(b) && w.canPay(b) && !w.resting(b) {
+	if w.fertile(b) && w.canPay(b) && !w.resting(b) && !w.sleepDue(b) {
 		// Only a body that can mate is moved by a request coming in
 		// range: to any other it is no option.
 		w.requesters(b, func(o *Body) { h += mix(uint64(o.ID)) })
@@ -191,7 +193,7 @@ func mix(x uint64) uint64 {
 // mateOptions appends a mate with every fertile body b sees, if b is
 // fertile and can pay.
 func (w *World) mateOptions(dst []Action, b *Body) []Action {
-	if !w.cfg.Breed || !w.fertile(b) || !w.canPay(b) || w.resting(b) {
+	if !w.cfg.Breed || !w.fertile(b) || !w.canPay(b) || w.resting(b) || w.sleepDue(b) {
 		return dst
 	}
 	w.mates(b, func(o *Body) { dst = append(dst, Action{Kind: ActMate, Mate: o.ID}) })
@@ -212,7 +214,7 @@ func (w *World) mateOptions(dst []Action, b *Body) []Action {
 // open (stage M-3). It spends no turn: sent as a choice among moves, read
 // as a wait that may bring a child, it outvalued eating.
 func (w *World) request(b *Body) {
-	if !w.cfg.Requests || !w.cfg.Breed || b.Requested > w.tick || !w.fertile(b) || !w.canPay(b) || w.resting(b) {
+	if !w.cfg.Requests || !w.cfg.Breed || b.Requested > w.tick || !w.fertile(b) || !w.canPay(b) || w.resting(b) || w.sleepDue(b) {
 		return
 	}
 	seen := false
@@ -258,7 +260,7 @@ func (w *World) requesters(b *Body, f func(*Body)) {
 	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
 	for _, i := range w.asking {
 		o := &w.bodies[i]
-		if o.Requested <= w.tick || o.ID == b.ID || o.Sex == b.Sex || !w.fertile(o) || w.resting(o) || o.Asleep {
+		if o.Requested <= w.tick || o.ID == b.ID || o.Sex == b.Sex || !w.fertile(o) || w.resting(o) || o.Asleep || w.sleepDue(o) {
 			continue
 		}
 		d := max(abs(int(math.Floor(o.X))-bx), abs(int(math.Floor(o.Y))-by))

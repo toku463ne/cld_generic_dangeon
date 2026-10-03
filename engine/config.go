@@ -97,6 +97,14 @@ type Config struct {
 	DebtRepay, DebtBurn           float64
 	DebtAbility, DebtFloor        float64
 	SleepTicks                    int
+	// ForceAt makes sleep a need ranked between life and offspring (stage
+	// 7-3d, VISION.md "優先順位は生命、睡眠欲求、子孫の順"): a body whose
+	// pressure has reached ForceAt can no longer mate, ask or be asked, and
+	// falls asleep where it stands - unless sleeping now would raise its
+	// chance of dying within the window by more than StayAwake over its
+	// best waking option (life first), and then only until the pressure
+	// reaches ForceMax. Zero: sleep is never forced (7-3b).
+	ForceAt, ForceMax, StayAwake float64
 	// Temperature has a tile's temperature (its region's, Map.RegionTemp,
 	// following the light) raise the burn of a body on it (stage 7-4): the
 	// burn is multiplied by 1 + |temperature - NormalTemp| / TempBurn, as
@@ -373,6 +381,9 @@ func DefaultConfig() Config {
 		DebtAbility:        16000,
 		DebtFloor:          0.2,
 		SleepTicks:         333,
+		ForceAt:            0.625,
+		ForceMax:           0.9,
+		StayAwake:          0.1,
 		Temperature:        true,
 		NormalTemp:         20,
 		TempBurn:           30,

@@ -48,6 +48,8 @@ const (
 	TriggerPath
 	TriggerRecheck
 	TriggerWaited
+	// TriggerSleepy is a tick its sleep is due (ForceAt, stage 7-3d).
+	TriggerSleepy
 	// TriggerOutside is a tick a chooser decides for the body (chooser.go)
 	// and nothing else made it decide.
 	TriggerOutside
@@ -58,7 +60,7 @@ const (
 )
 
 // TriggerNames name the triggers for reports, in order.
-var TriggerNames = [NumTriggers]string{"everytick", "first", "underfoot", "sight", "partner", "step", "blocked", "path", "recheck", "waited", "outside"}
+var TriggerNames = [NumTriggers]string{"everytick", "first", "underfoot", "sight", "partner", "step", "blocked", "path", "recheck", "waited", "sleepy", "outside"}
 
 // turn returns the action body b takes this tick: its intent, or a new
 // decision when a trigger is true.
@@ -71,6 +73,9 @@ func (w *World) turn(b *Body) Action {
 		mates := w.sawMates(b)
 		why = w.trigger(b, under, saw, mates)
 		b.Under, b.Saw, b.Mates = under, saw, mates
+		if why == noTrigger && w.sleepDue(b) {
+			why = TriggerSleepy
+		}
 		if why == noTrigger {
 			if !taken {
 				return b.Intent
@@ -85,6 +90,9 @@ func (w *World) turn(b *Body) Action {
 	a := w.decide(b)
 	if taken {
 		a = w.chosen(b, a)
+	}
+	if w.sleepDue(b) {
+		a = w.dueSleep(b, a)
 	}
 	if w.trace != nil {
 		w.trace(*b, w.valuation, a)
