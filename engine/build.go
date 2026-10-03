@@ -75,8 +75,31 @@ func (w *World) burnOf(b *Body) float64 {
 	if w.resting(b) {
 		burn *= w.cfg.RestBurn // a resting mother keeps still (stage 3-4)
 	}
-	return burn * w.debtBurn(b)
+	return burn * w.debtBurn(b) * w.tempBurn(b)
 }
+
+// TempAt returns the temperature on tile (x, y) now (stage 7-4), and ok
+// false on a map without temperature.
+func (w *World) TempAt(x, y int) (float64, bool) {
+	return w.m.Temp(w.m.RegionAt(x, y), w.Brightness())
+}
+
+// tempBurn is the factor the temperature on body b's tile puts on its burn
+// (stage 7-4): 1 at NormalTemp, rising by 1 for each TempBurn degrees off
+// it, either way.
+func (w *World) tempBurn(b *Body) float64 {
+	if !w.cfg.Temperature {
+		return 1
+	}
+	t, ok := w.TempAt(int(math.Floor(b.X)), int(math.Floor(b.Y)))
+	if !ok {
+		return 1
+	}
+	return 1 + math.Abs(t-w.cfg.NormalTemp)/w.cfg.TempBurn
+}
+
+// TempBurn is the factor the temperature puts on body b's burn now.
+func (w *World) TempBurn(b Body) float64 { return w.tempBurn(&b) }
 
 // debtBurn is the factor body b's sleep debt puts on its burn (stage 7-3b).
 func (w *World) debtBurn(b *Body) float64 {
@@ -145,7 +168,7 @@ func (w *World) planBurn(b *Body) float64 {
 		if b.Build.EnergyBurn > 0 {
 			burn = b.Build.EnergyBurn
 		}
-		return burn * w.debtBurn(b)
+		return burn * w.debtBurn(b) * w.tempBurn(b)
 	}
 	return w.burnOf(b)
 }

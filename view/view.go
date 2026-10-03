@@ -544,8 +544,35 @@ func (v *View) Status() string {
 	if l := v.W.Brightness(); l < 1 {
 		night = fmt.Sprintf("  light %.2f", l)
 	}
+	if lo, hi, ok := v.temps(); ok {
+		if lo == hi {
+			night += fmt.Sprintf("  %.1f°", lo)
+		} else {
+			night += fmt.Sprintf("  %.1f-%.1f°", lo, hi)
+		}
+	}
 	return fmt.Sprintf("tick %d%s  bodies %d  food %d%s  history: %d ticks (%d/px, grid %s)",
 		v.W.Tick(), night, h.bodies, h.food, culture, v.mapW*tpp, tpp, map[bool]string{true: "10000", false: "1000"}[tpp > 16])
+}
+
+// temps is the lowest and highest temperature over the regions now, and ok
+// false where the temperature touches no burn.
+func (v *View) temps() (lo, hi float64, ok bool) {
+	if !v.W.Config().Temperature {
+		return 0, 0, false
+	}
+	m := v.W.Map()
+	for r := range m.RegionTemp {
+		t, _ := m.Temp(engine.RegionID(r), v.W.Brightness())
+		if !ok || t < lo {
+			lo = t
+		}
+		if !ok || t > hi {
+			hi = t
+		}
+		ok = true
+	}
+	return lo, hi, ok
 }
 
 // FollowText describes the followed body and its last decision, with the
@@ -566,6 +593,9 @@ func (v *View) FollowText() string {
 			state = fmt.Sprintf("asleep until %d", b.Woke)
 		}
 		fmt.Fprintf(&sb, "  %s  pressure %.2f  debt %.0f", state, b.Pressure, b.Debt)
+	}
+	if temp, ok := v.W.TempAt(int(math.Floor(b.X)), int(math.Floor(b.Y))); ok && v.W.Config().Temperature {
+		fmt.Fprintf(&sb, "  %.1f°  burn x%.2f", temp, v.W.TempBurn(b))
 	}
 	if b.Build.Speed > 0 {
 		fmt.Fprintf(&sb, "  speed %.3f  most %.0f", b.Build.Speed, b.Build.EnergyMax)

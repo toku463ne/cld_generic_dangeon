@@ -89,6 +89,12 @@ type Config struct {
 	DebtRepay, DebtBurn           float64
 	DebtAbility, DebtFloor        float64
 	SleepTicks                    int
+	// Temperature has a tile's temperature (its region's, Map.RegionTemp,
+	// following the light) raise the burn of a body on it (stage 7-4): the
+	// burn is multiplied by 1 + |temperature - NormalTemp| / TempBurn, as
+	// much for heat as for cold. The body feels it only as burn (BurnRead).
+	Temperature          bool
+	NormalTemp, TempBurn float64
 	// KeepHeading breaks ties by the body's last move: when the options of
 	// least risk include moving the way it last moved, it moves that way,
 	// and it draws at random among them otherwise - where the land ends,
@@ -345,6 +351,9 @@ func DefaultConfig() Config {
 		DebtAbility:        16000,
 		DebtFloor:          0.2,
 		SleepTicks:         333,
+		Temperature:        true,
+		NormalTemp:         20,
+		TempBurn:           30,
 		KeepHeading:        true,
 		TurnOffReverse:     true,
 		Recheck:            300,

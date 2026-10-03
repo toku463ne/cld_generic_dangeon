@@ -41,6 +41,25 @@ type Map struct {
 	// season lists a share per region, as RegionFood does.
 	SeasonFood  [][]float64 `json:",omitempty"`
 	SeasonTicks int         `json:",omitempty"`
+
+	// RegionTemp is each region's range of temperature, indexed by
+	// RegionID (stage 7-4): a tile's temperature is its region's Low in the
+	// dark and High in full light, and follows the light between. Empty
+	// for a map without temperature.
+	RegionTemp []TempRange `json:",omitempty"`
+}
+
+// TempRange is the range a region's temperature moves in over a day.
+type TempRange struct{ Low, High float64 }
+
+// Temp returns the temperature in region r at light l (0 to 1), and ok
+// false on a map without temperature.
+func (m *Map) Temp(r RegionID, l float64) (t float64, ok bool) {
+	if len(m.RegionTemp) == 0 {
+		return 0, false
+	}
+	tr := m.RegionTemp[r]
+	return tr.Low + (tr.High-tr.Low)*l, true
 }
 
 // Season returns the index of the season at tick t, and 0 for a map
@@ -106,6 +125,14 @@ func (m Map) Validate() error {
 	if !(sum > 0) {
 		return fmt.Errorf("no region has a food share")
 	}
+	if len(m.RegionTemp) > 0 && len(m.RegionTemp) != len(m.RegionFood) {
+		return fmt.Errorf("%d regions have a temperature, want %d", len(m.RegionTemp), len(m.RegionFood))
+	}
+	for r, tr := range m.RegionTemp {
+		if !(tr.Low <= tr.High) {
+			return fmt.Errorf("region %d has temperature %v to %v", r, tr.Low, tr.High)
+		}
+	}
 	if len(m.SeasonFood) > 0 && m.SeasonTicks <= 0 {
 		return fmt.Errorf("seasons of %d ticks", m.SeasonTicks)
 	}
@@ -152,6 +179,7 @@ func (m Map) Clone() Map {
 	c.Terrain = append([]Terrain(nil), m.Terrain...)
 	c.Region = append([]RegionID(nil), m.Region...)
 	c.RegionFood = append([]float64(nil), m.RegionFood...)
+	c.RegionTemp = append([]TempRange(nil), m.RegionTemp...)
 	c.SeasonFood = nil
 	for _, s := range m.SeasonFood {
 		c.SeasonFood = append(c.SeasonFood, append([]float64(nil), s...))

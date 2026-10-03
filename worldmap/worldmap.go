@@ -27,9 +27,27 @@ func Build(name string, width, height int) (engine.Map, error) {
 	return engine.Map{}, fmt.Errorf("unknown map %q (known: %v)", name, Names)
 }
 
+// DayNightTemp is every region's range of temperature on the maps here
+// (stage 7-4): the normal temperature in full light, cold enough in the
+// dark to raise the burn by 30%. One range for every region, so that the
+// cold changes when bodies burn more and not where. Provisional;
+// PARAMETERS.md records it.
+var DayNightTemp = engine.TempRange{Low: 11, High: 20}
+
+// temps is DayNightTemp for each of n regions.
+func temps(n int) []engine.TempRange {
+	ts := make([]engine.TempRange, n)
+	for i := range ts {
+		ts[i] = DayNightTemp
+	}
+	return ts
+}
+
 // Flat is the calibration map: all land, one region.
 func Flat(width, height int) engine.Map {
-	return engine.NewMap(width, height)
+	m := engine.NewMap(width, height)
+	m.RegionTemp = temps(1)
+	return m
 }
 
 // ConstrainedFood is each quadrant's share of the food on the constrained
@@ -48,6 +66,7 @@ var ConstrainedFood = []float64{0.5, 0.1, 0.3, 0.1}
 func Constrained(width, height int) engine.Map {
 	m := engine.NewMap(width, height)
 	m.RegionFood = append([]float64(nil), ConstrainedFood...)
+	m.RegionTemp = temps(len(ConstrainedFood))
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			r := 0
