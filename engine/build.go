@@ -78,10 +78,15 @@ func (w *World) burnOf(b *Body) float64 {
 	return burn * w.debtBurn(b) * w.tempBurn(b)
 }
 
-// TempAt returns the temperature on tile (x, y) now (stage 7-4), and ok
-// false on a map without temperature.
+// TempAt returns the temperature on tile (x, y) now (stage 7-4): normal on
+// a place to rest (Shelter, stage 6-1a). ok is false on a map without
+// temperature.
 func (w *World) TempAt(x, y int) (float64, bool) {
-	return w.m.Temp(w.m.RegionAt(x, y), w.Brightness())
+	t, ok := w.m.Temp(w.m.RegionAt(x, y), w.Brightness())
+	if ok && w.cfg.Shelter && w.m.ShelterAt(x, y) {
+		return w.cfg.NormalTemp, true
+	}
+	return t, ok
 }
 
 // tempBurn is the factor the temperature on body b's tile puts on its burn

@@ -103,6 +103,10 @@ type Config struct {
 	// much for heat as for cold. The body feels it only as burn (BurnRead).
 	Temperature          bool
 	NormalTemp, TempBurn float64
+	// Shelter keeps the temperature normal on the map's places to rest
+	// (Map.Shelter, stage 6-1a): a body on one burns no more for the cold.
+	// Bodies do not know it.
+	Shelter bool
 	// KeepHeading breaks ties by the body's last move: when the options of
 	// least risk include moving the way it last moved, it moves that way,
 	// and it draws at random among them otherwise - where the land ends,
@@ -366,6 +370,7 @@ func DefaultConfig() Config {
 		Temperature:        true,
 		NormalTemp:         20,
 		TempBurn:           30,
+		Shelter:            true,
 		KeepHeading:        true,
 		TurnOffReverse:     true,
 		Recheck:            300,

@@ -27,6 +27,9 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Shelterless is stage 7-2b: no place to rest is warm.
+const Shelterless = "shelterless"
+
 // Duskblind is stage 7-4: bodies do not learn when dark and light come.
 const Duskblind = "duskblind"
 
@@ -197,43 +200,44 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func duskblind(c *engine.Config)  { c.DuskRead = false }
-func templess(c *engine.Config)   { duskblind(c); c.Temperature = false }
-func sleepless(c *engine.Config)  { templess(c); c.Sleep = false }
-func burnblind(c *engine.Config)  { sleepless(c); c.BurnRead = false }
-func sightblind(c *engine.Config) { burnblind(c); c.SightRead = false }
-func daylong(c *engine.Config)    { sightblind(c); c.DayTicks = 0 }
-func unspoiled(c *engine.Config)  { daylong(c); c.FoodLife = 0 }
-func unrecalled(c *engine.Config) { unspoiled(c); c.SpotRead = 0 }
-func halflife(c *engine.Config)   { unrecalled(c); c.AgeBand = 0 }
-func unheld(c *engine.Config)     { halflife(c); c.Carry = 0 }
-func restblind(c *engine.Config)  { unheld(c); c.RestAhead = false }
-func oldmating(c *engine.Config)  { restblind(c); c.OldBarren = false }
-func unasked(c *engine.Config)    { oldmating(c); c.Requests = false }
-func unaged(c *engine.Config)     { unasked(c); c.ChildAbility = 1 }
-func slowgrow(c *engine.Config)   { unaged(c); c.MatureAge = 1000 }
-func short(c *engine.Config)      { slowgrow(c); c.Lifespan = 3000 }
-func ageless(c *engine.Config)    { short(c); c.Lifespan = 0 }
-func busy(c *engine.Config)       { ageless(c); c.RestBurn = 1 }
-func doubled(c *engine.Config)    { busy(c); c.ProvisionEachWith, c.ProvisionEachAlone = 0.0075, 0.00375 }
-func lean(c *engine.Config)       { busy(c); c.ProvisionEachWith, c.ProvisionEachAlone = 0.00375, 0.001875 }
-func perunit(c *engine.Config)    { lean(c); c.ProvisionEach = false }
-func unfed(c *engine.Config)      { perunit(c); c.Provision = false }
-func even(c *engine.Config)       { unfed(c); c.FemaleBears = false }
-func sexless(c *engine.Config)    { even(c); c.Sexes = false }
-func aged(c *engine.Config)       { sexless(c); c.PassPath = true }
-func kin(c *engine.Config)        { aged(c); c.AgePath = false }
-func near(c *engine.Config)       { kin(c); c.Kin = false }
-func mixed(c *engine.Config)      { near(c); c.StableRows = false }
-func undecayed(c *engine.Config)  { mixed(c); c.EvidenceHalfLife = 0 }
-func untold(c *engine.Config)     { undecayed(c); c.Tell = false }
-func truth(c *engine.Config)      { untold(c); c.Learn = false }
-func bounced(c *engine.Config)    { truth(c); c.Bounce = true }
-func drawn(c *engine.Config)      { bounced(c); c.AllotInherit = false }
-func overlap(c *engine.Config)    { drawn(c); c.Collide = false }
-func fixed(c *engine.Config)      { overlap(c); c.Allot = false }
-func nobreed(c *engine.Config)    { fixed(c); c.Breed = false }
-func everytick(c *engine.Config)  { nobreed(c); c.Recheck = 0 }
+func shelterless(c *engine.Config) { c.Shelter = false }
+func duskblind(c *engine.Config)   { shelterless(c); c.DuskRead = false }
+func templess(c *engine.Config)    { duskblind(c); c.Temperature = false }
+func sleepless(c *engine.Config)   { templess(c); c.Sleep = false }
+func burnblind(c *engine.Config)   { sleepless(c); c.BurnRead = false }
+func sightblind(c *engine.Config)  { burnblind(c); c.SightRead = false }
+func daylong(c *engine.Config)     { sightblind(c); c.DayTicks = 0 }
+func unspoiled(c *engine.Config)   { daylong(c); c.FoodLife = 0 }
+func unrecalled(c *engine.Config)  { unspoiled(c); c.SpotRead = 0 }
+func halflife(c *engine.Config)    { unrecalled(c); c.AgeBand = 0 }
+func unheld(c *engine.Config)      { halflife(c); c.Carry = 0 }
+func restblind(c *engine.Config)   { unheld(c); c.RestAhead = false }
+func oldmating(c *engine.Config)   { restblind(c); c.OldBarren = false }
+func unasked(c *engine.Config)     { oldmating(c); c.Requests = false }
+func unaged(c *engine.Config)      { unasked(c); c.ChildAbility = 1 }
+func slowgrow(c *engine.Config)    { unaged(c); c.MatureAge = 1000 }
+func short(c *engine.Config)       { slowgrow(c); c.Lifespan = 3000 }
+func ageless(c *engine.Config)     { short(c); c.Lifespan = 0 }
+func busy(c *engine.Config)        { ageless(c); c.RestBurn = 1 }
+func doubled(c *engine.Config)     { busy(c); c.ProvisionEachWith, c.ProvisionEachAlone = 0.0075, 0.00375 }
+func lean(c *engine.Config)        { busy(c); c.ProvisionEachWith, c.ProvisionEachAlone = 0.00375, 0.001875 }
+func perunit(c *engine.Config)     { lean(c); c.ProvisionEach = false }
+func unfed(c *engine.Config)       { perunit(c); c.Provision = false }
+func even(c *engine.Config)        { unfed(c); c.FemaleBears = false }
+func sexless(c *engine.Config)     { even(c); c.Sexes = false }
+func aged(c *engine.Config)        { sexless(c); c.PassPath = true }
+func kin(c *engine.Config)         { aged(c); c.AgePath = false }
+func near(c *engine.Config)        { kin(c); c.Kin = false }
+func mixed(c *engine.Config)       { near(c); c.StableRows = false }
+func undecayed(c *engine.Config)   { mixed(c); c.EvidenceHalfLife = 0 }
+func untold(c *engine.Config)      { undecayed(c); c.Tell = false }
+func truth(c *engine.Config)       { untold(c); c.Learn = false }
+func bounced(c *engine.Config)     { truth(c); c.Bounce = true }
+func drawn(c *engine.Config)       { bounced(c); c.AllotInherit = false }
+func overlap(c *engine.Config)     { drawn(c); c.Collide = false }
+func fixed(c *engine.Config)       { overlap(c); c.Allot = false }
+func nobreed(c *engine.Config)     { fixed(c); c.Breed = false }
+func everytick(c *engine.Config)   { nobreed(c); c.Recheck = 0 }
 
 // rewrites maps a variant name to the rewrite of the default config it
 // stands for.
@@ -245,6 +249,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Shelterless:  shelterless,
 	Duskblind:    duskblind,
 	Templess:     templess,
 	Sleepless:    sleepless,

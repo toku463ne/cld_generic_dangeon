@@ -43,10 +43,29 @@ func temps(n int) []engine.TempRange {
 	return ts
 }
 
+// ShelterSize is the side of each place to rest (stage 6-1a): one square
+// of ShelterSize tiles at the centre of each quadrant of the maps here.
+// Provisional; PARAMETERS.md records it.
+const ShelterSize = 3
+
+// shelters puts a place to rest at the centre of each quadrant, on its land.
+func shelters(m *engine.Map) {
+	for _, c := range [][2]int{{m.Width / 4, m.Height / 4}, {3 * m.Width / 4, m.Height / 4}, {m.Width / 4, 3 * m.Height / 4}, {3 * m.Width / 4, 3 * m.Height / 4}} {
+		for y := c[1] - ShelterSize/2; y < c[1]-ShelterSize/2+ShelterSize; y++ {
+			for x := c[0] - ShelterSize/2; x < c[0]-ShelterSize/2+ShelterSize; x++ {
+				if m.InBounds(x, y) && m.TerrainAt(x, y) == engine.TerrainLand {
+					m.SetShelter(x, y)
+				}
+			}
+		}
+	}
+}
+
 // Flat is the calibration map: all land, one region.
 func Flat(width, height int) engine.Map {
 	m := engine.NewMap(width, height)
 	m.RegionTemp = temps(1)
+	shelters(&m)
 	return m
 }
 
@@ -85,6 +104,7 @@ func Constrained(width, height int) engine.Map {
 			m.SetTerrain(x, y, engine.TerrainWater)
 		}
 	}
+	shelters(&m)
 	return m
 }
 

@@ -124,6 +124,8 @@ var (
 	gridColor   = color.RGBA{0x38, 0x38, 0x48, 0xff}
 	bodiesLine  = color.RGBA{0xf0, 0xf0, 0xf0, 0xff}
 	meetColor   = color.RGBA{0x40, 0xd0, 0xe0, 0xff}
+	// shelterColor is a place to rest (stage 6-1a).
+	shelterColor = color.RGBA{0xb0, 0x80, 0x50, 0xff}
 )
 
 func New(w *engine.World, scale int) *View {
@@ -142,6 +144,9 @@ func New(w *engine.World, scale int) *View {
 			c := regionColors[int(m.RegionAt(x, y))%len(regionColors)]
 			if m.TerrainAt(x, y) == engine.TerrainWater {
 				c = waterColor
+			}
+			if m.ShelterAt(x, y) && w.Config().Shelter {
+				c = shelterColor
 			}
 			fillRect(v.ground, x*scale, y*scale, scale, scale, c)
 		}

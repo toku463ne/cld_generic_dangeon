@@ -10,6 +10,11 @@ import (
 func tempMap() Map {
 	m := testMap()
 	m.RegionTemp = []TempRange{{11, 20}, {5, 25}, {15, 30}, {11, 20}}
+	for y := 1; y <= 3; y++ {
+		for x := 1; x <= 3; x++ {
+			m.SetShelter(x, y) // a place to rest in region 0 (stage 6-1a)
+		}
+	}
 	return m
 }
 
@@ -95,6 +100,51 @@ func TestTemplessIsStage73b(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.DuskRead = false
 	cfg.Temperature = false
+	w, err := NewWorld(cfg, tempMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// On a place to rest the temperature is normal in the dark, so the cold
+// costs nothing there; off it, or without Shelter, the region's range
+// holds. The layer must match the map.
+func TestShelter(t *testing.T) {
+	w, b := soloWorld(t, 50)
+	w.m.RegionTemp = []TempRange{{11, 20}, {5, 25}, {15, 30}, {11, 20}}
+	w.m.SetShelter(2, 2)
+	w.cfg.Temperature, w.cfg.Shelter = true, true
+	w.light, w.lightFor = 0, w.tick+1
+	if temp, _ := w.TempAt(2, 2); temp != w.cfg.NormalTemp || w.tempBurn(b) != 1 {
+		t.Fatalf("on the shelter at night: %v degrees, factor %v", temp, w.tempBurn(b))
+	}
+	if temp, _ := w.TempAt(3, 2); temp != 11 {
+		t.Fatalf("off the shelter at night: %v degrees, want 11", temp)
+	}
+	w.cfg.Shelter = false
+	if temp, _ := w.TempAt(2, 2); temp != 11 {
+		t.Fatalf("without Shelter: %v degrees, want 11", temp)
+	}
+	m := tempMap()
+	m.Shelter = m.Shelter[:5]
+	if m.Validate() == nil {
+		t.Fatal("accepted a shelter layer of the wrong size")
+	}
+	if c := tempMap().Clone(); !c.ShelterAt(2, 2) || c.ShelterAt(5, 5) {
+		t.Fatal("clone lost the shelter layer")
+	}
+}
+
+// Without places to rest, the world is stage 7-2b: its fingerprint is the
+// one pinned then.
+func TestShelterlessIsStage72b(t *testing.T) {
+	const want = uint64(0x1bfef7f1f18d1e4)
+	cfg := testConfig(1)
+	cfg.Shelter = false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
 		t.Fatal(err)

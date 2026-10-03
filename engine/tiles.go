@@ -47,6 +47,11 @@ type Map struct {
 	// dark and High in full light, and follows the light between. Empty
 	// for a map without temperature.
 	RegionTemp []TempRange `json:",omitempty"`
+
+	// Shelter marks the tiles of the places to rest (stage 6-1a): on them
+	// the temperature stays normal through the night. Empty for a map
+	// without any.
+	Shelter []bool `json:",omitempty"`
 }
 
 // TempRange is the range a region's temperature moves in over a day.
@@ -125,6 +130,9 @@ func (m Map) Validate() error {
 	if !(sum > 0) {
 		return fmt.Errorf("no region has a food share")
 	}
+	if len(m.Shelter) > 0 && len(m.Shelter) != n {
+		return fmt.Errorf("shelter layer has %d tiles, want %d", len(m.Shelter), n)
+	}
 	if len(m.RegionTemp) > 0 && len(m.RegionTemp) != len(m.RegionFood) {
 		return fmt.Errorf("%d regions have a temperature, want %d", len(m.RegionTemp), len(m.RegionFood))
 	}
@@ -170,6 +178,18 @@ func (m *Map) RegionAt(x, y int) RegionID { return m.Region[m.index(x, y)] }
 // SetTerrain paints the terrain layer only.
 func (m Map) SetTerrain(x, y int, t Terrain) { m.Terrain[m.index(x, y)] = t }
 
+// SetShelter marks tile (x, y) as a place to rest, making the layer if the
+// map has none.
+func (m *Map) SetShelter(x, y int) {
+	if len(m.Shelter) == 0 {
+		m.Shelter = make([]bool, m.Width*m.Height)
+	}
+	m.Shelter[m.index(x, y)] = true
+}
+
+// ShelterAt reports whether tile (x, y) is a place to rest.
+func (m *Map) ShelterAt(x, y int) bool { return len(m.Shelter) > 0 && m.Shelter[m.index(x, y)] }
+
 // SetRegion paints the region layer only.
 func (m Map) SetRegion(x, y int, r RegionID) { m.Region[m.index(x, y)] = r }
 
@@ -180,6 +200,7 @@ func (m Map) Clone() Map {
 	c.Region = append([]RegionID(nil), m.Region...)
 	c.RegionFood = append([]float64(nil), m.RegionFood...)
 	c.RegionTemp = append([]TempRange(nil), m.RegionTemp...)
+	c.Shelter = append([]bool(nil), m.Shelter...)
 	c.SeasonFood = nil
 	for _, s := range m.SeasonFood {
 		c.SeasonFood = append(c.SeasonFood, append([]float64(nil), s...))
