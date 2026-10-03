@@ -210,6 +210,9 @@ func (w *World) brightnessAt(tick int64) float64 {
 	return math.Max(0, math.Min(1, 0.5+into/float64(w.cfg.TwilightTicks)))
 }
 
+// BrightnessAt is Brightness at tick t, for counts.
+func (w *World) BrightnessAt(t int64) float64 { return w.brightnessAt(t) }
+
 // Night reports whether it is darker than half light now.
 func (w *World) Night() bool { return w.Brightness() < 0.5 }
 
