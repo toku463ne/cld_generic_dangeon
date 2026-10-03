@@ -375,8 +375,12 @@ type Valuation struct {
 	// Shelter is the place to rest the body may walk to and sleep at
 	// (stage 6-1b), if any; a Plan past Recalled points to it.
 	Shelter []Food
-	Plan    []int
-	Arrive  []int
+	// Spend is, for each option, the energy the plan its risk was read
+	// from spends over Window ticks (stage 6-3a): what TieSpend breaks
+	// ties by.
+	Spend  []float64
+	Plan   []int
+	Arrive []int
 	// Belief is what the body's memory made of the world (with Learn).
 	Belief Belief
 }
@@ -440,6 +444,15 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			v.Shelter, warm, woken = append(v.Shelter, f), burn, w.wokenBurn(b)
 		}
 	}
+	// What a plan spends over Window ticks (stage 6-3a): searching burns
+	// as now; a sleep SleepTicks at its burn and the rest of the window at
+	// the burn woken to.
+	spendNow := float64(w.cfg.Window) * w.planBurn(b)
+	sleepSpend := func(k int, asleep, after float64) float64 {
+		s := min(w.cfg.SleepTicks, max(w.cfg.Window-k, 0))
+		return float64(k)*w.planBurn(b) + float64(s)*asleep + float64(max(w.cfg.Window-k-s, 0))*after
+	}
+	v.Spend = v.Spend[:0]
 	v.Plan, v.Arrive = v.Plan[:0], v.Arrive[:0]
 	v.Child = v.Child[:0]
 	n := w.units(b.Energy) + reserve
@@ -538,7 +551,9 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 		// the move from there at the burn woken to.
 		for f, place := range v.Shelter {
 			r, k := w.shelterRisk(b, rs, place, x, y, whole, wholeWin, full, warm, woken)
-			if r < risk {
+			// With TieSpend, a risk no worse that spends less is taken
+			// (stage 6-3a).
+			if r < risk || w.cfg.TieSpend && r == risk && sleepSpend(k, warm, w.wokenBurn(b)) < spendNow {
 				risk, plan, arrive = r, len(v.Seen)+len(v.Recalled)+f, k
 			}
 		}
@@ -579,6 +594,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 				if i == 0 {
 					v.Plan = append(v.Plan, -1)
 					v.Arrive = append(v.Arrive, 0)
+					v.Spend = append(v.Spend, sleepSpend(0, w.planBurn(b), w.wokenBurn(b)))
 				}
 				continue
 			}
@@ -591,6 +607,11 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			if i == 0 {
 				v.Plan = append(v.Plan, plan)
 				v.Arrive = append(v.Arrive, arrive)
+				sp := spendNow
+				if plan >= len(v.Seen)+len(v.Recalled) {
+					sp = sleepSpend(arrive, warm, woken)
+				}
+				v.Spend = append(v.Spend, sp)
 			}
 		}
 	}
@@ -923,6 +944,21 @@ func (w *World) decide(b *Body) Action {
 		case x == best:
 			w.ties = append(w.ties, j)
 		}
+	}
+	if w.cfg.TieSpend && len(w.ties) > 1 && len(v.Spend) == len(v.Score) {
+		// Of the options of least risk, those that spend least (stage
+		// 6-3a).
+		lo := math.Inf(1)
+		for _, j := range w.ties {
+			lo = math.Min(lo, v.Spend[j])
+		}
+		kept := w.ties[:0]
+		for _, j := range w.ties {
+			if v.Spend[j] <= lo*(1+1e-9) {
+				kept = append(kept, j)
+			}
+		}
+		w.ties = kept
 	}
 	var a Action
 	draw := !w.cfg.KeepHeading || b.Heading < 0

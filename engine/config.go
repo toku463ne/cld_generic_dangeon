@@ -136,6 +136,11 @@ type Config struct {
 	// (stage 6-5a): where a place to rest is does not change, whoever
 	// stands there, so it is the first row that passes.
 	PassShelters bool
+	// TieSpend breaks ties by what a plan spends (stage 6-3a): of the ways
+	// on of the same risk, and of the options of least risk, those that
+	// spend least energy over Window ticks are kept - the same chance of
+	// living on, for less of the body's energy.
+	TieSpend bool
 	// KeepHeading breaks ties by the body's last move: when the options of
 	// least risk include moving the way it last moved, it moves that way,
 	// and it draws at random among them otherwise - where the land ends,
