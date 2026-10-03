@@ -122,7 +122,7 @@
 //	       the day.
 //
 //	shelterroom (stage 6) starvations in the night that a night without
-//	       cold would have carried to full light, and how far the dying
+//	       cold would have carried to the dawn, and how far the dying
 //	       were from the quadrant centres: the room a warm place to rest
 //	       would have.
 //

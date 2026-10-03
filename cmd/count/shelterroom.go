@@ -12,9 +12,9 @@ import (
 type shelterRoomTally struct {
 	// starvations after tick 5000, of children and of adults, and of them
 	// those in the night (light below 1) and those a warm night would have
-	// carried to full light: the cold's extra burn since the light last
-	// fell would have lasted until the light came back at the burn without
-	// cold.
+	// carried to the dawn: the cold's extra burn since the light last fell
+	// would have lasted until the light rose back to half (when bodies see
+	// to eat again) at the burn without cold.
 	starved, night, saved [2]float64
 	// how far (tiles, Chebyshev) the night's dead were, when the light
 	// began to fall, from the nearest quadrant centre: where a shelter
@@ -93,7 +93,7 @@ func runShelterRoom(cfg engine.Config, m engine.Map, ticks int) (shelterRoomTall
 				waiting = append(waiting, death{tick: w.Tick(), extra: tr.extra, warm: warm, child: c})
 			}
 		}
-		if l == 1 && len(waiting) > 0 {
+		if l >= 0.5 && l > prevLight && len(waiting) > 0 {
 			for _, d := range waiting {
 				if d.extra >= float64(w.Tick()-d.tick)*d.warm {
 					t.saved[d.child]++
@@ -111,7 +111,7 @@ func runShelterRoom(cfg engine.Config, m engine.Map, ticks int) (shelterRoomTall
 
 // shelterRoom counts the room a warm place to rest would have: the
 // starvations in the night a night without cold would have carried to
-// full light, and how far the dying were from where shelters might be.
+// dawn, and how far the dying were from where shelters might be.
 func shelterRoom(m engine.Map, name string, seeds int, seed0 int64, ticks int, vname string) {
 	var ts []shelterRoomTally
 	var dist []float64
@@ -127,7 +127,7 @@ func shelterRoom(m engine.Map, name string, seeds int, seed0 int64, ticks int, v
 		ts = append(ts, t)
 		dist = append(dist, t.dist...)
 	}
-	fmt.Printf("地図 %s (%dx%d)、%d シード、条件 %s、%d tick（tick 5000 より後の死）。夜＝明るさ 1 未満。暖かい夜なら助かった＝明るさが落ち始めてからの寒さの分の消耗が、死んだ tick から明るさが 1 に戻るまでの寒さの無い消耗に足りる。\n\n", name, m.Width, m.Height, seeds, vname, ticks)
+	fmt.Printf("地図 %s (%dx%d)、%d シード、条件 %s、%d tick（tick 5000 より後の死）。夜＝明るさ 1 未満。暖かい夜なら助かった＝明るさが落ち始めてからの寒さの分の消耗が、死んだ tick から明るさが半分に戻る（夜明け）までの寒さの無い消耗に足りる。\n\n", name, m.Width, m.Height, seeds, vname, ticks)
 	cell := func(f func(shelterRoomTally) float64) string {
 		var xs []float64
 		for _, t := range ts {
@@ -147,7 +147,7 @@ func shelterRoom(m engine.Map, name string, seeds int, seed0 int64, ticks int, v
 	fmt.Printf("| | 子 | 成人 |\n| --- | --- | --- |\n")
 	fmt.Printf("| 餓死（1シードあたり） | %s | %s |\n", cell(func(t shelterRoomTally) float64 { return t.starved[0] }), cell(func(t shelterRoomTally) float64 { return t.starved[1] }))
 	fmt.Printf("| 　そのうち夜の割合 | %s | %s |\n", cell(func(t shelterRoomTally) float64 { return ratio(t.night[0], t.starved[0]) }), cell(func(t shelterRoomTally) float64 { return ratio(t.night[1], t.starved[1]) }))
-	fmt.Printf("| 　夜の餓死のうち暖かい夜なら明るくなるまでもった割合 | %s | %s |\n", cell(func(t shelterRoomTally) float64 { return ratio(t.saved[0], t.night[0]) }), cell(func(t shelterRoomTally) float64 { return ratio(t.saved[1], t.night[1]) }))
+	fmt.Printf("| 　夜の餓死のうち暖かい夜なら夜明けまでもった割合 | %s | %s |\n", cell(func(t shelterRoomTally) float64 { return ratio(t.saved[0], t.night[0]) }), cell(func(t shelterRoomTally) float64 { return ratio(t.saved[1], t.night[1]) }))
 	q := func(xs []float64, p float64) float64 {
 		if len(xs) == 0 {
 			return math.NaN()
