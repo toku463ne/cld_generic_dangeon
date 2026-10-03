@@ -43,7 +43,10 @@ type World struct {
 	// valuation is scratch space for the decision of the body acting now.
 	valuation Valuation
 	ties      []int
-	rates     rates // a learning body's estimates, for the decision under way
+	// mateOf maps each father of a resting mother to her index among the
+	// bodies this tick (FatherSends, stage 6-4a).
+	mateOf map[int64]int
+	rates  rates // a learning body's estimates, for the decision under way
 
 	// died is the tick each body died, for the provenance instrument
 	// (provenance.go). No rule reads it; it is neither saved nor
@@ -114,6 +117,8 @@ func (w *World) Step() {
 	w.listAsking()
 	w.decayFood()
 	w.returnFood()
+	w.deliverFood()
+	w.listMates()
 	for i := range w.bodies {
 		b := &w.bodies[i]
 		if b.Mature == w.tick && b.Mature > 0 {

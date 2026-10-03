@@ -141,6 +141,14 @@ type Config struct {
 	// spend least energy over Window ticks are kept - the same chance of
 	// living on, for less of the body's energy.
 	TieSpend bool
+	// FatherSends has a father send food to the mother of his last child
+	// while she rests (stage 6-4a, the user's design): standing on a unit,
+	// if not having it would raise his chance of dying within the window
+	// by no more than SendGate (life before offspring), the unit leaves
+	// him and, a tick for each Speed of the way, comes to the place to rest
+	// nearest the mother that she knows. He spends no time on the way.
+	FatherSends bool
+	SendGate    float64
 	// KeepHeading breaks ties by the body's last move: when the options of
 	// least risk include moving the way it last moved, it moves that way,
 	// and it draws at random among them otherwise - where the land ends,
@@ -411,6 +419,8 @@ func DefaultConfig() Config {
 		Shelter:            true,
 		ShelterRead:        true,
 		PassShelters:       true,
+		FatherSends:        true,
+		SendGate:           0.01,
 		KeepHeading:        true,
 		TurnOffReverse:     true,
 		Recheck:            300,
@@ -448,7 +458,7 @@ func DefaultConfig() Config {
 		FemaleBears:        true,
 		MateEnergy:         5,
 		RecoverTicks:       400,
-		Provision:          true,
+		Provision:          false,
 		ProvisionWith:      0.07,
 		ProvisionAlone:     0.035,
 		ProvisionEach:      true,

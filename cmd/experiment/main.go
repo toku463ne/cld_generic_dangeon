@@ -76,6 +76,9 @@ type result struct {
 	sleepless float64
 	asleep    float64 // body-ticks asleep over all body-ticks
 	sheltered float64 // sleeps begun on a place to rest over all sleeps begun
+	// units fathers sent, delivered, and eaten by the mother sent to and
+	// by others (stage 6-4a)
+	sent, delivered, motherAte, othersAte float64
 	aged      float64 // deaths of age (Lifespan)
 	burned    float64
 	actions   [engine.NumActionKinds]float64
@@ -369,6 +372,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	}
 	r.asleep = float64(st.Actions[engine.ActSleep]) / math.Max(total, 1)
 	r.sheltered = float64(st.SleptSheltered) / math.Max(float64(st.Slept), 1)
+	r.sent, r.delivered, r.motherAte, r.othersAte = float64(st.Sent), float64(st.Delivered), float64(st.MotherAte), float64(st.OthersAte)
 	for k, n := range st.Actions {
 		if total > 0 {
 			r.actions[k] = float64(n) / total
@@ -792,6 +796,10 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"睡眠不足による死", 2, func(r result) float64 { return r.sleepless }},
 		{"眠っている割合", 4, func(r result) float64 { return r.asleep }},
 		{"休める場所で始まった眠りの割合", 4, func(r result) float64 { return r.sheltered }},
+		{"父が送った食料", 2, func(r result) float64 { return r.sent }},
+		{"休める場所に届いた食料", 2, func(r result) float64 { return r.delivered }},
+		{"届いた食料を母が取った", 2, func(r result) float64 { return r.motherAte }},
+		{"届いた食料を他者が取った", 2, func(r result) float64 { return r.othersAte }},
 		{"体力消耗（合計）", 2, func(r result) float64 { return r.burned }},
 		{"出生", 2, func(r result) float64 { return r.births }},
 		{"成人到達率", 4, func(r result) float64 { return r.adultRate }},

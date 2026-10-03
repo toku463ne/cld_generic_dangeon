@@ -108,6 +108,9 @@ const (
 	// ActSleep falls asleep until the pressure falls to WakeAt (Sleep,
 	// stage 7-3b).
 	ActSleep
+	// ActSend sends the unit underfoot to the place a resting mate rests
+	// (FatherSends, stage 6-4a).
+	ActSend
 	NumActionKinds
 )
 
@@ -182,6 +185,11 @@ type Stats struct {
 	// SheltersPassed counts the places to rest passed from parent to child
 	// that the child did not know (stage 6-5a).
 	SheltersPassed int64 `json:",omitempty"`
+	// Sent counts the units fathers sent, Delivered those that came to a
+	// place to rest, and MotherAte and OthersAte the delivered units eaten
+	// or picked up by the mother they were sent to and by anyone else
+	// (stage 6-4a).
+	Sent, Delivered, MotherAte, OthersAte int64 `json:",omitempty"`
 }
 
 // RowCount counts, for one learned row, the observations bodies added to it
@@ -275,8 +283,11 @@ func (w *World) act(i int, b *Body, a Action) {
 		w.mate(b, a.Mate)
 	case ActEat:
 		t := w.tileOf(b.X, b.Y)
+		w.noteDelivered(b, t)
 		w.eatFood(w.foodOn(t))
 		b.Energy = math.Min(b.Energy+w.cfg.FoodEnergy, w.maxOf(b))
+	case ActSend:
+		w.send(b)
 	case ActSleep:
 		b.Asleep, b.Woke = true, w.tick+int64(w.cfg.SleepTicks)
 		w.stats.Slept++
@@ -285,6 +296,7 @@ func (w *World) act(i int, b *Body, a Action) {
 		}
 	case ActPick:
 		t := w.tileOf(b.X, b.Y)
+		w.noteDelivered(b, t)
 		w.takeFood(w.foodOn(t), b)
 		w.eatHeld(b) // where a meal fits, picking it up is eating it
 	case ActMove:

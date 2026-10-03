@@ -79,6 +79,13 @@ type foodState struct {
 	// onGround is, per region, how many units are on the ground there. It
 	// is all the truth table reads of the food (predict.go).
 	onGround []int
+
+	// sending are the units fathers sent, on their way (stage 6-4a): they
+	// count with held, as units off the ground and not vacant. delivered
+	// maps the tile of a unit that came to a place to rest to the mother
+	// it was sent to.
+	sending   []Sent
+	delivered map[int]int64
 }
 
 func (w *World) initFood() {
@@ -327,6 +334,16 @@ func (w *World) decayFood() {
 		}
 		i++
 	}
+	kept := f.sending[:0]
+	for _, s := range f.sending {
+		if s.Born <= end {
+			f.held--
+			f.decayed++
+			continue
+		}
+		kept = append(kept, s)
+	}
+	f.sending = kept
 	for i := range w.bodies {
 		b := &w.bodies[i]
 		for len(b.HeldBorn) > 0 && b.HeldBorn[0] <= end {
@@ -352,6 +369,7 @@ func (w *World) liftFood(i int) {
 	}
 	f.foods = f.foods[:last]
 	f.born = f.born[:last]
+	delete(f.delivered, gone.Y*w.m.Width+gone.X)
 	w.foodMoved(w.m.RegionAt(gone.X, gone.Y), -1)
 }
 

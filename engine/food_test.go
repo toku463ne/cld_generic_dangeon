@@ -192,6 +192,7 @@ func TestProvision(t *testing.T) {
 		cfg.Bodies, cfg.FoodCap, cfg.FoodReturn = 0, 20, 1
 		cfg.ProvisionWith, cfg.ProvisionAlone = c.with, c.alone
 		cfg.ProvisionEach = false // each unit by chance (3-3)
+		cfg.Provision = true      // off by default since 6-4a
 		w, err := NewWorld(cfg, m)
 		if err != nil {
 			t.Fatal(err)
@@ -246,6 +247,7 @@ func TestProvisionEach(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.Bodies, cfg.FoodCap, cfg.FoodReturn = 0, 20, 1
 	cfg.ProvisionEachWith, cfg.ProvisionEachAlone = 1, 0
+	cfg.Provision = true // off by default since 6-4a
 	w, err := NewWorld(cfg, m)
 	if err != nil {
 		t.Fatal(err)

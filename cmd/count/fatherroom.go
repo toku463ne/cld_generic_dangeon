@@ -8,11 +8,6 @@ import (
 	"github.com/toku463ne/cld_generic_dangeon/variant"
 )
 
-// fatherGate is the margin of the gate the fatherroom count reads: a unit
-// the father takes goes to the mother if not having it raises his chance
-// of dying within the window by no more than this.
-const fatherGate = 0.1
-
 type fatherRoomTally struct {
 	// after tick 5000: births, and units of food fathers with a resting
 	// mate took (ate or picked up), and of those the ones the gate would
@@ -56,7 +51,7 @@ func runFatherRoom(cfg engine.Config, m engine.Map, ticks int) (fatherRoomTally,
 				without = math.Min(without, r)
 			}
 		}
-		if without-took <= fatherGate {
+		if without-took <= cfg.SendGate {
 			t.sent++
 		}
 	})
@@ -98,7 +93,7 @@ func fatherRoom(m engine.Map, name string, seeds int, seed0 int64, ticks int, vn
 		}
 		ts = append(ts, t)
 	}
-	fmt.Printf("地図 %s (%dx%d)、%d シード、条件 %s、%d tick（tick 5000 より後）。休んでいる母の相手（最後の子の父）が食料を食べる・拾うとき、その手の危険と、食べも拾いもしない手の一番低い危険の差が %.1f 以下なら「送れる」。\n\n", name, m.Width, m.Height, seeds, vname, ticks, fatherGate)
+	fmt.Printf("地図 %s (%dx%d)、%d シード、条件 %s、%d tick（tick 5000 より後）。休んでいる母の相手（最後の子の父）が食料を食べる・拾うとき、その手の危険と、食べも拾いもしない手の一番低い危険の差が SendGate 以下なら「送れる」。\n\n", name, m.Width, m.Height, seeds, vname, ticks)
 	cell := func(f func(fatherRoomTally) float64) string {
 		var xs []float64
 		for _, t := range ts {
