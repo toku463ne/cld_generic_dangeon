@@ -74,19 +74,14 @@ type Config struct {
 	BurnRead bool
 	BurnSpan int
 	BurnStep float64
-	// DuskRead has bodies learn when dark and light come and the valuation
-	// read it (stage 7-2b): a body perceives the light, whether it is
-	// rising or falling, and how long it has been in its present step
-	// (LightStages steps, timed in bands of LightBand ticks, LightBands of
-	// them), and learns from its own days the ticks from each of those
-	// until the light next falls below half and next rises above it. With
-	// SightRead, the valuation then reads keeping on the move with the
-	// sight of full light or of the dark, switching at those ticks, in
-	// steps of DuskStep grains. A body that has not learned them reads the
-	// light as staying (7-2a).
+	// DuskRead has bodies learn when dark and light come (stage 7-2b): a
+	// body perceives the light, whether it is rising or falling, and how
+	// long it has been in its present step (LightStages steps, timed in
+	// bands of LightBand ticks, LightBands of them), and learns from its
+	// own days the ticks from each of those until the light next falls
+	// below half and next rises to it. The valuation does not read them.
 	DuskRead                           bool
 	LightStages, LightBand, LightBands int
-	DuskStep                           int
 	// Sleep gives bodies sleep pressure and sleep debt, and a sleep action
 	// (stage 7-3b). Pressure rises while awake toward 1 with time constant
 	// PressureAwake and falls while asleep with PressureAsleep. A body can
@@ -359,7 +354,6 @@ func DefaultConfig() Config {
 		LightStages:        10,
 		LightBand:          50,
 		LightBands:         10,
-		DuskStep:           50,
 		Sleep:              true,
 		PressureAwake:      750,
 		PressureAsleep:     170,

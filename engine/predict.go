@@ -197,14 +197,6 @@ type rows struct {
 	dead [][]float64
 	t    TruthTable
 	meet float64
-	// With a schedule of light (stage 7-2b), the chance per grain is lit
-	// in full light and meet in the dark: the grain i from the window's
-	// start is lit if it is from the start and has passed neither switch
-	// s1 nor s2, or passed one of them.
-	sched    bool
-	lit      float64
-	s1, s2   int
-	litFirst bool
 	// floor is the shortest window a walk in sight leaves (longest minus
 	// Reach): below it only the Extra rows are read exactly, and any other
 	// length is read at the next of them (deadAtLeast) - a rule of the
@@ -224,25 +216,11 @@ const rowBand = 4
 // grain. It is exact for the table's rows; its cost is the longest window
 // times Full.
 func (t TruthTable) NewSurvival(meet float64, windows []int) Survival {
-	return t.survival(&rows{meet: meet}, windows)
-}
-
-// newScheduled is NewSurvival for a window read with a schedule of light
-// (stage 7-2b): the chance per grain is lit in full light and dark in the
-// dark, the window starting lit if litFirst and switching at its grains s1
-// and s2.
-func (t TruthTable) newScheduled(dark, lit float64, s1, s2 int, litFirst bool, windows []int) Survival {
-	return t.survival(&rows{meet: dark, sched: true, lit: lit, s1: s1, s2: s2, litFirst: litFirst}, windows)
-}
-
-// survival makes the table of rows r (its chances set) for the windows.
-func (t TruthTable) survival(r *rows, windows []int) Survival {
 	longest := 0
 	for _, w := range windows {
 		longest = max(longest, w)
 	}
-	r.dead, r.t, r.floor = make([][]float64, longest+1), t, max(longest-1-t.Reach, 1)
-	s := Survival{Windows: windows, rows: r}
+	s := Survival{Windows: windows, rows: &rows{dead: make([][]float64, longest+1), t: t, meet: meet, floor: max(longest-1-t.Reach, 1)}}
 	want := make([]bool, longest+1)
 	for _, w := range windows {
 		for l := max(w-1-t.Reach, 1); l <= w; l++ {
@@ -265,7 +243,6 @@ func (s Survival) build(want []bool) {
 	// The table's numbers as locals: read through the shared rows in the
 	// inner loop, they cost a checked access each under the race detector.
 	meal, full, meet, dead := s.t.Meal, s.t.Full, s.meet, s.dead
-	sched, litMeet, darkMeet, s1, s2, litFirst := s.sched, s.lit, s.meet, s.s1, s.s2, s.litFirst
 	top := full + s.t.Over
 	cur := make([]float64, top+1)
 	next := make([]float64, top+1)
@@ -278,17 +255,6 @@ func (s Survival) build(want []bool) {
 	keep(0)
 	miss := 1 - meet
 	for step := 1; step < longest; step++ {
-		if sched {
-			// The grain this step adds is the window's grain longest-step
-			// from its start: rows of shorter windows are its ends.
-			i := longest - step
-			if litFirst != (i >= s1) != (i >= s2) {
-				meet = litMeet
-			} else {
-				meet = darkMeet
-			}
-			miss = 1 - meet
-		}
 		next[0] = 1
 		// A body with more grains of energy than the steps so far cannot be
 		// dead yet: those entries stay 0, as they were made, and are not
@@ -614,7 +580,7 @@ func (w *World) sleepRisk(b *Body, rs *rates, win, reserve int) float64 {
 	r := w.m.RegionAt(int(math.Floor(b.X)), int(math.Floor(b.Y)))
 	var s Survival
 	if rs != nil {
-		s = w.learnedTable(rs.region[r]*w.factor(w.speedOf(b), burn), full, rs.dusk)
+		s = w.learnedTable(rs.region[r]*w.factor(w.speedOf(b), burn), full)
 	} else {
 		s = w.survivalFor(r, full, w.factorLevel(w.speedOf(b), burn))
 	}
@@ -685,23 +651,14 @@ type table struct {
 // body holds, and for the tables of the true rules the level of the body's
 // factor relative to the config body's (0: the config body). A body's burn
 // and speed are in the chance per grain, not the key.
-//
-// A table read with a schedule of light (stage 7-2b, duskSched) has the
-// level of the dark's chance in food, and the schedule's grains s1 and s2
-// (s1 above zero, or lit) and where it starts: these tables are learned
-// ones only.
 type survKey struct {
 	food, full, factor int
-	s1, s2             int
-	lit                bool
 }
 
 // TableKey names one survival table, for a saved world to say which tables
 // it was using (Warm).
 type TableKey struct {
 	Region, Food, Full, Factor int
-	S1, S2                     int  `json:",omitempty"`
-	Lit                        bool `json:",omitempty"`
 }
 
 const (
@@ -823,7 +780,7 @@ func (w *World) Tables() []TableKey {
 	}
 	for k, t := range w.pred.learned {
 		if w.tick-t.used <= warmAfter {
-			ks = append(ks, TableKey{Region: -1, Food: k.food, Full: k.full, S1: k.s1, S2: k.s2, Lit: k.lit})
+			ks = append(ks, TableKey{Region: -1, Food: k.food, Full: k.full})
 		}
 	}
 	sort.Slice(ks, func(i, j int) bool {
@@ -835,12 +792,6 @@ func (w *World) Tables() []TableKey {
 			return a.Food < b.Food
 		case a.Full != b.Full:
 			return a.Full < b.Full
-		case a.S1 != b.S1:
-			return a.S1 < b.S1
-		case a.S2 != b.S2:
-			return a.S2 < b.S2
-		case a.Lit != b.Lit:
-			return b.Lit
 		}
 		return a.Factor < b.Factor
 	})
@@ -860,7 +811,7 @@ func (w *World) Warm(n int) int {
 		p.pending = p.pending[1:]
 		switch {
 		case k.Region == -1 && p.learned != nil:
-			w.learnedAt(survKey{food: k.Food, full: k.Full, s1: k.S1, s2: k.S2, lit: k.Lit})
+			w.learnedTable(w.levelRate(k.Food), k.Full)
 		case k.Region >= 0 && k.Region < len(p.cache):
 			w.tableAt(RegionID(k.Region), survKey{food: k.Food, full: k.Full, factor: k.Factor})
 		}

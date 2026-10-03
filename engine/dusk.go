@@ -10,7 +10,9 @@ import "math"
 // step - the light read in LightStages steps, that time in bands of
 // LightBand ticks. That is the key of a row. From its own days it learns,
 // for each key, the mean ticks until the light next falls below half
-// (dark comes) and next rises to half (light comes). A body asleep sees no
+// (dark comes) and next rises to half (light comes). The valuation does
+// not read them yet: read as a switch of sight within the window, they
+// moved nothing and cost six times a tick (docs/history/20261003.md). A body asleep sees no
 // light: what it was waiting to learn is lost, and it starts again when it
 // wakes, not knowing how long the light has been as it is.
 
@@ -129,57 +131,6 @@ func (w *World) duskAhead(b *Body) (toDark, toLight float64, ok bool) {
 		}
 	}
 	return 0, 0, false
-}
-
-// duskSched is how the valuation reads the light over the window (stage
-// 7-2b): lit (full light's sight) or dark from the start, switching at
-// grain s1 and back at s2. Off, the light now is read as staying.
-type duskSched struct {
-	on     bool
-	lit    bool
-	s1, s2 int
-	// dark converts a chance per grain read at the light now to the dark's.
-	dark float64
-}
-
-// duskOf is body b's schedule for a window read at the given burn.
-func (w *World) duskOf(b *Body, burn float64) duskSched {
-	if !w.cfg.SightRead {
-		return duskSched{}
-	}
-	toDark, toLight, ok := w.duskAhead(b)
-	if !ok {
-		return duskSched{}
-	}
-	lit := b.LightSeen >= 0.5
-	first, second := toDark, toLight
-	if !lit {
-		first, second = toLight, toDark
-	}
-	win := w.windowGrains()
-	step := func(ticks float64) int {
-		g := w.grains(int(math.Round(ticks)), burn)
-		g = int(math.Round(float64(g)/float64(w.cfg.DuskStep))) * w.cfg.DuskStep
-		return min(max(g, 0), win)
-	}
-	s1, s2 := step(first), step(second)
-	s2 = max(s2, s1)
-	if s1 == 0 {
-		// The first switch is now: the window starts in the other light.
-		lit, s1, s2 = !lit, s2, win
-	}
-	if s1 == 0 {
-		s1 = win
-	}
-	return duskSched{on: true, lit: lit, s1: s1, s2: s2, dark: w.sightGainAt(0) / w.sightGain()}
-}
-
-// sightGainAt is sightGain at light l.
-func (w *World) sightGainAt(l float64) float64 {
-	if !w.cfg.SightRead || w.cfg.Sight < 0 {
-		return 1
-	}
-	return float64(2*w.cfg.NightSight+1) + 2*float64(w.cfg.Sight-w.cfg.NightSight)*l
 }
 
 // DuskAhead is duskAhead for reading: the ticks body b expects until dark

@@ -94,7 +94,7 @@ func TestPathReadingNeutralWithoutWalkedTiles(t *testing.T) {
 	burn, speed := w.burnOf(&b), w.speedOf(&b)
 	meal, full := w.pred.meal, w.units(w.maxOf(&b))
 	factor := w.factor(speed, burn)
-	alive := func(r RegionID) Survival { return w.learnedTable(w.regionRate(&b, r)*factor, full, duskSched{}) }
+	alive := func(r RegionID) Survival { return w.learnedTable(w.regionRate(&b, r)*factor, full) }
 	var rs rates
 	w.ratesOf(&b, &rs)
 	var with, without Valuation

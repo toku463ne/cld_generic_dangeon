@@ -5,19 +5,22 @@ import (
 	"testing"
 )
 
-// Without learning when dark and light come, the world is stage 7-4: its
-// fingerprint is the one pinned then.
-func TestDuskblindIsStage74(t *testing.T) {
-	const want = uint64(0x1bfef7f1f18d1e4)
-	cfg := testConfig(1)
-	cfg.DuskRead = false
-	w, err := NewWorld(cfg, tempMap())
-	if err != nil {
-		t.Fatal(err)
+// Learning when dark and light come changes nothing a body does yet:
+// over days long enough to learn them, the world runs as without (stage
+// 7-4).
+func TestDuskReadChangesNothing(t *testing.T) {
+	fp := func(dusk bool) uint64 {
+		cfg := testConfig(1)
+		cfg.DuskRead = dusk
+		w, err := NewWorld(cfg, tempMap())
+		if err != nil {
+			t.Fatal(err)
+		}
+		run(w, 2500)
+		return w.Fingerprint()
 	}
-	run(w, 1000)
-	if got := w.Fingerprint(); got != want {
-		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	if with, without := fp(true), fp(false); with != without {
+		t.Fatalf("fingerprint %#x learning, %#x not", with, without)
 	}
 }
 
@@ -73,53 +76,5 @@ func TestDuskLearn(t *testing.T) {
 	}
 	if _, _, ok := w.duskAhead(b); ok {
 		t.Fatal("asleep, it reads when dark comes")
-	}
-}
-
-// A scheduled table that never switches is the plain table of its light,
-// and dark at the start of the window is worse than dark at its end for a
-// body low on energy.
-func TestDuskSchedule(t *testing.T) {
-	tt := TruthTable{Meal: 10, Full: 40, Reach: 3}
-	const L = 200
-	win := []int{L}
-	plain := tt.NewSurvival(0.06, win)
-	same := tt.newScheduled(0.02, 0.06, L, L, true, win)
-	for n := 1; n <= 40; n++ {
-		if plain.Dead(0, n) != same.Dead(0, n) {
-			t.Fatalf("n %d: never switching reads %v, the lit table %v", n, same.Dead(0, n), plain.Dead(0, n))
-		}
-	}
-	darkFirst := tt.newScheduled(0.02, 0.06, L/2, L, false, win)
-	darkLast := tt.newScheduled(0.02, 0.06, L/2, L, true, win)
-	if !(darkFirst.Dead(0, 15) > darkLast.Dead(0, 15)) {
-		t.Fatalf("dark first %v, dark last %v: dark first should be worse", darkFirst.Dead(0, 15), darkLast.Dead(0, 15))
-	}
-}
-
-// In full light, a body that has learned dark comes soon reads keeping on
-// the move as riskier than one reading the light as staying.
-func TestDuskRead(t *testing.T) {
-	w, b := soloWorld(t, 30)
-	w.cfg.DuskRead, w.cfg.SightRead = true, true
-	w.light, w.lightFor = 1, w.tick+1
-	b.LightKnown, b.LightSeen, b.LightSince = true, 1, -1
-	b.LightKey = w.lightKey(1, 0, -1)
-	b.Dusk = []DuskRow{{Key: b.LightKey, ToDark: [2]float64{100, 1}, ToLight: [2]float64{600, 1}}}
-	risk := func() float64 {
-		w.decide(b)
-		v := w.valuation
-		for j, o := range v.Options {
-			if o.Kind == ActWait {
-				return v.Risk[0][j]
-			}
-		}
-		t.Fatal("no wait")
-		return 0
-	}
-	ahead := risk()
-	w.cfg.DuskRead = false
-	if staying := risk(); !(ahead > staying) {
-		t.Fatalf("waiting risk with dark ahead %v, light staying %v", ahead, staying)
 	}
 }
