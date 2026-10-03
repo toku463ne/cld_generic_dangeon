@@ -179,6 +179,9 @@ type Stats struct {
 	// Slept counts sleeps begun, and SleptSheltered those begun on a place
 	// to rest (stage 6-1b).
 	Slept, SleptSheltered int64 `json:",omitempty"`
+	// SheltersPassed counts the places to rest passed from parent to child
+	// that the child did not know (stage 6-5a).
+	SheltersPassed int64 `json:",omitempty"`
 }
 
 // RowCount counts, for one learned row, the observations bodies added to it

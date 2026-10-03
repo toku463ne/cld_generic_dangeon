@@ -131,6 +131,11 @@ type Config struct {
 	// that learned, every option can go on by walking to the nearest one
 	// remembered and sleeping there at the learned burn.
 	ShelterRead bool
+	// PassShelters has a parent pass the places to rest it remembers to its
+	// child (with Tell and Kin), as it passes what it knows of the world
+	// (stage 6-5a): where a place to rest is does not change, whoever
+	// stands there, so it is the first row that passes.
+	PassShelters bool
 	// KeepHeading breaks ties by the body's last move: when the options of
 	// least risk include moving the way it last moved, it moves that way,
 	// and it draws at random among them otherwise - where the land ends,
@@ -400,6 +405,7 @@ func DefaultConfig() Config {
 		TempBurn:           30,
 		Shelter:            true,
 		ShelterRead:        true,
+		PassShelters:       true,
 		KeepHeading:        true,
 		TurnOffReverse:     true,
 		Recheck:            300,

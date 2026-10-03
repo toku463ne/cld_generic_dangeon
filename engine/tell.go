@@ -102,6 +102,19 @@ func (w *World) pass(from, to *Body) {
 		}
 		w.passTally(&to.Memory.Regions[r], from.Memory.Regions[r], from.ID, to.ID)
 	}
+	if w.cfg.PassShelters {
+		// Where the places to rest are (stage 6-5a).
+		for t := range from.Memory.Shelters {
+			if to.Memory.Shelters[t] {
+				continue
+			}
+			if to.Memory.Shelters == nil {
+				to.Memory.Shelters = map[int]bool{}
+			}
+			to.Memory.Shelters[t] = true
+			w.stats.SheltersPassed++
+		}
+	}
 	if w.cfg.PassPath {
 		w.agePath(&from.Memory.Path)
 		w.agePath(&to.Memory.Path)

@@ -221,3 +221,35 @@ func TestPathIsOwn(t *testing.T) {
 		}
 	}
 }
+
+// A parent passes the places to rest it remembers to its child in sight,
+// and a place newly seen is something new to pass; a child passes none to
+// its parent, and without PassShelters none pass (stage 6-5a).
+func TestPassShelters(t *testing.T) {
+	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 100}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100})
+	w.cfg.ShelterRead, w.cfg.PassShelters = true, true
+	a, b := &w.bodies[0], &w.bodies[1]
+	b.Parents = [2]int64{0, -1}
+	w.rememberShelter(a, 7)
+	w.rememberShelter(b, 9)
+	w.tell(b)
+	if a.Memory.Shelters[9] {
+		t.Fatal("a child passed a place to its parent")
+	}
+	w.tell(a)
+	if !b.Memory.Shelters[7] || w.Stats().SheltersPassed != 1 {
+		t.Fatalf("child knows %v after its parent told it", b.Memory.Shelters)
+	}
+	w.rememberShelter(a, 11)
+	w.tell(a)
+	if !b.Memory.Shelters[11] {
+		t.Fatal("a place the parent saw since did not pass")
+	}
+	w.cfg.PassShelters = false
+	w.rememberShelter(a, 13)
+	a.Memory.Ver++
+	w.tell(a)
+	if b.Memory.Shelters[13] {
+		t.Fatal("passed without PassShelters")
+	}
+}

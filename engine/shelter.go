@@ -25,11 +25,23 @@ func (w *World) noteShelters(b *Body) {
 			if !w.m.InBounds(x, y) || !w.m.ShelterAt(x, y) || !w.seesFrom(b, bx, by, x, y) {
 				continue
 			}
-			if b.Memory.Shelters == nil {
-				b.Memory.Shelters = map[int]bool{}
-			}
-			b.Memory.Shelters[w.m.index(x, y)] = true
+			w.rememberShelter(b, w.m.index(x, y))
 		}
+	}
+}
+
+// rememberShelter has body b remember tile t as a place to rest; a tile
+// new to it is something it can pass on (PassShelters).
+func (w *World) rememberShelter(b *Body, t int) {
+	if b.Memory.Shelters[t] {
+		return
+	}
+	if b.Memory.Shelters == nil {
+		b.Memory.Shelters = map[int]bool{}
+	}
+	b.Memory.Shelters[t] = true
+	if w.cfg.PassShelters {
+		b.Memory.Ver++
 	}
 }
 
@@ -43,10 +55,7 @@ func (w *World) feelWarm(b *Body) {
 	if !w.m.ShelterAt(x, y) {
 		return
 	}
-	if b.Memory.Shelters == nil {
-		b.Memory.Shelters = map[int]bool{}
-	}
-	b.Memory.Shelters[w.m.index(x, y)] = true // it stands on it
+	w.rememberShelter(b, w.m.index(x, y)) // it stands on it
 	b.Memory.Warm[0] += w.planBurn(b) / w.ownBurn(b, true)
 	b.Memory.Warm[1]++
 }
