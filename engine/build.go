@@ -121,14 +121,14 @@ func (w *World) feelBurn(b *Body) {
 	b.BurnFelt = burn
 }
 
-// restReserve is, for a resting mother with RestAhead, the ticks of
-// planBurn the rest of her rest saves her: she burns RestBurn of it each
-// tick until Rested. Zero for every other body.
+// restReserve is, for a resting mother with RestAhead, the grains of energy
+// the rest of her rest saves her: she burns RestBurn of planBurn each tick
+// until Rested. Zero for every other body.
 func (w *World) restReserve(b *Body) int {
 	if !w.cfg.RestAhead || !w.resting(b) || w.cfg.RestBurn >= 1 {
 		return 0
 	}
-	return int(math.Floor(float64(b.Rested-w.tick) * (1 - w.cfg.RestBurn)))
+	return int(math.Floor(float64(b.Rested-w.tick) * (1 - w.cfg.RestBurn) * w.planBurn(b) / w.cfg.Grain))
 }
 
 // SetBuild gives the living body with the given ID a build, for experiments

@@ -389,10 +389,11 @@ func (w *World) sightGain() float64 {
 	return float64(2*w.cfg.NightSight+1) + 2*float64(w.cfg.Sight-w.cfg.NightSight)*w.Brightness()
 }
 
-// table returns region r's survival table for the rates and a build.
-func (w *World) rateTable(rs *rates, r RegionID, meal, full int, speed float64) Survival {
+// rateTable returns region r's survival table for the rates, a body of the
+// given most grains and factor (tiles entered per grain).
+func (w *World) rateTable(rs *rates, r RegionID, full int, factor float64) Survival {
 	if !rs.built[r] {
-		rs.tables[r], rs.built[r] = w.learnedTable(rs.region[r], meal, full, speed), true
+		rs.tables[r], rs.built[r] = w.learnedTable(rs.region[r]*factor, full), true
 	}
 	return rs.tables[r]
 }
@@ -493,7 +494,7 @@ func (w *World) walked(b *Body, t int) bool {
 	return ok && w.tick-when <= int64(w.cfg.PathRecall)
 }
 
-// beliefLevel rounds a chance per tile onto the grid survival tables are
+// beliefLevel rounds a chance per grain onto the grid survival tables are
 // built for: powers of BeliefStep. Zero has a level of its own.
 func (w *World) beliefLevel(p float64) int {
 	if p <= 0 {
@@ -502,7 +503,7 @@ func (w *World) beliefLevel(p float64) int {
 	return int(math.Round(math.Log(p) / math.Log(w.cfg.BeliefStep)))
 }
 
-// levelRate is the chance per tile of a level.
+// levelRate is the chance per grain of a level.
 func (w *World) levelRate(level int) float64 {
 	if level == math.MinInt32 {
 		return 0
@@ -510,19 +511,21 @@ func (w *World) levelRate(level int) float64 {
 	return math.Min(math.Pow(w.cfg.BeliefStep, float64(level)), 1)
 }
 
-// learnedTable returns the survival table for a chance per tile p (rounded
-// to its level) and a build of the given meal, full and speed, keeping the
-// rows the path reading needs.
-func (w *World) learnedTable(p float64, meal, full int, speed float64) Survival {
-	level := w.beliefLevel(p)
-	k := survKey{food: level, meal: meal, full: full, speed: speed}
+// learnedTable returns the survival table for a chance per grain q
+// (rounded to its level) and a body of the given most grains, keeping the
+// rows the config body's walks and path reading need; other rows are built
+// as they are read.
+func (w *World) learnedTable(q float64, full int) Survival {
+	level := w.beliefLevel(q)
+	k := survKey{food: level, full: full}
 	t, ok := w.pred.learned[k]
 	if !ok {
-		ahead := w.pathTicks(speed)
-		tt := TruthTable{Meal: meal, Full: full, Reach: w.reach(speed), Over: w.cfg.Carry * meal}
-		win := w.cfg.Window
+		meal := w.pred.meal
+		ahead := w.grains(w.pathTicks(w.cfg.Speed), w.cfg.EnergyBurn)
+		tt := TruthTable{Meal: meal, Full: full, Reach: w.grains(w.reach(w.cfg.Speed), w.cfg.EnergyBurn), Over: w.cfg.Carry * meal}
+		win := w.windowGrains()
 		tt.Extra = []int{win - ahead, win - ahead/2 - 1}
-		t = &table{s: tt.NewSurvival(w.levelRate(level)*math.Min(speed, 1), w.pred.windows), used: w.tick}
+		t = &table{s: tt.NewSurvival(w.levelRate(level), w.pred.windows), used: w.tick}
 		w.pred.learned[k] = t
 	}
 	t.used = w.tick
@@ -573,7 +576,10 @@ func (w *World) keepReading(b *Body, rs *rates, dir int, x, y float64, win, afte
 		return base
 	}
 	noneRegion, noneHere := ry.noneRegion, ry.noneAll
-	ahead := w.pathTicks(w.speedOf(b))
+	// The stretch is read as the config body's, in grains: the rows it
+	// needs are then the same in every table, and the reading is a
+	// correction to the region's, not a walk of this body's own.
+	ahead := w.grains(w.pathTicks(w.cfg.Speed), w.cfg.EnergyBurn)
 	half := ahead / 2
 	dead := func(l, n int) float64 {
 		if n <= 0 {
@@ -612,13 +618,12 @@ func (w *World) ValueWith(b Body, region, path []float64) Valuation {
 	if w.cfg.Window <= 0 {
 		return v
 	}
-	burn, speed := w.readBurn(&b), w.speedOf(&b)
-	meal, full := energyTicks(w.cfg.FoodEnergy, burn), energyTicks(w.maxOf(&b), burn)
+	full, factor := w.units(w.maxOf(&b)), w.factor(w.speedOf(&b), w.readBurn(&b))
 	var rs rates
 	w.ratesOf(&b, &rs)
 	copy(rs.region, region)
 	copy(rs.path, path)
-	alive := func(r RegionID) Survival { return w.rateTable(&rs, r, meal, full, speed) }
-	w.valueInto(&v, meal, full, w.pred.windows, alive, w.childRate(&b), &rs, &b)
+	alive := func(r RegionID) Survival { return w.rateTable(&rs, r, full, factor) }
+	w.valueInto(&v, w.pred.meal, full, w.pred.windows, alive, w.childRate(&b), &rs, &b)
 	return v
 }

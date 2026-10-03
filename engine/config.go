@@ -20,6 +20,13 @@ type Config struct {
 	FoodReturn float64
 	// FoodEnergy is how much energy eating one unit gives.
 	FoodEnergy float64
+	// Grain is the unit of energy the survival tables count in: a body's
+	// energy, a meal, a window and a walk are whole numbers of it, rounded
+	// at the boundary (stage 7-3c). The tables are in energy rather than
+	// ticks so that a body's burn and speed fold into its chance of meeting
+	// food per grain, and bodies of every burn and speed share the tables.
+	// The config body burns one grain a tick (Grain = EnergyBurn).
+	Grain float64
 	// FoodLife is how many ticks a unit lasts after it appears, on the
 	// ground or held (stage 4-4); then it decays and becomes a vacancy,
 	// which comes back by the region shares like any other. Zero for food
@@ -299,6 +306,7 @@ func DefaultConfig() Config {
 		FoodCap:            300,
 		FoodReturn:         0.002,
 		FoodEnergy:         30,
+		Grain:              0.1,
 		FoodLife:           1000,
 		Bodies:             200,
 		EnergyMax:          100,

@@ -58,6 +58,10 @@ func TestFollowsIntentBetweenDecisions(t *testing.T) {
 // experiments run is in the stage 1-2e report.)
 func TestTriggersFire(t *testing.T) {
 	w := newTestWorld(t, 2)
+	// A walk to a requester out of sight is decided again every tick
+	// (NODE.md: mating is not an intent); on this small map that is up to
+	// half of all ticks, which would hide decisions made every tick.
+	w.cfg.Requests = false
 	run(w, 3000)
 	st := w.Stats()
 	for k := TriggerFirst; k < NumTriggers; k++ {

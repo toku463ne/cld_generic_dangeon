@@ -13,6 +13,11 @@ import (
 // instead. decide takes the best option by these values, and a trace
 // (SetTrace) is handed the very Valuation the choice was made from.
 //
+// The tables count energy in grains (Config.Grain), not ticks: a body's
+// burn and speed fold into its chance of meeting food per grain, so bodies
+// of every burn and speed share the tables (stage 7-3c). Ticks are turned
+// into grains at the boundary (grains), with half a grain's rounding.
+//
 // The table holds outcomes only, never worth (NODE.md "記憶は結果だけを持つ"):
 //
 //	(tile with food, eat)                -> energy +FoodEnergy, up to EnergyMax
@@ -34,15 +39,17 @@ import (
 
 // TruthTable is the table of stage 1-2, filled from the world's true rules.
 type TruthTable struct {
-	// Meal is how many ticks of energy one meal gives (FoodEnergy over
-	// EnergyBurn), and Full how many a full body holds.
+	// Meal is how many grains of energy one meal gives (FoodEnergy over
+	// Grain), and Full how many a full body holds.
 	Meal, Full int
-	// Meet is, per region, the chance per tick that a body keeping on the
-	// move comes to stand on food: the food on the ground over the land
-	// tiles, times the tiles entered per tick (Speed).
+	// Meet is, per region, the chance per grain burned that the config body
+	// keeping on the move comes to stand on food: the food on the ground
+	// over the land tiles, times the tiles entered per tick (Speed), times
+	// the ticks a grain lasts it (Grain over EnergyBurn).
 	Meet []float64
-	// Reach is the most ticks the fourth row can take to walk to a unit in
-	// sight; survival tables keep the shorter windows the walk leaves.
+	// Reach is the most grains the fourth row can take to walk to a unit in
+	// sight; survival tables keep the shorter windows the walk leaves, and
+	// build any other row when it is first asked for.
 	Reach int
 	// Extra are more window lengths a survival table keeps (learn.go).
 	Extra []int
@@ -55,31 +62,84 @@ type TruthTable struct {
 // TruthTable reads the true rules and the food on the ground now.
 func (w *World) TruthTable() TruthTable {
 	t := TruthTable{
-		Meal:  energyTicks(w.cfg.FoodEnergy, w.cfg.EnergyBurn),
-		Full:  energyTicks(w.cfg.EnergyMax, w.cfg.EnergyBurn),
+		Meal:  w.units(w.cfg.FoodEnergy),
+		Full:  w.units(w.cfg.EnergyMax),
 		Meet:  make([]float64, len(w.m.RegionFood)),
-		Reach: w.reach(w.slowest()),
+		Reach: w.grains(w.reach(w.slowest()), w.cfg.EnergyBurn),
 	}
 	t.Over = w.cfg.Carry * t.Meal
 	for r := range t.Meet {
-		t.Meet[r] = w.meet(RegionID(r), w.cfg.Speed)
+		t.Meet[r] = w.meet(RegionID(r), w.cfg.Speed, w.cfg.EnergyBurn)
 	}
 	return t
 }
 
 // meet is the third row of the table for region r and a body of the given
-// speed, read from the food on its ground now.
-func (w *World) meet(r RegionID, speed float64) float64 {
-	return w.meetAt(r, w.food.onGround[r], speed)
+// speed and burn, read from the food on its ground now.
+func (w *World) meet(r RegionID, speed, burn float64) float64 {
+	return w.meetAt(r, w.food.onGround[r], speed, burn)
 }
 
-// meetAt is meet with the given food on region r's ground.
-func (w *World) meetAt(r RegionID, food int, speed float64) float64 {
+// meetAt is meet with the given food on region r's ground: the chance per
+// grain burned of coming to stand on food. It is the chance per tile times
+// the tiles entered per tick, times the ticks a grain lasts, no more than
+// 1: what a body burns per tile is what tells a fast or slow burner apart.
+func (w *World) meetAt(r RegionID, food int, speed, burn float64) float64 {
 	land := len(w.food.regionLand[r])
 	if land == 0 {
 		return 0
 	}
-	return float64(food) / float64(land) * math.Min(speed, 1)
+	return math.Min(float64(food)/float64(land)*w.factor(speed, burn), 1)
+}
+
+// factor is how many tiles a body of the given speed and burn enters per
+// grain of energy: what it multiplies a chance per tile by.
+func (w *World) factor(speed, burn float64) float64 {
+	if burn <= 0 {
+		return 0
+	}
+	return math.Min(speed, 1) * w.cfg.Grain / burn
+}
+
+// factorLevel rounds a body's factor onto the grid of BeliefStep relative
+// to the config body's, for the tables of the world's true rules: the
+// config body is exactly level 0.
+func (w *World) factorLevel(speed, burn float64) int {
+	f, f0 := w.factor(speed, burn), w.factor(w.cfg.Speed, w.cfg.EnergyBurn)
+	if f == f0 || f <= 0 || f0 <= 0 || w.cfg.BeliefStep <= 1 {
+		return 0
+	}
+	return int(math.Round(math.Log(f/f0) / math.Log(w.cfg.BeliefStep)))
+}
+
+// factorOf is the factor of a level relative to the config body's.
+func (w *World) factorOf(level int) float64 {
+	if level == 0 || w.cfg.BeliefStep <= 1 {
+		return 1
+	}
+	return math.Pow(w.cfg.BeliefStep, float64(level))
+}
+
+// units is how many grains of energy an amount is; a body with energy e
+// starves when its last grain is burned.
+func (w *World) units(e float64) int {
+	return int(math.Ceil(e/w.cfg.Grain - 1e-9))
+}
+
+// grains is how many grains a body of the given burn spends in k ticks, to
+// the nearest, at least one for any tick: how a walk or a window in ticks
+// reads in the tables.
+func (w *World) grains(k int, burn float64) int {
+	if k <= 0 {
+		return 0
+	}
+	return max(int(math.Round(float64(k)*burn/w.cfg.Grain)), 1)
+}
+
+// windowGrains is the window in grains: Window ticks of the config body's
+// burn, the same energy for every body.
+func (w *World) windowGrains() int {
+	return w.grains(w.cfg.Window, w.cfg.EnergyBurn)
 }
 
 // reach bounds the ticks it takes a body of the given speed to walk onto a
@@ -111,9 +171,9 @@ func energyTicks(e, burn float64) int {
 	return int(math.Ceil(e/burn - 1e-9))
 }
 
-// Survival is, for one chance of meeting food per tick and a set of windows,
-// the chance of being dead at the end of each window from every amount of
-// energy (in ticks of burning, 0 to Full).
+// Survival is, for one chance of meeting food per grain and a set of
+// windows, the chance of being dead at the end of each window from every
+// amount of energy (in grains, 0 to Full plus Over).
 //
 // It holds the chance of dying rather than of living on because the two
 // differ in what float64 can tell apart: where food is plentiful both
@@ -122,23 +182,45 @@ func energyTicks(e, burn float64) int {
 // 1e-20 say, are kept. The quantity valued is the same.
 type Survival struct {
 	Windows []int
-	// dead[l][n] is the chance of being dead l-1 ticks on from n ticks of
-	// energy: the first tick of a window is the option itself. It is kept
-	// for each window and for the shorter ones a walk of up to Reach ticks
-	// leaves of it; nil for every other length.
-	dead [][]float64
+	// rows is shared by every copy of the table, so that a row built for
+	// one copy is there for all, and a copy stays small.
+	*rows
 }
 
-// NewSurvival works the chances out tick by tick: in each tick the body
-// meets food with chance meet, and eats it, or does not; then it burns one
-// tick of energy. It is exact for the table's rows; its cost is the longest
-// window times Full.
+// rows is what a survival table holds and is built from.
+type rows struct {
+	// dead[l][n] is the chance of being dead l-1 grains on from n grains
+	// of energy: the first grain of a window is the option itself. It is
+	// kept for each window and for the shorter ones a walk of up to Reach
+	// grains leaves of it, and any other length is built the first time it
+	// is read (row); nil until then.
+	dead [][]float64
+	t    TruthTable
+	meet float64
+	// floor is the shortest window a walk in sight leaves (longest minus
+	// Reach): below it only the Extra rows are read exactly, and any other
+	// length is read at the next of them (deadAtLeast) - a rule of the
+	// table, not of which rows happen to be built.
+	floor int
+}
+
+// rowBand is how many rows below one asked for are built with it. Above
+// it, every missing row up to the floor is built in the same pass: a walk
+// nearby asks for its neighbours next, a pass of the recursion costs the
+// same however many rows it keeps, and a table then needs at most a pass
+// or two beyond the one that made it.
+const rowBand = 4
+
+// NewSurvival works the chances out grain by grain: in each grain the body
+// meets food with chance meet, and eats it, or does not; then it burns the
+// grain. It is exact for the table's rows; its cost is the longest window
+// times Full.
 func (t TruthTable) NewSurvival(meet float64, windows []int) Survival {
 	longest := 0
 	for _, w := range windows {
 		longest = max(longest, w)
 	}
-	s := Survival{Windows: windows, dead: make([][]float64, longest+1)}
+	s := Survival{Windows: windows, rows: &rows{dead: make([][]float64, longest+1), t: t, meet: meet, floor: max(longest-1-t.Reach, 1)}}
 	want := make([]bool, longest+1)
 	for _, w := range windows {
 		for l := max(w-1-t.Reach, 1); l <= w; l++ {
@@ -150,29 +232,58 @@ func (t TruthTable) NewSurvival(meet float64, windows []int) Survival {
 			want[l] = true
 		}
 	}
-	top := t.Full + t.Over
+	s.build(want)
+	return s
+}
+
+// build fills in the rows want marks, by one pass of the recursion up to
+// the longest of them. A row is the same whenever it is built.
+func (s Survival) build(want []bool) {
+	longest := len(want) - 1
+	// The table's numbers as locals: read through the shared rows in the
+	// inner loop, they cost a checked access each under the race detector.
+	meal, full, meet, dead := s.t.Meal, s.t.Full, s.meet, s.dead
+	top := full + s.t.Over
 	cur := make([]float64, top+1)
 	next := make([]float64, top+1)
 	cur[0] = 1
 	keep := func(step int) {
-		if want[step+1] {
-			s.dead[step+1] = append([]float64(nil), cur...)
+		if step+1 <= longest && want[step+1] && dead[step+1] == nil {
+			dead[step+1] = append([]float64(nil), cur...)
 		}
 	}
 	keep(0)
+	miss := 1 - meet
 	for step := 1; step < longest; step++ {
 		next[0] = 1
-		// A body with more ticks of energy than the steps so far cannot be
+		// A body with more grains of energy than the steps so far cannot be
 		// dead yet: those entries stay 0, as they were made, and are not
 		// worked out. It halves the work and changes no number.
 		for n := 1; n <= min(step, top); n++ {
-			fed := max(min(n+t.Meal, t.Full), n) - 1
-			next[n] = meet*cur[fed] + (1-meet)*cur[n-1]
+			fed := max(min(n+meal, full), n) - 1
+			next[n] = meet*cur[fed] + miss*cur[n-1]
 		}
 		cur, next = next, cur
 		keep(step)
 	}
-	return s
+}
+
+// row is the row for a window of length l, built with its neighbours
+// (rowBand either side) if it is not kept yet.
+func (s Survival) row(l int) []float64 {
+	if s.rows == nil {
+		return nil
+	}
+	if d := s.dead[l]; d != nil {
+		return d
+	}
+	hi := len(s.dead) - 1
+	want := make([]bool, hi+1)
+	for i := max(l-rowBand, 1); i <= hi; i++ {
+		want[i] = s.dead[i] == nil && (i <= l || i < s.floor)
+	}
+	s.build(want)
+	return s.dead[l]
 }
 
 // Dead returns the chance of being dead at the end of window i from n
@@ -188,14 +299,17 @@ func (s Survival) deadIn(l, n int) float64 {
 	if l < 1 {
 		return 0
 	}
-	d := s.dead[l]
+	if l >= len(s.dead) {
+		l = len(s.dead) - 1
+	}
+	d := s.row(l)
 	return d[min(n, len(d)-1)]
 }
 
-// deadAtLeast is deadIn for a window of length l or, where the table does
-// not keep l, the shortest it keeps above it: a walk longer than Reach
-// (to a remembered unit, stage 5-2) is read as if it left more of the
-// window, which reads it no safer than it is.
+// deadAtLeast is deadIn for a window of length l or, below the table's
+// floor, the shortest of its Extra rows above l, else the floor: a walk
+// longer than Reach (to a remembered unit, stage 5-2) is read as if it left
+// more of the window, which reads it no safer than it is.
 func (s Survival) deadAtLeast(l, n int) float64 {
 	if n <= 0 {
 		return 1
@@ -203,11 +317,14 @@ func (s Survival) deadAtLeast(l, n int) float64 {
 	if l < 1 {
 		return 0
 	}
-	for l < len(s.dead) && s.dead[l] == nil {
-		l++
-	}
-	if l >= len(s.dead) {
-		l = len(s.dead) - 1
+	if l < s.floor {
+		next := s.floor
+		for _, e := range s.t.Extra {
+			if e >= l && e < next {
+				next = e
+			}
+		}
+		l = next
 	}
 	return s.deadIn(l, n)
 }
@@ -270,7 +387,7 @@ func (w *World) Value(t TruthTable, survival []Survival, b Body) Valuation {
 }
 
 // valueInto is Value writing into v's slices, so that deciding every tick
-// does not allocate. meal and full are in ticks of b's own burn, and alive
+// does not allocate. meal and full are in grains, and alive
 // gives the survival table of a region for b's build. child is the chance
 // a mate makes a child; path reads keeping on the move with the path row
 // (learn.go).
@@ -283,6 +400,8 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 	// meal can fill.
 	reserve := w.restReserve(b) + b.Held*meal
 	most := full + reserve
+	// A walk of k ticks costs ku grains at this body's burn.
+	grainsOf := func(k int) int { return w.grains(k, burn) }
 	// top is what a meal can fill up to after the option under way: a unit
 	// picked up raises it by a meal. room is whether a unit walked to and
 	// found full can still be held.
@@ -295,7 +414,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 	}
 	v.Plan, v.Arrive = v.Plan[:0], v.Arrive[:0]
 	v.Child = v.Child[:0]
-	n := energyTicks(b.Energy, burn) + reserve
+	n := w.units(b.Energy) + reserve
 	for len(v.Risk) < len(windows) {
 		v.Risk = append(v.Risk, nil)
 	}
@@ -345,15 +464,16 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 				continue
 			}
 			k := walkTicks(gapTo(x, food.X), gapTo(y, food.Y), speed)
+			ku := grainsOf(k)
 			r := 1.0
-			if after-k > 0 {
+			if after-ku > 0 {
 				// It eats the unit, or holds it where a meal does not
 				// fit and it has room (Carry, stage 4-1).
 				fill := top
 				if room {
 					fill += meal
 				}
-				r = alive(w.m.RegionAt(food.X, food.Y)).deadIn(win-1-k, min(after-k+meal, fill)-1)
+				r = alive(w.m.RegionAt(food.X, food.Y)).deadIn(win-1-ku, min(after-ku+meal, fill)-1)
 			}
 			if r < risk {
 				risk, plan, arrive = r, f, k
@@ -364,14 +484,15 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 		// from there.
 		for f, food := range v.Recalled {
 			k := walkTicks(gapTo(x, food.X), gapTo(y, food.Y), speed)
+			ku := grainsOf(k)
 			r := 1.0
-			if after-k > 0 {
+			if after-ku > 0 {
 				fill := top
 				if room {
 					fill += meal
 				}
 				at := alive(w.m.RegionAt(food.X, food.Y))
-				r = v.SpotP*at.deadAtLeast(win-1-k, min(after-k+meal, fill)-1) + (1-v.SpotP)*at.deadAtLeast(win-k, after-k)
+				r = v.SpotP*at.deadAtLeast(win-1-ku, min(after-ku+meal, fill)-1) + (1-v.SpotP)*at.deadAtLeast(win-ku, after-ku)
 			}
 			if r < risk {
 				risk, plan, arrive = r, len(v.Seen)+f, k
@@ -401,7 +522,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			// chance child, and otherwise a tick spent as a wait. A
 			// requester out of sight is reached first, k ticks of walking
 			// (Requests).
-			after = energyTicks(b.Energy-w.birthShare(b), burn) + reserve - 1 - w.farTicks(a.Mate)
+			after = w.units(b.Energy-w.birthShare(b)) + reserve - 1 - grainsOf(w.farTicks(a.Mate))
 		}
 		c := 0.0
 		if a.Kind == ActMate {
@@ -482,18 +603,19 @@ type table struct {
 	used int64
 }
 
-// survKey tells survival tables of one region apart: the food on its
-// ground, and the build of the body, in ticks of its own burn.
+// survKey tells survival tables apart: the food (a region's count on its
+// ground, or a believed chance per grain's level), the most grains the
+// body holds, and for the tables of the true rules the level of the body's
+// factor relative to the config body's (0: the config body). A body's burn
+// and speed are in the chance per grain, not the key.
 type survKey struct {
-	food, meal, full int
-	speed            float64
+	food, full, factor int
 }
 
 // TableKey names one survival table, for a saved world to say which tables
 // it was using (Warm).
 type TableKey struct {
-	Region, Food, Meal, Full int
-	Speed                    float64
+	Region, Food, Full, Factor int
 }
 
 const (
@@ -517,9 +639,9 @@ func (w *World) initPredict() {
 	}
 	n := len(w.m.RegionFood)
 	w.pred = predictor{
-		meal:    energyTicks(w.cfg.FoodEnergy, w.cfg.EnergyBurn),
-		full:    energyTicks(w.cfg.EnergyMax, w.cfg.EnergyBurn),
-		windows: []int{w.cfg.Window},
+		meal:    w.units(w.cfg.FoodEnergy),
+		full:    w.units(w.cfg.EnergyMax),
+		windows: []int{w.windowGrains()},
 		surv:    make([]*table, n),
 		fresh:   make([]bool, n),
 		cache:   make([]map[survKey]*table, n),
@@ -543,7 +665,7 @@ func (w *World) refreshRegion(r RegionID) {
 func (w *World) survival(r RegionID) Survival {
 	p := &w.pred
 	if !p.fresh[r] {
-		p.surv[r], p.fresh[r] = w.tableFor(r, p.meal, p.full, w.cfg.Speed), true
+		p.surv[r], p.fresh[r] = w.tableFor(r, p.full, 0), true
 	}
 	t := p.surv[r]
 	t.used = w.tick
@@ -551,16 +673,17 @@ func (w *World) survival(r RegionID) Survival {
 }
 
 // survivalFor returns region r's survival table for its food on the ground
-// now and a build of the given meal, full and speed.
-func (w *World) survivalFor(r RegionID, meal, full int, speed float64) Survival {
-	t := w.tableFor(r, meal, full, speed)
+// now, a body of the given most grains, and a factor level.
+func (w *World) survivalFor(r RegionID, full, factor int) Survival {
+	t := w.tableFor(r, full, factor)
 	t.used = w.tick
 	return t.s
 }
 
-// tableFor finds or builds region r's table for its food now and a build.
-func (w *World) tableFor(r RegionID, meal, full int, speed float64) *table {
-	return w.tableAt(r, survKey{food: w.food.onGround[r], meal: meal, full: full, speed: speed})
+// tableFor finds or builds region r's table for its food now, a most and a
+// factor level.
+func (w *World) tableFor(r RegionID, full, factor int) *table {
+	return w.tableAt(r, survKey{food: w.food.onGround[r], full: full, factor: factor})
 }
 
 // tableAt finds or builds region r's table for key k.
@@ -568,8 +691,9 @@ func (w *World) tableAt(r RegionID, k survKey) *table {
 	p := &w.pred
 	t, ok := p.cache[r][k]
 	if !ok {
-		tt := TruthTable{Meal: k.meal, Full: k.full, Reach: w.reach(k.speed), Over: w.cfg.Carry * k.meal}
-		t = &table{s: tt.NewSurvival(w.meetAt(r, k.food, k.speed), p.windows), used: w.tick}
+		tt := TruthTable{Meal: p.meal, Full: k.full, Reach: w.grains(w.reach(w.slowest()), w.cfg.EnergyBurn), Over: w.cfg.Carry * p.meal}
+		meet := math.Min(w.meetAt(r, k.food, w.cfg.Speed, w.cfg.EnergyBurn)*w.factorOf(k.factor), 1)
+		t = &table{s: tt.NewSurvival(meet, p.windows), used: w.tick}
 		p.cache[r][k] = t
 	}
 	return t
@@ -608,12 +732,12 @@ func (w *World) Tables() []TableKey {
 			if w.tick-t.used > warmAfter {
 				continue
 			}
-			ks = append(ks, TableKey{Region: r, Food: k.food, Meal: k.meal, Full: k.full, Speed: k.speed})
+			ks = append(ks, TableKey{Region: r, Food: k.food, Full: k.full, Factor: k.factor})
 		}
 	}
 	for k, t := range w.pred.learned {
 		if w.tick-t.used <= warmAfter {
-			ks = append(ks, TableKey{Region: -1, Food: k.food, Meal: k.meal, Full: k.full, Speed: k.speed})
+			ks = append(ks, TableKey{Region: -1, Food: k.food, Full: k.full})
 		}
 	}
 	sort.Slice(ks, func(i, j int) bool {
@@ -623,12 +747,10 @@ func (w *World) Tables() []TableKey {
 			return a.Region < b.Region
 		case a.Food != b.Food:
 			return a.Food < b.Food
-		case a.Meal != b.Meal:
-			return a.Meal < b.Meal
 		case a.Full != b.Full:
 			return a.Full < b.Full
 		}
-		return a.Speed < b.Speed
+		return a.Factor < b.Factor
 	})
 	return ks
 }
@@ -646,9 +768,9 @@ func (w *World) Warm(n int) int {
 		p.pending = p.pending[1:]
 		switch {
 		case k.Region == -1 && p.learned != nil:
-			w.learnedTable(w.levelRate(k.Food), k.Meal, k.Full, k.Speed)
+			w.learnedTable(w.levelRate(k.Food), k.Full)
 		case k.Region >= 0 && k.Region < len(p.cache):
-			w.tableAt(RegionID(k.Region), survKey{food: k.Food, meal: k.Meal, full: k.Full, speed: k.Speed})
+			w.tableAt(RegionID(k.Region), survKey{food: k.Food, full: k.Full, factor: k.Factor})
 		}
 	}
 	return len(p.pending)
@@ -663,19 +785,17 @@ func (w *World) decide(b *Body) Action {
 	v := &w.valuation
 	switch {
 	case w.cfg.Window > 0 && w.cfg.Learn:
-		burn, speed := w.readBurn(b), w.speedOf(b)
-		meal, full := energyTicks(w.cfg.FoodEnergy, burn), energyTicks(w.maxOf(b), burn)
+		full, factor := w.units(w.maxOf(b)), w.factor(w.speedOf(b), w.readBurn(b))
 		rs := &w.rates
 		w.ratesOf(b, rs)
-		alive := func(r RegionID) Survival { return w.rateTable(rs, r, meal, full, speed) }
-		w.valueInto(v, meal, full, w.pred.windows, alive, w.childRate(b), rs, b)
+		alive := func(r RegionID) Survival { return w.rateTable(rs, r, full, factor) }
+		w.valueInto(v, w.pred.meal, full, w.pred.windows, alive, w.childRate(b), rs, b)
 		v.Belief = w.belief(b)
-	case w.cfg.Window > 0 && b.Build == (Build{}):
+	case w.cfg.Window > 0 && b.Build == (Build{}) && w.readBurn(b) == w.cfg.EnergyBurn && w.ageFactor(b) == 1:
 		w.valueInto(v, w.pred.meal, w.pred.full, w.pred.windows, w.survival, 1, nil, b)
 	case w.cfg.Window > 0:
-		burn, speed := w.readBurn(b), w.speedOf(b)
-		meal, full := energyTicks(w.cfg.FoodEnergy, burn), energyTicks(w.maxOf(b), burn)
-		w.valueInto(v, meal, full, w.pred.windows, func(r RegionID) Survival { return w.survivalFor(r, meal, full, speed) }, 1, nil, b)
+		full, level := w.units(w.maxOf(b)), w.factorLevel(w.speedOf(b), w.readBurn(b))
+		w.valueInto(v, w.pred.meal, full, w.pred.windows, func(r RegionID) Survival { return w.survivalFor(r, full, level) }, 1, nil, b)
 	default:
 		v.Options = w.possibleActions(v.Options[:0], b)
 		v.Seen, v.Plan, v.Arrive, v.Child = v.Seen[:0], v.Plan[:0], v.Arrive[:0], v.Child[:0]
@@ -817,4 +937,27 @@ func (w *World) slowest() float64 {
 		return w.cfg.Speed * low
 	}
 	return w.cfg.Speed
+}
+
+// RowStats counts the survival tables held, their kept rows and cells, for
+// measuring. It reads and changes nothing.
+func (w *World) RowStats() (tables, rows, cells int) {
+	count := func(s Survival) {
+		tables++
+		for _, d := range s.dead {
+			if d != nil {
+				rows++
+				cells += len(d)
+			}
+		}
+	}
+	for _, c := range w.pred.cache {
+		for _, t := range c {
+			count(t.s)
+		}
+	}
+	for _, t := range w.pred.learned {
+		count(t.s)
+	}
+	return
 }

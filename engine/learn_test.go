@@ -92,8 +92,9 @@ func TestPathReadingNeutralWithoutWalkedTiles(t *testing.T) {
 	b := w.bodies[0]
 	b.Memory = Memory{}
 	burn, speed := w.burnOf(&b), w.speedOf(&b)
-	meal, full := energyTicks(w.cfg.FoodEnergy, burn), energyTicks(w.maxOf(&b), burn)
-	alive := func(r RegionID) Survival { return w.learnedTable(w.regionRate(&b, r), meal, full, speed) }
+	meal, full := w.pred.meal, w.units(w.maxOf(&b))
+	factor := w.factor(speed, burn)
+	alive := func(r RegionID) Survival { return w.learnedTable(w.regionRate(&b, r)*factor, full) }
 	var rs rates
 	w.ratesOf(&b, &rs)
 	var with, without Valuation

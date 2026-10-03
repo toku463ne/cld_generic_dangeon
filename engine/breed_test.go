@@ -410,8 +410,11 @@ func TestRestingMotherReadsHerRestEnding(t *testing.T) {
 		if ahead && !(re < rw) {
 			t.Errorf("knowing her rest ends, eating risk %v is not below waiting %v", re, rw)
 		}
-		if !ahead && (re != 0 || rw != 0) {
-			t.Errorf("at her resting burn, eating %v and waiting %v, want both 0", re, rw)
+		// At her resting burn the window, the same energy for every body,
+		// spans twice the ticks, and she sees her energy run out at its
+		// very end: a trace of risk, no more for eating than for waiting.
+		if !ahead && (re > rw || rw > 1e-4) {
+			t.Errorf("at her resting burn, eating %v and waiting %v, want a trace at most, eating no worse", re, rw)
 		}
 	}
 }

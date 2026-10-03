@@ -83,6 +83,9 @@ func NewWorld(cfg Config, m Map) (*World, error) {
 	if cfg.DayTicks > 0 && (cfg.NightTicks < 0 || cfg.NightTicks > cfg.DayTicks || cfg.NightSight > cfg.Sight || cfg.TwilightTicks < 0 || cfg.TwilightTicks > cfg.NightTicks || cfg.TwilightTicks > cfg.DayTicks-cfg.NightTicks) {
 		return nil, fmt.Errorf("a night (NightTicks) must fit in a day (DayTicks), its twilights (TwilightTicks) in both, and see no further than the day (Sight)")
 	}
+	if cfg.Window > 0 && cfg.Grain <= 0 {
+		return nil, fmt.Errorf("Grain must be above zero")
+	}
 	w := &World{cfg: cfg, m: m.Clone()}
 	w.rng, w.draws = newCountingRand(cfg.Seed)
 	w.initFood()

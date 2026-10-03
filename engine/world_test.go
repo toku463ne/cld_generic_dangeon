@@ -86,7 +86,7 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0x49bad95ee995fcf3)
+	const want = uint64(0x1d4e57530eb1be2)
 	w := newTestWorld(t, 1)
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
@@ -97,7 +97,7 @@ func TestFingerprint(t *testing.T) {
 // With the valuation blind to sight, the world is stage 7-1b: its
 // fingerprint is the one pinned then.
 func TestSightblindIsStage71b(t *testing.T) {
-	const want = uint64(0x69e0e1827d1dfdff)
+	const want = uint64(0x409a3a08ad1e8f4d)
 	cfg := testConfig(1)
 	cfg.SightRead, cfg.BurnRead = false, false
 	w, err := NewWorld(cfg, testMap())
@@ -190,7 +190,7 @@ func TestSightGain(t *testing.T) {
 // With no night, the world is stage 4-4: its fingerprint is the one pinned
 // then.
 func TestDaylongIsStage44(t *testing.T) {
-	const want = uint64(0x6688fcd65831b06f)
+	const want = uint64(0x34007a7f0ff94cb7)
 	cfg := testConfig(1)
 	cfg.DayTicks, cfg.SightRead, cfg.BurnRead = 0, false, false
 	w, err := NewWorld(cfg, testMap())
@@ -206,7 +206,7 @@ func TestDaylongIsStage44(t *testing.T) {
 // With no food remembered, the world is stage 5-1: its fingerprint is the
 // one pinned then.
 func TestUnrecalledIsStage51(t *testing.T) {
-	const want = uint64(0xfd78c54bf2471c88)
+	const want = uint64(0xa916798dcb31162b)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -226,7 +226,7 @@ func TestUnrecalledIsStage51(t *testing.T) {
 // With evidence ageing by a half-life, the world is stage 4-1: its
 // fingerprint is the one pinned then.
 func TestHalflifeIsStage41(t *testing.T) {
-	const want = uint64(0x971f95e7534adb93)
+	const want = uint64(0xec3dfcb8c3052cd6)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -247,7 +247,7 @@ func TestHalflifeIsStage41(t *testing.T) {
 // With no body holding food, the world is stage 4-0: its fingerprint is
 // the one pinned then.
 func TestUnheldIsStage40(t *testing.T) {
-	const want = uint64(0xb89f1a88f75406bd)
+	const want = uint64(0x6ef3c0d651de9b21)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -269,7 +269,7 @@ func TestUnheldIsStage40(t *testing.T) {
 // With resting mothers reading their whole window at their resting burn,
 // the world is stage 3-8: its fingerprint is the one pinned then.
 func TestRestblindIsStage38(t *testing.T) {
-	const want = uint64(0xd5089edccdd2163a)
+	const want = uint64(0x73bc7c20c5e30753)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -292,7 +292,7 @@ func TestRestblindIsStage38(t *testing.T) {
 // Without requests to mate, the world is stage 3-7: its fingerprint is the
 // one pinned then.
 func TestUnaskedIsStage37(t *testing.T) {
-	const want = uint64(0xd1e6c04e0a38b0dd)
+	const want = uint64(0x8b58dcb766926bae)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -316,7 +316,7 @@ func TestUnaskedIsStage37(t *testing.T) {
 // With abilities the same at every age, the world is stage 3-6: its
 // fingerprint is the one pinned then.
 func TestUnagedIsStage36(t *testing.T) {
-	const want = uint64(0x58f5fb5146e6aeb2)
+	const want = uint64(0x65bf2b7d036f7a4a)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -342,7 +342,7 @@ func TestUnagedIsStage36(t *testing.T) {
 // 3-5: the test world runs short of either lifespan): its fingerprint is
 // the one pinned then.
 func TestSlowgrowIsStage35b(t *testing.T) {
-	const want = uint64(0x8a059c7590e3f58e)
+	const want = uint64(0x96b92ba04979efda)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -368,7 +368,7 @@ func TestSlowgrowIsStage35b(t *testing.T) {
 // Without a lifespan, the world is stage 3-4: its fingerprint is the one
 // pinned then.
 func TestAgelessIsStage34(t *testing.T) {
-	const want = uint64(0x5dc9e29b78aa406e)
+	const want = uint64(0x2e11cd59bbea95ba)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -395,7 +395,7 @@ func TestAgelessIsStage34(t *testing.T) {
 // With resting mothers burning as any body does, the world is stage 3-3d:
 // its fingerprint is the one pinned then.
 func TestBusyIsStage33d(t *testing.T) {
-	const want = uint64(0x384173ebd067a28b)
+	const want = uint64(0xf5894766a5495f52)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -422,7 +422,7 @@ func TestBusyIsStage33d(t *testing.T) {
 // Asking for the birth's cost and the rest's burn, the world is stage 3-3c:
 // its fingerprint is the one pinned then.
 func TestDoubledIsStage33c(t *testing.T) {
-	const want = uint64(0xe3831b583507fd10)
+	const want = uint64(0xd4656f63a57a704b)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -450,7 +450,7 @@ func TestDoubledIsStage33c(t *testing.T) {
 // Asking for the birth's cost only, the world is stage 3-3b: its
 // fingerprint is the one pinned then.
 func TestLeanIsStage33b(t *testing.T) {
-	const want = uint64(0x6bd4f31ce603a4df)
+	const want = uint64(0xfb7c99516ff15951)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -478,7 +478,7 @@ func TestLeanIsStage33b(t *testing.T) {
 // Provisioning by the unit, the world is stage 3-3: its fingerprint is the
 // one pinned then.
 func TestPerunitIsStage33(t *testing.T) {
-	const want = uint64(0xde7a3d9c0a25b1db)
+	const want = uint64(0x160f88aa4a56bb14)
 	cfg := testConfig(1)
 	cfg.BurnRead = false      // before stage 7-3a
 	cfg.SightRead = false     // before stage 7-2a
@@ -506,7 +506,7 @@ func TestPerunitIsStage33(t *testing.T) {
 // Without provisioning, the world is stage 3-2: its fingerprint is the one
 // pinned then.
 func TestUnfedIsStage32(t *testing.T) {
-	const want = uint64(0xa1d282e1ee3e8c90)
+	const want = uint64(0x2cdcb2147b3e2cfc)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -534,7 +534,7 @@ func TestUnfedIsStage32(t *testing.T) {
 // With each parent paying half, the world is stage 3-1: its fingerprint is
 // the one pinned then.
 func TestEvenIsStage31(t *testing.T) {
-	const want = uint64(0x8b3ca5a0fba68811)
+	const want = uint64(0x5af7133341342c88)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -562,7 +562,7 @@ func TestEvenIsStage31(t *testing.T) {
 // Without sexes, the world is stage 2-4: its fingerprint is the one pinned
 // then.
 func TestSexlessIsStage24(t *testing.T) {
-	const want = uint64(0x6b3c0afd0521ffad)
+	const want = uint64(0xe11e99c952b0c044)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -589,7 +589,7 @@ func TestSexlessIsStage24(t *testing.T) {
 // Passing the path row, the world is stage 2-3: its fingerprint is the one
 // pinned then.
 func TestAgedIsStage23(t *testing.T) {
-	const want = uint64(0x7adba2aacb1d8238)
+	const want = uint64(0x183d565350053ffe)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -617,7 +617,7 @@ func TestAgedIsStage23(t *testing.T) {
 // With the path row never ageing, the world is stage 2-2: its fingerprint
 // is the one pinned then.
 func TestKinIsStage22(t *testing.T) {
-	const want = uint64(0xc2470db84a940725)
+	const want = uint64(0xb5fb25e4363e7f6c)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -645,7 +645,7 @@ func TestKinIsStage22(t *testing.T) {
 // Passing to everyone met, the world is the third run of stage 2-1: its
 // fingerprint is the one pinned then.
 func TestNearIsThird21(t *testing.T) {
-	const want = uint64(0x93985c1a1c5ca120)
+	const want = uint64(0xd32d3dc3d4a4c1c3)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -673,7 +673,7 @@ func TestNearIsThird21(t *testing.T) {
 // Passing and ageing every row alike, the world is the second run of stage
 // 2-1: its fingerprint is the one pinned then.
 func TestMixedIsSecond21(t *testing.T) {
-	const want = uint64(0xc91b803c2f04cb5a)
+	const want = uint64(0xe603a1fde7c5a398)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -701,7 +701,7 @@ func TestMixedIsSecond21(t *testing.T) {
 // With evidence at full weight however old, the world is the first run of
 // stage 2-1: its fingerprint is the one pinned then.
 func TestUndecayedIsFirst21(t *testing.T) {
-	const want = uint64(0xbaee248a8a9a5bc)
+	const want = uint64(0x4fc09ac1b5ef5f0a)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -729,7 +729,7 @@ func TestUndecayedIsFirst21(t *testing.T) {
 // Without passing evidence, the world is stage 2-0: its fingerprint is the
 // one pinned then.
 func TestUntoldIsStage20(t *testing.T) {
-	const want = uint64(0xe85e05167296fc73)
+	const want = uint64(0x75682f5e7fe91d62)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -757,7 +757,7 @@ func TestUntoldIsStage20(t *testing.T) {
 // Reading the truth table, the world is the one before stage 1-6: its
 // fingerprint is the one pinned then.
 func TestTruthIsBeforeStage16(t *testing.T) {
-	const want = uint64(0x6031cdab7f6ff3fb)
+	const want = uint64(0xb8ed150c7cbf824b)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
@@ -785,7 +785,7 @@ func TestTruthIsBeforeStage16(t *testing.T) {
 // Bouncing off walls, the world is stage 1-5: its fingerprint is the one
 // that stage pinned.
 func TestBounceIsStage15(t *testing.T) {
-	const want = uint64(0x8f80778b1d21631e)
+	const want = uint64(0xf7c67a3be62ca6be)
 	cfg := testConfig(1)
 	cfg.BurnRead = false  // before stage 7-3a
 	cfg.SightRead = false // before stage 7-2a
