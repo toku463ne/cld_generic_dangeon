@@ -5,13 +5,13 @@ import (
 	"testing"
 )
 
-// Learning when dark and light come changes nothing a body does yet:
-// over days long enough to learn them, the world runs as without (stage
-// 7-4).
+// Learning when dark and light come changes nothing a body does unless a
+// coming sleep is foreseen (SleepAhead, stage 7-3e, reads it): over days
+// long enough to learn them, the world runs as without (stage 7-4).
 func TestDuskReadChangesNothing(t *testing.T) {
 	fp := func(dusk bool) uint64 {
 		cfg := testConfig(1)
-		cfg.DuskRead = dusk
+		cfg.DuskRead, cfg.SleepAhead = dusk, false
 		w, err := NewWorld(cfg, tempMap())
 		if err != nil {
 			t.Fatal(err)

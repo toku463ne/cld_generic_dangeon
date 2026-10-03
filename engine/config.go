@@ -105,6 +105,16 @@ type Config struct {
 	// best waking option (life first), and then only until the pressure
 	// reaches ForceMax. Zero: sleep is never forced (7-3b).
 	ForceAt, ForceMax, StayAwake float64
+	// SleepAhead has the valuation foresee a forced sleep (stage 7-3e):
+	// a body knows from its pressure in how many ticks its sleep will be
+	// forced. Where that falls in the window, waking options read that
+	// sleep taken off the end of the window (grains of window and energy
+	// alike), and every reading of keeping on the move uses the mean sight
+	// of the waking part of the window, from when the body learned dark
+	// and light come (DuskRead): for waking options the part around the
+	// forced sleep, for sleeping now (here or at a place to rest) the part
+	// after it.
+	SleepAhead bool
 	// Temperature has a tile's temperature (its region's, Map.RegionTemp,
 	// following the light) raise the burn of a body on it (stage 7-4): the
 	// burn is multiplied by 1 + |temperature - NormalTemp| / TempBurn, as
@@ -384,6 +394,7 @@ func DefaultConfig() Config {
 		ForceAt:            0.625,
 		ForceMax:           0.9,
 		StayAwake:          0.1,
+		SleepAhead:         true,
 		Temperature:        true,
 		NormalTemp:         20,
 		TempBurn:           30,

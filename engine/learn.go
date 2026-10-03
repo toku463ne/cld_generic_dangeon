@@ -348,6 +348,10 @@ type rates struct {
 	region, path []float64
 	tables       []Survival
 	built        []bool
+	// lump, awake and slept are what the decision reads of a coming forced
+	// sleep (sleepFore, stage 7-3e).
+	lump         int
+	awake, slept float64
 	// rays hold, per heading, what the path reading found along it from a
 	// start tile: the decision reads each heading from the same tile for
 	// every option.
@@ -370,6 +374,7 @@ func (w *World) ratesOf(b *Body, rs *rates) {
 	path := w.pathTally(b)
 	rs.region, rs.path = rs.region[:0], rs.path[:0]
 	rs.tables, rs.built = rs.tables[:0], rs.built[:0]
+	rs.lump, rs.awake, rs.slept = w.sleepFore(b)
 	for r := 0; r < n; r++ {
 		p := w.Fresh(b.Memory.region(RegionID(r))).estimate(land, w.cfg.RegionWeight)
 		g := w.sightGain()
@@ -398,7 +403,7 @@ func (w *World) sightGain() float64 {
 // given most grains and factor (tiles entered per grain).
 func (w *World) rateTable(rs *rates, r RegionID, full int, factor float64) Survival {
 	if !rs.built[r] {
-		rs.tables[r], rs.built[r] = w.learnedTable(rs.region[r]*factor, full), true
+		rs.tables[r], rs.built[r] = w.learnedTable(rs.region[r]*rs.awake*factor, full), true
 	}
 	return rs.tables[r]
 }
@@ -535,6 +540,7 @@ func (w *World) learnedTable(q float64, full int) Survival {
 			// (sleepRisk); other burns' rows are built as they are read.
 			tt.Extra = append(tt.Extra, win-ts)
 		}
+		tt.Pre = w.aheadRows(win, tt.Reach)
 		t = &table{s: tt.NewSurvival(w.levelRate(level), w.pred.windows), used: w.tick}
 		w.pred.learned[k] = t
 	}

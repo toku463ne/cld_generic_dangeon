@@ -380,6 +380,7 @@ func TestRestingMotherReadsHerRestEnding(t *testing.T) {
 	for _, ahead := range []bool{true, false} {
 		w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 50}, Body{ID: 1, X: 10.5, Y: 7.5, Energy: 60})
 		w.cfg.FemaleBears, w.cfg.RestBurn, w.cfg.RestAhead = true, 0.5, ahead
+		w.cfg.SleepAhead = false // the rest is read here, not a coming sleep (7-3e)
 		mother := &w.bodies[0]
 		mother.Rested = w.tick + 300
 		tile := w.tileOf(mother.X, mother.Y)

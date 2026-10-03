@@ -100,6 +100,6 @@ func (w *World) shelterRisk(b *Body, rs *rates, place Food, x, y float64, after,
 		return 0, k
 	}
 	reg := w.m.RegionAt(place.X, place.Y)
-	s := w.learnedTable(rs.region[reg]*w.factor(speed, woken), full)
+	s := w.learnedTable(rs.region[reg]*rs.slept*w.factor(speed, woken), full)
 	return s.deadAtLeast(win-ku-ts, after-ku-ts), k
 }

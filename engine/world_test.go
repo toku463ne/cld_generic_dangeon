@@ -86,7 +86,7 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0x897e8d0ad6f500c1)
+	const want = uint64(0x29581a36e5ebfa84)
 	w, err := NewWorld(testConfig(1), tempMap())
 	if err != nil {
 		t.Fatal(err)
@@ -140,6 +140,7 @@ func TestSightblindIsStage71b(t *testing.T) {
 func TestBurnRead(t *testing.T) {
 	w, b := soloWorld(t, 30)
 	w.cfg.BurnRead, w.cfg.BurnSpan, w.cfg.BurnStep = true, 10, 1.05
+	w.cfg.SleepAhead = false // a coming sleep would read every way as death (7-3e)
 	base := w.planBurn(b)
 	if got := w.readBurn(b); got != base {
 		t.Fatalf("not rising: read %v, want %v", got, base)

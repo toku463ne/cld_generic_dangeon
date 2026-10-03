@@ -73,6 +73,7 @@ func TestRecalledNearest(t *testing.T) {
 func TestRememberedFoodDraws(t *testing.T) {
 	for _, stays := range []bool{true, false} {
 		w, b := spotWorld(t, 15)
+		w.cfg.SleepAhead = false // a coming sleep would read every way as death (7-3e)
 		b.Memory.Spots = map[int]int64{w.m.index(6, 2): 0}
 		if !stays {
 			w.cfg.PriorSpot = 0

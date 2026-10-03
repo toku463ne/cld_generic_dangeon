@@ -53,6 +53,9 @@ type TruthTable struct {
 	Reach int
 	// Extra are more window lengths a survival table keeps (learn.go).
 	Extra []int
+	// Pre are window lengths built with the table, only so that they are
+	// built in its first pass: unlike Extra, they change no reading.
+	Pre []int
 	// Over is how many ticks of energy past Full the table reads: food a
 	// body holds (Carry, stage 4-1). Past Full a meal met on the ground
 	// fits nowhere and is passed by.
@@ -227,7 +230,7 @@ func (t TruthTable) NewSurvival(meet float64, windows []int) Survival {
 			want[l] = true
 		}
 	}
-	for _, l := range t.Extra {
+	for _, l := range append(t.Extra, t.Pre...) {
 		if l >= 1 && l <= longest {
 			want[l] = true
 		}
@@ -279,6 +282,16 @@ func (s Survival) row(l int) []float64 {
 	}
 	hi := len(s.dead) - 1
 	want := make([]bool, hi+1)
+	if l < s.floor {
+		// Below the floor (a window shortened by a foreseen sleep, stage
+		// 7-3e): the rows a walk from there reads, and their neighbours,
+		// not every row up to the floor.
+		for i := max(l-s.t.Reach-rowBand, 1); i <= min(l+rowBand, hi); i++ {
+			want[i] = s.dead[i] == nil
+		}
+		s.build(want)
+		return s.dead[l]
+	}
 	for i := max(l-rowBand, 1); i <= hi; i++ {
 		want[i] = s.dead[i] == nil && (i <= l || i < s.floor)
 	}
@@ -442,6 +455,13 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 	// win: the better of keeping on the move and walking to a unit in
 	// sight, and which it was.
 	read := func(a Action, x, y float64, after, eaten, win int) (float64, int, int) {
+		// A sleep the body will be made to take within the window (stage
+		// 7-3e) is taken off its end for every way of staying awake; the
+		// walk to a place to rest and sleep there is that sleep, taken now.
+		whole, wholeWin := after, win
+		if rs != nil {
+			after, win = after-rs.lump, win-rs.lump
+		}
 		region := w.m.RegionAt(int(math.Floor(x)), int(math.Floor(y)))
 		// Keep moving through the region.
 		s := alive(region)
@@ -517,7 +537,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 		// ticks of walking, SleepTicks asleep at the warm burn, then on
 		// the move from there at the burn woken to.
 		for f, place := range v.Shelter {
-			r, k := w.shelterRisk(b, rs, place, x, y, after, win, full, warm, woken)
+			r, k := w.shelterRisk(b, rs, place, x, y, whole, wholeWin, full, warm, woken)
 			if r < risk {
 				risk, plan, arrive = r, len(v.Seen)+len(v.Recalled)+f, k
 			}
@@ -599,7 +619,7 @@ func (w *World) sleepRisk(b *Body, rs *rates, win, reserve int) float64 {
 	r := w.m.RegionAt(int(math.Floor(b.X)), int(math.Floor(b.Y)))
 	var s Survival
 	if rs != nil {
-		s = w.learnedTable(rs.region[r]*w.factor(w.speedOf(b), burn), full)
+		s = w.learnedTable(rs.region[r]*rs.slept*w.factor(w.speedOf(b), burn), full)
 	} else {
 		s = w.survivalFor(r, full, w.factorLevel(w.speedOf(b), burn))
 	}
