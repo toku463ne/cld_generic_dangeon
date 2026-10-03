@@ -118,6 +118,9 @@ func (w *World) Step() {
 	w.decayFood()
 	w.returnFood()
 	w.deliverFood()
+	if w.cfg.FatherSends && !w.cfg.Provision {
+		w.askProvision() // what fathers answer (6-4a); with Provision, returnFood asks
+	}
 	w.listMates()
 	for i := range w.bodies {
 		b := &w.bodies[i]
@@ -415,10 +418,10 @@ func (w *World) Fingerprint() uint64 {
 			if w.bears() {
 				put(uint64(b.Rested))
 			}
-			if w.bears() && w.cfg.Provision {
+			if w.bears() && (w.cfg.Provision || w.cfg.FatherSends) {
 				put(uint64(b.Partner))
 			}
-			if w.bears() && w.cfg.Provision && w.cfg.ProvisionEach {
+			if w.bears() && (w.cfg.Provision || w.cfg.FatherSends) && w.cfg.ProvisionEach {
 				put(uint64(b.Asks))
 			}
 			if w.cfg.Requests {

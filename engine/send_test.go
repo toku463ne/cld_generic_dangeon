@@ -11,7 +11,7 @@ func sendWorld(t *testing.T, energy float64) (*World, *Body, *Body) {
 	w.cfg.FemaleBears, w.cfg.FatherSends, w.cfg.SendGate, w.cfg.Provision = true, true, 0.01, false
 	w.cfg.ForceAt = 0
 	mother, father := &w.bodies[0], &w.bodies[1]
-	mother.Rested, mother.Partner = w.tick+300, father.ID
+	mother.Rested, mother.Partner, mother.Asks = w.tick+300, father.ID, 2
 	mother.Memory.Shelters = map[int]bool{w.m.index(1, 1): true}
 	tile := w.tileOf(father.X, father.Y)
 	if w.foodOn(tile) < 0 {
@@ -24,11 +24,12 @@ func sendWorld(t *testing.T, energy float64) (*World, *Body, *Body) {
 	return w, mother, father
 }
 
-// A fed father on food sends it to the place his resting mate knows: it
+// A fed father on food sends it, while his resting mate has an ask open,
+// to the place she knows, and her ask is answered: it
 // leaves the ground, is on its way a tick for each Speed of it, keeps its
 // age, and lands there; the account closes throughout. A father whose
-// life needs the unit keeps to his choice, and so does one whose mate
-// knows no place to rest.
+// life needs the unit keeps to his choice, and so does one whose mate has
+// not asked or knows no place to rest.
 func TestFatherSends(t *testing.T) {
 	w, mother, father := sendWorld(t, 99)
 	w.decide(father)
@@ -39,8 +40,8 @@ func TestFatherSends(t *testing.T) {
 	tile := w.tileOf(father.X, father.Y)
 	before := w.FoodLedger()
 	w.act(1, father, a)
-	if w.foodOn(tile) >= 0 || w.Stats().Sent != 1 || len(w.food.sending) != 1 {
-		t.Fatal("the unit did not leave")
+	if w.foodOn(tile) >= 0 || w.Stats().Sent != 1 || len(w.food.sending) != 1 || mother.Asks != 1 {
+		t.Fatal("the unit did not leave, or the ask stayed open")
 	}
 	if l := w.FoodLedger(); !l.Balanced() || l.OnGround+l.Held != before.OnGround+before.Held {
 		t.Fatalf("account after sending: %+v", l)
@@ -72,6 +73,12 @@ func TestFatherSends(t *testing.T) {
 	w.decide(father)
 	if a := w.sendInstead(father, Action{Kind: ActEat}); a.Kind != ActEat {
 		t.Fatalf("a hungry father did %v, want to eat", a)
+	}
+	w, mother, father = sendWorld(t, 99)
+	mother.Asks = 0
+	w.decide(father)
+	if a := w.sendInstead(father, Action{Kind: ActWait}); a.Kind != ActWait {
+		t.Fatal("sent to a mother who has not asked")
 	}
 	w, mother, father = sendWorld(t, 99)
 	mother.Memory.Shelters = nil

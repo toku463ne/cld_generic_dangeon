@@ -414,9 +414,10 @@ func (w *World) partnerNear(m *Body, r RegionID) bool {
 
 // askProvision has every resting mother ask for a unit (ProvisionEach):
 // with ProvisionEachWith if her partner is in her region, ProvisionEachAlone
-// if not, holding at most two asks. A mother not resting holds none.
+// if not, holding at most two asks. A mother not resting holds none. With
+// FatherSends the asks are what her partner answers (stage 6-4a).
 func (w *World) askProvision() {
-	if !w.cfg.Provision || !w.cfg.ProvisionEach || !w.bears() {
+	if !w.cfg.Provision && !w.cfg.FatherSends || !w.cfg.ProvisionEach || !w.bears() {
 		return
 	}
 	for i := range w.bodies {

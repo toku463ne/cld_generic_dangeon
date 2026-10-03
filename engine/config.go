@@ -142,7 +142,8 @@ type Config struct {
 	// living on, for less of the body's energy.
 	TieSpend bool
 	// FatherSends has a father send food to the mother of his last child
-	// while she rests (stage 6-4a, the user's design): standing on a unit,
+	// while she rests and has asked for it (the asks of ProvisionEach;
+	// stage 6-4a, the user's design): standing on a unit,
 	// if not having it would raise his chance of dying within the window
 	// by no more than SendGate (life before offspring), the unit leaves
 	// him and, a tick for each Speed of the way, comes to the place to rest

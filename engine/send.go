@@ -4,8 +4,10 @@ import "math"
 
 // Fathers sending food (stage 6-4a, the user's design).
 //
-// While a mother rests after a birth, the father of that child, standing
-// on a unit of food, sends it to her if his own life does not need it:
+// While a mother rests after a birth, she asks for food now and then (the
+// asks of provisioning, ProvisionEach), and the father of that child,
+// standing on a unit of food while she has an ask open, sends it to her
+// if his own life does not need it:
 // not having it would raise his chance of dying within the window by no
 // more than SendGate (life before offspring, as in 7-3d). The unit leaves
 // him and, after a tick for each Speed of the way, comes to the place to
@@ -67,8 +69,8 @@ func (w *World) sendInstead(b *Body, a Action) Action {
 		return a
 	}
 	mi, ok := w.mateOf[b.ID]
-	if !ok {
-		return a
+	if !ok || w.bodies[mi].Asks <= 0 {
+		return a // she has not asked (6-4a: what she asks for, no more)
 	}
 	if t := w.tileOf(b.X, b.Y); t < 0 || w.foodOn(t) < 0 {
 		return a
@@ -114,6 +116,7 @@ func (w *World) send(b *Body) {
 	dx, dy := abs(dest%w.m.Width-t%w.m.Width), abs(dest/w.m.Width-t/w.m.Width)
 	ticks := int64(math.Ceil(float64(max(dx, dy)) / w.cfg.Speed))
 	f.sending = append(f.sending, Sent{Arrive: w.tick + ticks, Tile: dest, Born: born, Mother: m.ID})
+	m.Asks--
 	w.stats.Sent++
 }
 
