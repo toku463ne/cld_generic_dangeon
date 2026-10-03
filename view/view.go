@@ -597,6 +597,9 @@ func (v *View) FollowText() string {
 	if temp, ok := v.W.TempAt(int(math.Floor(b.X)), int(math.Floor(b.Y))); ok && v.W.Config().Temperature {
 		fmt.Fprintf(&sb, "  %.1f°  burn x%.2f", temp, v.W.TempBurn(b))
 	}
+	if toDark, toLight, ok := v.W.DuskAhead(b); ok {
+		fmt.Fprintf(&sb, "  dark in ~%.0f, light in ~%.0f", toDark, toLight)
+	}
 	if b.Build.Speed > 0 {
 		fmt.Fprintf(&sb, "  speed %.3f  most %.0f", b.Build.Speed, b.Build.EnergyMax)
 	}

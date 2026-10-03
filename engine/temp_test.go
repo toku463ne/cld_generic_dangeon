@@ -93,6 +93,7 @@ func TestTemperatureRejects(t *testing.T) {
 func TestTemplessIsStage73b(t *testing.T) {
 	const want = uint64(0x646724f710d7c857)
 	cfg := testConfig(1)
+	cfg.DuskRead = false
 	cfg.Temperature = false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {

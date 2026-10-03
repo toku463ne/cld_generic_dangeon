@@ -83,6 +83,9 @@ func NewWorld(cfg Config, m Map) (*World, error) {
 	if cfg.DayTicks > 0 && (cfg.NightTicks < 0 || cfg.NightTicks > cfg.DayTicks || cfg.NightSight > cfg.Sight || cfg.TwilightTicks < 0 || cfg.TwilightTicks > cfg.NightTicks || cfg.TwilightTicks > cfg.DayTicks-cfg.NightTicks) {
 		return nil, fmt.Errorf("a night (NightTicks) must fit in a day (DayTicks), its twilights (TwilightTicks) in both, and see no further than the day (Sight)")
 	}
+	if cfg.DuskRead && (cfg.LightStages <= 0 || cfg.LightBand <= 0 || cfg.LightBands <= 0 || cfg.DuskStep <= 0) {
+		return nil, fmt.Errorf("DuskRead needs LightStages, LightBand, LightBands and DuskStep above zero")
+	}
 	if cfg.Temperature && !(cfg.TempBurn > 0) {
 		return nil, fmt.Errorf("Temperature needs TempBurn above zero")
 	}
@@ -128,6 +131,7 @@ func (w *World) Step() {
 		b.Energy -= burn
 		w.feelBurn(b)
 		w.sleepTick(b)
+		w.seeLight(b)
 		w.stats.EnergyBurned += burn
 	}
 	w.removeDead()

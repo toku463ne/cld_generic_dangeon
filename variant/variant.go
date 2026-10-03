@@ -27,6 +27,9 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Duskblind is stage 7-4: bodies do not learn when dark and light come.
+const Duskblind = "duskblind"
+
 // Templess is stage 7-3b: the temperature does not touch the burn.
 const Templess = "templess"
 
@@ -194,7 +197,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func templess(c *engine.Config)   { c.Temperature = false }
+func duskblind(c *engine.Config)  { c.DuskRead = false }
+func templess(c *engine.Config)   { duskblind(c); c.Temperature = false }
 func sleepless(c *engine.Config)  { templess(c); c.Sleep = false }
 func burnblind(c *engine.Config)  { sleepless(c); c.BurnRead = false }
 func sightblind(c *engine.Config) { burnblind(c); c.SightRead = false }
@@ -241,6 +245,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Duskblind:    duskblind,
 	Templess:     templess,
 	Sleepless:    sleepless,
 	Burnblind:    burnblind,

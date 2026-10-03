@@ -343,6 +343,8 @@ type rates struct {
 	region, path []float64
 	tables       []Survival
 	built        []bool
+	// dusk is the schedule of light the window is read with (stage 7-2b).
+	dusk duskSched
 	// rays hold, per heading, what the path reading found along it from a
 	// start tile: the decision reads each heading from the same tile for
 	// every option.
@@ -365,6 +367,7 @@ func (w *World) ratesOf(b *Body, rs *rates) {
 	path := w.pathTally(b)
 	rs.region, rs.path = rs.region[:0], rs.path[:0]
 	rs.tables, rs.built = rs.tables[:0], rs.built[:0]
+	rs.dusk = w.duskOf(b, w.readBurn(b))
 	for r := 0; r < n; r++ {
 		p := w.Fresh(b.Memory.region(RegionID(r))).estimate(land, w.cfg.RegionWeight)
 		g := w.sightGain()
@@ -393,7 +396,7 @@ func (w *World) sightGain() float64 {
 // given most grains and factor (tiles entered per grain).
 func (w *World) rateTable(rs *rates, r RegionID, full int, factor float64) Survival {
 	if !rs.built[r] {
-		rs.tables[r], rs.built[r] = w.learnedTable(rs.region[r]*factor, full), true
+		rs.tables[r], rs.built[r] = w.learnedTable(rs.region[r]*factor, full, rs.dusk), true
 	}
 	return rs.tables[r]
 }
@@ -515,14 +518,22 @@ func (w *World) levelRate(level int) float64 {
 // (rounded to its level) and a body of the given most grains, keeping the
 // rows the config body's walks and path reading need; other rows are built
 // as they are read.
-func (w *World) learnedTable(q float64, full int) Survival {
-	level := w.beliefLevel(q)
-	k := survKey{food: level, full: full}
+func (w *World) learnedTable(q float64, full int, d duskSched) Survival {
+	k := survKey{food: w.beliefLevel(q), full: full}
+	if d.on {
+		k = survKey{food: w.beliefLevel(q * d.dark), full: full, s1: d.s1, s2: d.s2, lit: d.lit}
+	}
+	return w.learnedAt(k)
+}
+
+// learnedAt returns the learned survival table of key k, building it if
+// it is not kept.
+func (w *World) learnedAt(k survKey) Survival {
 	t, ok := w.pred.learned[k]
 	if !ok {
 		meal := w.pred.meal
 		ahead := w.grains(w.pathTicks(w.cfg.Speed), w.cfg.EnergyBurn)
-		tt := TruthTable{Meal: meal, Full: full, Reach: w.grains(w.reach(w.cfg.Speed), w.cfg.EnergyBurn), Over: w.cfg.Carry * meal}
+		tt := TruthTable{Meal: meal, Full: k.full, Reach: w.grains(w.reach(w.cfg.Speed), w.cfg.EnergyBurn), Over: w.cfg.Carry * meal}
 		win := w.windowGrains()
 		tt.Extra = []int{win - ahead, win - ahead/2 - 1}
 		if ts := w.grains(w.cfg.SleepTicks, w.cfg.EnergyBurn); w.cfg.Sleep && ts < win {
@@ -530,7 +541,12 @@ func (w *World) learnedTable(q float64, full int) Survival {
 			// (sleepRisk); other burns' rows are built as they are read.
 			tt.Extra = append(tt.Extra, win-ts)
 		}
-		t = &table{s: tt.NewSurvival(w.levelRate(level), w.pred.windows), used: w.tick}
+		dark := w.levelRate(k.food)
+		if k.s1 > 0 || k.lit {
+			t = &table{s: tt.newScheduled(dark, math.Min(dark*w.sightGainAt(1)/w.sightGainAt(0), 1), k.s1, k.s2, k.lit, w.pred.windows), used: w.tick}
+		} else {
+			t = &table{s: tt.NewSurvival(dark, w.pred.windows), used: w.tick}
+		}
 		w.pred.learned[k] = t
 	}
 	t.used = w.tick
