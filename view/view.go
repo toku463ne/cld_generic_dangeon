@@ -391,6 +391,11 @@ func (v *View) Render(dst *image.RGBA) {
 	rad := max(v.scale/3, 1)
 	now := v.W.Tick()
 	for _, b := range v.W.Bodies() {
+		if b.Asleep {
+			// A sleeper is a ring: its hue, hollow.
+			strokeCircle(dst, px(b.X), px(b.Y), rad, bodyColor(b, now, b.Energy/full))
+			continue
+		}
 		fillCircle(dst, px(b.X), px(b.Y), rad, bodyColor(b, now, b.Energy/full))
 	}
 	if following {
@@ -555,6 +560,13 @@ func (v *View) FollowText() string {
 	}
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "body #%d%s  energy %.1f  age %d  heading %s", b.ID, sexName(b, v.W.Tick()), b.Energy, v.W.Tick()-b.Born, dirName(b.Heading))
+	if v.W.Config().Sleep {
+		state := "awake"
+		if b.Asleep {
+			state = fmt.Sprintf("asleep until %d", b.Woke)
+		}
+		fmt.Fprintf(&sb, "  %s  pressure %.2f  debt %.0f", state, b.Pressure, b.Debt)
+	}
 	if b.Build.Speed > 0 {
 		fmt.Fprintf(&sb, "  speed %.3f  most %.0f", b.Build.Speed, b.Build.EnergyMax)
 	}

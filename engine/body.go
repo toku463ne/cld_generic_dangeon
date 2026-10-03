@@ -63,6 +63,13 @@ type Body struct {
 	// HeldBorn is the tick each held unit appeared, oldest first (with
 	// FoodLife): a held unit decays like one on the ground.
 	HeldBorn []int64 `json:",omitempty"`
+	// Pressure is its sleep pressure (0 to 1), Debt its sleep debt, and
+	// Asleep whether it sleeps now (Sleep, stage 7-3b).
+	Pressure float64 `json:",omitempty"`
+	Debt     float64 `json:",omitempty"`
+	Asleep   bool    `json:",omitempty"`
+	// Woke is the tick it wakes if nothing wakes it sooner (Sleep).
+	Woke int64 `json:",omitempty"`
 	// BurnFelt is the burn it last felt (planBurn) and BurnRise how fast
 	// that has been rising per tick, smoothed over BurnSpan (stage 7-3a).
 	BurnFelt float64 `json:",omitempty"`
@@ -89,6 +96,9 @@ const (
 	ActMate
 	// ActPick picks up the unit underfoot (Carry, stage 4-1).
 	ActPick
+	// ActSleep falls asleep until the pressure falls to WakeAt (Sleep,
+	// stage 7-3b).
+	ActSleep
 	NumActionKinds
 )
 
@@ -107,6 +117,9 @@ const (
 	CauseStarved Cause = iota
 	// CauseAged is death at the end of a lifespan (Lifespan, stage 3-5).
 	CauseAged
+	// CauseSleepless is starving with a sleep debt above a quarter of
+	// DebtBurn: the burn the debt raised outran the food (stage 7-3b).
+	CauseSleepless
 	NumCauses
 )
 
@@ -213,6 +226,9 @@ func (w *World) possibleActions(dst []Action, b *Body) []Action {
 			dst = append(dst, Action{Kind: ActPick})
 		}
 	}
+	if w.cfg.Sleep && b.Pressure > w.cfg.WakeAt {
+		dst = append(dst, Action{Kind: ActSleep})
+	}
 	for d, v := range moveDirs {
 		x, y := b.X+v[0]*w.speedOf(b), b.Y+v[1]*w.speedOf(b)
 		t := w.tileOf(x, y)
@@ -246,6 +262,8 @@ func (w *World) act(i int, b *Body, a Action) {
 		t := w.tileOf(b.X, b.Y)
 		w.eatFood(w.foodOn(t))
 		b.Energy = math.Min(b.Energy+w.cfg.FoodEnergy, w.maxOf(b))
+	case ActSleep:
+		b.Asleep, b.Woke = true, w.tick+int64(w.cfg.SleepTicks)
 	case ActPick:
 		t := w.tileOf(b.X, b.Y)
 		w.takeFood(w.foodOn(t), b)

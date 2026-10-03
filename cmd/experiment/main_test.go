@@ -58,6 +58,7 @@ func TestReportHasEverySection(t *testing.T) {
 // still alive.
 func TestRunOneStopsAtFloor(t *testing.T) {
 	cfg := engine.DefaultConfig()
+	cfg.Sleep = false // sleep debt would hasten the starving past the full body's span
 	cfg.FoodCap = 0   // everybody starves at the same tick
 	cfg.Breed = false // and no one pays for a child first
 	cfg.Allot = false // or holds more than the rest

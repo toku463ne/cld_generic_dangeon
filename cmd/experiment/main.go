@@ -73,6 +73,8 @@ type result struct {
 	surviving []bool    // whether the seed was above the floor at the same ticks
 	fellAt    int       // first tick at or below the floor, -1 if never
 	starved   float64
+	sleepless float64
+	asleep    float64 // body-ticks asleep over all body-ticks
 	aged      float64 // deaths of age (Lifespan)
 	burned    float64
 	actions   [engine.NumActionKinds]float64
@@ -358,11 +360,13 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	}
 	r.starved = float64(st.Deaths[engine.CauseStarved])
 	r.aged = float64(st.Deaths[engine.CauseAged])
+	r.sleepless = float64(st.Deaths[engine.CauseSleepless])
 	r.burned = st.EnergyBurned
 	total := 0.0
 	for _, n := range st.Actions {
 		total += float64(n)
 	}
+	r.asleep = float64(st.Actions[engine.ActSleep]) / math.Max(total, 1)
 	for k, n := range st.Actions {
 		if total > 0 {
 			r.actions[k] = float64(n) / total
@@ -641,7 +645,7 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	p("| 休んでいる母に配られた食料 | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.provisioned }), 2))
 	p("| 交配要求 | %s |\n| 交配要求で成り立った出生 | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.requests }), 2), fmtMeanSE(collect(rs, func(r result) float64 { return r.requestBirths }), 2))
 	p("| 体力消耗（合計） | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.burned }), 1))
-	p("| 死亡 | %s |\n\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.starved + r.aged }), 2))
+	p("| 死亡 | %s |\n\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.starved + r.aged + r.sleepless }), 2))
 
 	p("### 5. 行動の選択割合（%s）\n\n", base)
 	p("| 行動 | 割合 |\n| --- | --- |\n")
@@ -711,8 +715,9 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	}{
 		{"餓死", func(r result) float64 { return r.starved }},
 		{"老い", func(r result) float64 { return r.aged }},
+		{"睡眠不足", func(r result) float64 { return r.sleepless }},
 	} {
-		share := collectWhere(rs, func(r result) bool { return r.starved+r.aged > 0 }, func(r result) float64 { return c.f(r) / (r.starved + r.aged) })
+		share := collectWhere(rs, func(r result) bool { return r.starved+r.aged+r.sleepless > 0 }, func(r result) float64 { return c.f(r) / (r.starved + r.aged + r.sleepless) })
 		sh := "—"
 		if len(share) > 0 {
 			sh = fmtMeanSE(share, 4)
@@ -782,6 +787,8 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		}},
 		{"餓死", 2, func(r result) float64 { return r.starved }},
 		{"老いによる死", 2, func(r result) float64 { return r.aged }},
+		{"睡眠不足による死", 2, func(r result) float64 { return r.sleepless }},
+		{"眠っている割合", 4, func(r result) float64 { return r.asleep }},
 		{"体力消耗（合計）", 2, func(r result) float64 { return r.burned }},
 		{"出生", 2, func(r result) float64 { return r.births }},
 		{"成人到達率", 4, func(r result) float64 { return r.adultRate }},

@@ -27,6 +27,9 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Sleepless is stage 7-3a: no sleep.
+const Sleepless = "sleepless"
+
 // Burnblind is stage 7-2a: the valuation reads the burn as it is now, not
 // how it is rising.
 const Burnblind = "burnblind"
@@ -188,7 +191,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func burnblind(c *engine.Config)  { c.BurnRead = false }
+func sleepless(c *engine.Config)  { c.Sleep = false }
+func burnblind(c *engine.Config)  { sleepless(c); c.BurnRead = false }
 func sightblind(c *engine.Config) { burnblind(c); c.SightRead = false }
 func daylong(c *engine.Config)    { sightblind(c); c.DayTicks = 0 }
 func unspoiled(c *engine.Config)  { daylong(c); c.FoodLife = 0 }
@@ -233,6 +237,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Sleepless:    sleepless,
 	Burnblind:    burnblind,
 	Sightblind:   sightblind,
 	Daylong:      daylong,

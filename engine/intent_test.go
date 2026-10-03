@@ -16,9 +16,21 @@ func TestFollowsIntentBetweenDecisions(t *testing.T) {
 		}
 		clear(decided)
 		w.Step()
+		parent := map[int64]bool{} // of a child born this tick: a birth sets both parents to wait (breed.go)
+		for _, b := range w.Bodies() {
+			if b.Born == w.Tick() {
+				parent[b.Parents[0]], parent[b.Parents[1]] = true, true
+			}
+		}
 		for _, b := range w.Bodies() {
 			if b.Born == w.Tick() {
 				continue // born this tick, at its end: it has not had a turn
+			}
+			if parent[b.ID] {
+				continue
+			}
+			if b.Asleep || before[b.ID].Asleep {
+				continue // asleep, or woken this tick: it decides when awake
 			}
 			if w.Tick()-b.Decided >= int64(w.cfg.Recheck) {
 				t.Fatalf("tick %d body %d: last decided at %d", w.Tick(), b.ID, b.Decided)

@@ -390,6 +390,7 @@ func TestTraceIsTheChoice(t *testing.T) {
 	cfg := testConfig(4)
 	cfg.Allot, cfg.Learn = false, false
 	cfg.ChildAbility = 1 // every body the config's build at every age
+	cfg.Sleep = false    // and at the config's burn: no sleep debt
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)

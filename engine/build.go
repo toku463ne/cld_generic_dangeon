@@ -46,11 +46,12 @@ func (w *World) MaxEnergy(b Body) float64 { return w.maxOf(&b) }
 // adulthood, and down from OldAge to ChildAbility at Lifespan - a baby and
 // an old body alike. The first bodies, adults from the start, skip the
 // rise. The factor moves in steps of AgeStep, so that bodies share survival
-// tables. With ChildAbility 1 it is 1.
+// tables. With ChildAbility 1 it is 1. The sleep debt's factor (debtAbility)
+// is on it too, no lower than ChildAbility.
 func (w *World) ageFactor(b *Body) float64 {
 	low := w.cfg.ChildAbility
 	if low >= 1 || low <= 0 {
-		return 1
+		return w.debtAbility(b)
 	}
 	age := float64(w.tick - b.Born)
 	f := 1.0
@@ -63,7 +64,7 @@ func (w *World) ageFactor(b *Body) float64 {
 	if step := w.cfg.AgeStep; step > 0 {
 		f = math.Floor(f/step) * step
 	}
-	return math.Max(math.Min(f, 1), low)
+	return math.Max(math.Min(f, 1)*w.debtAbility(b), low)
 }
 
 func (w *World) burnOf(b *Body) float64 {
@@ -74,7 +75,65 @@ func (w *World) burnOf(b *Body) float64 {
 	if w.resting(b) {
 		burn *= w.cfg.RestBurn // a resting mother keeps still (stage 3-4)
 	}
-	return burn
+	return burn * w.debtBurn(b)
+}
+
+// debtBurn is the factor body b's sleep debt puts on its burn (stage 7-3b).
+func (w *World) debtBurn(b *Body) float64 {
+	if !w.cfg.Sleep || w.cfg.DebtBurn <= 0 {
+		return 1
+	}
+	return 1 + b.Debt/w.cfg.DebtBurn
+}
+
+// debtAbility is the factor body b's sleep debt puts on its ability (stage
+// 7-3b).
+// It moves in steps of AgeStep, to the nearest, so that a small debt does
+// not cost a step and bodies share survival tables.
+func (w *World) debtAbility(b *Body) float64 {
+	if !w.cfg.Sleep || w.cfg.DebtAbility <= 0 {
+		return 1
+	}
+	f := math.Max(w.cfg.DebtFloor, 1-b.Debt/w.cfg.DebtAbility)
+	if step := w.cfg.AgeStep; step > 0 {
+		f = math.Max(w.cfg.DebtFloor, math.Round(f/step)*step)
+	}
+	return f
+}
+
+// sleepTick moves body b's sleep pressure and debt on by a tick, asleep or
+// awake, and wakes it once the pressure has fallen to WakeAt (stage 7-3b).
+// Woken, its intent is a wait, which is decided again next tick.
+func (w *World) sleepTick(b *Body) {
+	if !w.cfg.Sleep {
+		return
+	}
+	if b.Asleep {
+		b.Pressure -= b.Pressure / w.cfg.PressureAsleep
+		b.Debt = math.Max(0, b.Debt-w.cfg.DebtRepay)
+		if w.tick >= b.Woke || w.touched(b) {
+			b.Asleep = false
+			b.Intent = Action{Kind: ActWait}
+		}
+		return
+	}
+	b.Debt += b.Pressure
+	b.Pressure += (1 - b.Pressure) / w.cfg.PressureAwake
+}
+
+// touched reports whether another body that is awake stands on sleeping
+// body b's tile: the contact that wakes it (stage 7-3b; broadcasts and
+// threats will wake it too, once there are any).
+func (w *World) touched(b *Body) bool {
+	if w.grid == nil {
+		return false
+	}
+	for _, j := range w.grid[w.tileOf(b.X, b.Y)] {
+		if o := &w.bodies[j]; o.ID != b.ID && !o.Asleep {
+			return true
+		}
+	}
+	return false
 }
 
 // planBurn is the burn body b values its options at: its own, but for a
@@ -86,7 +145,7 @@ func (w *World) planBurn(b *Body) float64 {
 		if b.Build.EnergyBurn > 0 {
 			burn = b.Build.EnergyBurn
 		}
-		return burn
+		return burn * w.debtBurn(b)
 	}
 	return w.burnOf(b)
 }
@@ -96,11 +155,18 @@ func (w *World) planBurn(b *Body) float64 {
 // the body feels it rising, in steps of BurnStep above planBurn. A burn
 // that is not rising reads as planBurn exactly.
 func (w *World) readBurn(b *Body) float64 {
-	burn := w.planBurn(b)
-	if !w.cfg.BurnRead || b.BurnRise <= 0 || w.cfg.Window <= 0 {
+	return w.aheadBurn(w.planBurn(b), b.BurnRise)
+}
+
+// aheadBurn is readBurn for a burn and a rise per tick: the burn itself
+// when it is not rising, else the window's average rounded up to a step of
+// BurnStep above it. (The steps once kept survival tables few; since the
+// tables count grains of energy they no longer matter to them.)
+func (w *World) aheadBurn(burn, rise float64) float64 {
+	if !w.cfg.BurnRead || rise <= 0 || w.cfg.Window <= 0 {
 		return burn
 	}
-	ahead := burn + b.BurnRise*float64(w.cfg.Window)/2
+	ahead := burn + rise*float64(w.cfg.Window)/2
 	if w.cfg.BurnStep <= 1 {
 		return ahead
 	}

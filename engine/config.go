@@ -74,6 +74,21 @@ type Config struct {
 	BurnRead bool
 	BurnSpan int
 	BurnStep float64
+	// Sleep gives bodies sleep pressure and sleep debt, and a sleep action
+	// (stage 7-3b). Pressure rises while awake toward 1 with time constant
+	// PressureAwake and falls while asleep with PressureAsleep. A body can
+	// fall asleep when its pressure is above WakeAt, and once asleep sleeps
+	// SleepTicks (a third of a day) unless another body comes onto its
+	// tile. Debt grows by the pressure each tick awake and falls by
+	// DebtRepay each tick asleep; it multiplies the burn by 1 +
+	// debt/DebtBurn and the ability (speed and most energy, with the age's)
+	// by 1 - debt/DebtAbility, no lower than DebtFloor.
+	Sleep                         bool
+	PressureAwake, PressureAsleep float64
+	WakeAt                        float64
+	DebtRepay, DebtBurn           float64
+	DebtAbility, DebtFloor        float64
+	SleepTicks                    int
 	// KeepHeading breaks ties by the body's last move: when the options of
 	// least risk include moving the way it last moved, it moves that way,
 	// and it draws at random among them otherwise - where the land ends,
@@ -320,7 +335,16 @@ func DefaultConfig() Config {
 		SightRead:          true,
 		BurnRead:           true,
 		BurnSpan:           50,
-		BurnStep:           1.05,
+		BurnStep:           1.1,
+		Sleep:              true,
+		PressureAwake:      750,
+		PressureAsleep:     170,
+		WakeAt:             0.15,
+		DebtRepay:          1,
+		DebtBurn:           8000,
+		DebtAbility:        16000,
+		DebtFloor:          0.2,
+		SleepTicks:         333,
 		KeepHeading:        true,
 		TurnOffReverse:     true,
 		Recheck:            300,

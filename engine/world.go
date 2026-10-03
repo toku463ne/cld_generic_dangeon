@@ -114,12 +114,17 @@ func (w *World) Step() {
 			// Old age lowers the most a body can hold (stage 3-7).
 			b.Energy = math.Min(b.Energy, w.maxOf(b))
 		}
-		w.eatHeld(b)
-		w.request(b)
-		w.act(i, b, w.turn(b))
+		if b.Asleep {
+			w.stats.Actions[ActSleep]++
+		} else {
+			w.eatHeld(b)
+			w.request(b)
+			w.act(i, b, w.turn(b))
+		}
 		burn := w.burnOf(b)
 		b.Energy -= burn
 		w.feelBurn(b)
+		w.sleepTick(b)
 		w.stats.EnergyBurned += burn
 	}
 	w.removeDead()
@@ -138,6 +143,8 @@ func (w *World) removeDead() {
 		old := w.cfg.Lifespan > 0 && w.tick-b.Born >= int64(w.cfg.Lifespan)
 		if old && b.Energy > 0 {
 			cause = CauseAged
+		} else if w.cfg.Sleep && w.cfg.DebtBurn > 0 && b.Debt > w.cfg.DebtBurn/4 {
+			cause = CauseSleepless
 		}
 		if b.Energy <= 0 || old {
 			if w.died == nil {

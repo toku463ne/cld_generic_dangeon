@@ -158,7 +158,7 @@ func (w *World) mates(b *Body, f func(*Body)) {
 			}
 			for _, j := range w.grid[w.m.index(x, y)] {
 				o := &w.bodies[j]
-				if o.ID != b.ID && w.fertile(o) && (!w.cfg.Sexes || o.Sex != b.Sex) && !w.resting(o) {
+				if o.ID != b.ID && w.fertile(o) && (!w.cfg.Sexes || o.Sex != b.Sex) && !w.resting(o) && !o.Asleep {
 					f(o)
 				}
 			}
@@ -258,7 +258,7 @@ func (w *World) requesters(b *Body, f func(*Body)) {
 	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
 	for _, i := range w.asking {
 		o := &w.bodies[i]
-		if o.Requested <= w.tick || o.ID == b.ID || o.Sex == b.Sex || !w.fertile(o) || w.resting(o) {
+		if o.Requested <= w.tick || o.ID == b.ID || o.Sex == b.Sex || !w.fertile(o) || w.resting(o) || o.Asleep {
 			continue
 		}
 		d := max(abs(int(math.Floor(o.X))-bx), abs(int(math.Floor(o.Y))-by))

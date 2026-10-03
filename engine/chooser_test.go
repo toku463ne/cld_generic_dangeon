@@ -14,6 +14,7 @@ func (e eastward) Choose(Body, Valuation) (Action, bool) {
 // what the valuation takes when it cannot; the trace shows what it did.
 func TestChooserTakesItsBody(t *testing.T) {
 	w := newTestWorld(t, 2)
+	w.cfg.Sleep = false // a body asleep takes no turn to decide
 	id := w.bodies[0].ID
 	w.SetChooser(eastward{id})
 	traced := 0

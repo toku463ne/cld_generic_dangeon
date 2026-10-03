@@ -26,6 +26,7 @@ func TestNoFoodStarvesEveryBody(t *testing.T) {
 	cfg.FoodCap = 0
 	cfg.Breed = false // no one is born to outlive the count
 	cfg.Allot = false // and everyone lasts as long
+	cfg.Sleep = false // and no sleep debt raises the burn
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)

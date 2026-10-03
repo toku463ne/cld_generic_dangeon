@@ -132,7 +132,7 @@ func lock(m engine.Map, name string, seeds int, seed0 int64, ticks int, vname st
 	ts := make([]lockTally, seeds)
 	errs := make([]error, seeds)
 	var wg sync.WaitGroup
-	sem := make(chan bool, 10)
+	sem := make(chan bool, 2) // two worlds at once: more ran the machine out of memory
 	for s := 0; s < seeds; s++ {
 		wg.Add(1)
 		go func(s int) {

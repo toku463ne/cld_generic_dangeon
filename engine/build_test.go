@@ -151,3 +151,108 @@ func TestAgeFactor(t *testing.T) {
 		t.Errorf("without the curve: factor %v", got)
 	}
 }
+
+// Sleep pressure rises while awake toward 1 and falls while asleep; debt
+// grows by the pressure each tick awake and is repaid asleep; the debt
+// raises the burn and lowers the ability in steps; a sleeper wakes after
+// SleepTicks, or sooner when another body stands on its tile; and a body
+// can only sleep when its pressure is above WakeAt (stage 7-3b).
+func TestSleep(t *testing.T) {
+	w, b := soloWorld(t, 90)
+	w.cfg.Sleep, w.cfg.PressureAwake, w.cfg.PressureAsleep, w.cfg.WakeAt = true, 100, 20, 0.15
+	w.cfg.DebtRepay, w.cfg.DebtBurn, w.cfg.DebtAbility, w.cfg.DebtFloor, w.cfg.SleepTicks = 1, 1000, 2000, 0.2, 50
+	w.cfg.AgeStep = 0.25
+	if hasKind(w.possibleActions(nil, b), ActSleep) {
+		t.Fatal("sleep offered at no pressure")
+	}
+	base := w.burnOf(b)
+	for i := 0; i < 100; i++ {
+		w.tick++
+		w.sleepTick(b)
+	}
+	if b.Pressure < 0.6 || b.Pressure > 0.7 || b.Debt < 30 || b.Asleep {
+		t.Fatalf("after 100 ticks awake: pressure %.3f debt %.1f asleep %v", b.Pressure, b.Debt, b.Asleep)
+	}
+	b.Debt = 100 // a tenth of DebtBurn: burn +10%, ability -5% -> rounds to no step
+	if got := w.burnOf(b); math.Abs(got-base*1.1) > 1e-12 {
+		t.Fatalf("burn %v with debt 100, want %v", got, base*1.1)
+	}
+	if got := w.ageFactor(b); got != 1 {
+		t.Fatalf("ability %v with a small debt, want 1 (nearest step)", got)
+	}
+	b.Debt = 500 // ability 0.75: one step down
+	if got := w.ageFactor(b); got != 0.75 {
+		t.Fatalf("ability %v with debt 500, want 0.75", got)
+	}
+	b.Debt = 100
+	if !hasKind(w.possibleActions(nil, b), ActSleep) {
+		t.Fatal("no sleep offered above WakeAt")
+	}
+	w.act(0, b, Action{Kind: ActSleep})
+	if !b.Asleep || b.Woke != w.tick+50 {
+		t.Fatalf("asleep %v woke %d, want asleep until %d", b.Asleep, b.Woke, w.tick+50)
+	}
+	p0, d0 := b.Pressure, b.Debt
+	for i := 0; i < 49; i++ {
+		w.tick++
+		w.sleepTick(b)
+		if !b.Asleep {
+			t.Fatalf("woke after %d ticks, want %d", i+1, 50)
+		}
+	}
+	if b.Pressure >= p0 || b.Debt != d0-49 {
+		t.Fatalf("asleep 49 ticks: pressure %.3f (was %.3f) debt %.1f (was %.1f)", b.Pressure, p0, b.Debt, d0)
+	}
+	w.tick++
+	w.sleepTick(b)
+	if b.Asleep || b.Intent.Kind != ActWait {
+		t.Fatalf("after SleepTicks: asleep %v intent %v", b.Asleep, b.Intent)
+	}
+	// Contact wakes a sleeper early: another body awake on its tile.
+	w.act(0, b, Action{Kind: ActSleep})
+	w.bodies = append(w.bodies, Body{ID: 1, X: b.X, Y: b.Y, Energy: 50, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}})
+	w.buildGrid()
+	b = &w.bodies[0]
+	w.tick++
+	w.sleepTick(b)
+	if b.Asleep {
+		t.Fatal("not woken by a body on its tile")
+	}
+	w.cfg.Sleep = false
+	if w.burnOf(b) != base || w.ageFactor(b) != 1 {
+		t.Fatal("debt counts without Sleep")
+	}
+}
+
+// Falling asleep is read from the body's own physiology: it eats nothing
+// for SleepTicks, so with less energy than the sleep burns the risk is 1;
+// with plenty it is the risk of keeping on the move for the rest of the
+// window with the debt repaid off the burn, so the more a sleep repays, the
+// safer it reads.
+func TestSleepRiskReads(t *testing.T) {
+	w, b := soloWorld(t, 2)
+	w.cfg.Sleep, w.cfg.SleepTicks, w.cfg.DebtBurn, w.cfg.WakeAt = true, 300, 2000, 0.15
+	w.cfg.PressureAsleep = 170
+	b.Pressure = 0.5
+	win := w.pred.windows[0]
+	if got := w.sleepRisk(b, nil, win, 0); got != 1 {
+		t.Fatalf("sleeping on 2 energy for 300 ticks: risk %v, want 1", got)
+	}
+	b.Energy = w.maxOf(b)
+	b.Debt = 1000 // burn x1.5 until repaid
+	var rs rates
+	w.ratesOf(b, &rs)
+	for r := range rs.region {
+		rs.region[r], rs.path[r] = 0.003, 0.003 // a poor region, so risks are between 0 and 1
+	}
+	w.cfg.DebtRepay = 0
+	kept := w.sleepRisk(b, &rs, win, 0)
+	w.cfg.DebtRepay = 3
+	repaid := w.sleepRisk(b, &rs, win, 0)
+	if kept <= 0 || kept >= 1 || repaid <= 0 || repaid >= 1 {
+		t.Fatalf("risks %v (debt kept) and %v (repaid), want both between 0 and 1", kept, repaid)
+	}
+	if repaid >= kept {
+		t.Fatalf("a sleep that repays the debt (%v) does not read safer than one that keeps it (%v)", repaid, kept)
+	}
+}

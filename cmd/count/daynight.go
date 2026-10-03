@@ -15,7 +15,7 @@ type dayNightTally struct {
 	// per part of the day, after tick 5000: body-ticks, meals eaten (on
 	// the ground or held), starvations, and the energy summed over the
 	// adults at their full most.
-	bodyTicks, meals, picks, starved, energy, adults, light [dayBins]float64
+	bodyTicks, meals, picks, starved, energy, adults, light, asleep [dayBins]float64
 }
 
 // runDayNight steps one world and adds each tick after 5000 into the part
@@ -26,13 +26,14 @@ func runDayNight(cfg engine.Config, m engine.Map, ticks, day int) (dayNightTally
 	if err != nil {
 		return t, err
 	}
-	var pe, pp, pd int64
+	var pe, pp, pd, ps int64
 	for tick := 1; tick <= ticks; tick++ {
 		w.Step()
 		st := w.Stats()
 		eaten := st.Actions[engine.ActEat] + st.EatenHeld
 		dead := st.Deaths[engine.CauseStarved]
 		picked := st.Actions[engine.ActPick]
+		slept := st.Actions[engine.ActSleep]
 		bs := w.Bodies()
 		if tick > 5000 {
 			k := (tick - 1) % day * dayBins / day
@@ -43,6 +44,7 @@ func runDayNight(cfg engine.Config, m engine.Map, ticks, day int) (dayNightTally
 			t.meals[k] += float64(eaten - pe)
 			t.starved[k] += float64(dead - pd)
 			t.picks[k] += float64(picked - pp)
+			t.asleep[k] += float64(slept - ps)
 			for _, b := range bs {
 				if w.MaxEnergy(b) >= cfg.EnergyMax {
 					t.energy[k] += b.Energy
@@ -50,7 +52,7 @@ func runDayNight(cfg engine.Config, m engine.Map, ticks, day int) (dayNightTally
 				}
 			}
 		}
-		pe, pp, pd = eaten, picked, dead
+		pe, pp, pd, ps = eaten, picked, dead, slept
 		if len(bs) <= lockCollapse {
 			break
 		}
@@ -97,18 +99,19 @@ func dayNight(m engine.Map, name string, seeds int, seed0 int64, ticks int, vnam
 		}
 		return a / b
 	}
-	fmt.Printf("| 1日の中の tick | 明るさ | 個体数 | 1000 体・tick あたりの食事 | 1000 体・tick あたりの拾う手 | 1000 体・tick あたりの餓死 | 成人（上限が満ち）の体力の平均 |\n| --- | --- | --- | --- | --- | --- | --- |\n")
+	fmt.Printf("| 1日の中の tick | 明るさ | 個体数 | 1000 体・tick あたりの食事 | 1000 体・tick あたりの拾う手 | 1000 体・tick あたりの餓死 | 成人（上限が満ち）の体力の平均 | 眠っている割合 |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n")
 	for k := 0; k < dayBins; k++ {
 		k := k
 		lo, hi := k*day/dayBins+1, (k+1)*day/dayBins
 		perTick := float64(ticks-5000) / float64(day) * float64(day/dayBins)
-		fmt.Printf("| %d〜%d | %s | %s | %s | %s | %s | %s |\n", lo, hi,
+		fmt.Printf("| %d〜%d | %s | %s | %s | %s | %s | %s | %s |\n", lo, hi,
 			cell(func(t dayNightTally) float64 { return t.light[k] / perTick }, 2),
 			cell(func(t dayNightTally) float64 { return t.bodyTicks[k] / perTick }, 1),
 			cell(func(t dayNightTally) float64 { return 1000 * ratio(t.meals[k], t.bodyTicks[k]) }, 2),
 			cell(func(t dayNightTally) float64 { return 1000 * ratio(t.picks[k], t.bodyTicks[k]) }, 3),
 			cell(func(t dayNightTally) float64 { return 1000 * ratio(t.starved[k], t.bodyTicks[k]) }, 3),
-			cell(func(t dayNightTally) float64 { return ratio(t.energy[k], t.adults[k]) }, 1))
+			cell(func(t dayNightTally) float64 { return ratio(t.energy[k], t.adults[k]) }, 1),
+			cell(func(t dayNightTally) float64 { return ratio(t.asleep[k], t.bodyTicks[k]) }, 3))
 	}
 	fmt.Println()
 }

@@ -525,6 +525,11 @@ func (w *World) learnedTable(q float64, full int) Survival {
 		tt := TruthTable{Meal: meal, Full: full, Reach: w.grains(w.reach(w.cfg.Speed), w.cfg.EnergyBurn), Over: w.cfg.Carry * meal}
 		win := w.windowGrains()
 		tt.Extra = []int{win - ahead, win - ahead/2 - 1}
+		if ts := w.grains(w.cfg.SleepTicks, w.cfg.EnergyBurn); w.cfg.Sleep && ts < win {
+			// The rest of the window after the config body's sleep
+			// (sleepRisk); other burns' rows are built as they are read.
+			tt.Extra = append(tt.Extra, win-ts)
+		}
 		t = &table{s: tt.NewSurvival(w.levelRate(level), w.pred.windows), used: w.tick}
 		w.pred.learned[k] = t
 	}

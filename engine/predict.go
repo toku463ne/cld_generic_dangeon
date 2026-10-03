@@ -530,6 +530,14 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 		}
 		v.Child = append(v.Child, c)
 		for i, win := range windows {
+			if a.Kind == ActSleep {
+				v.Risk[i] = append(v.Risk[i], w.sleepRisk(b, rs, win, reserve))
+				if i == 0 {
+					v.Plan = append(v.Plan, -1)
+					v.Arrive = append(v.Arrive, 0)
+				}
+				continue
+			}
 			risk, plan, arrive := read(a, x, y, after, eaten, win)
 			if a.Kind == ActMate && c < 1 {
 				unpaid, _, _ := read(a, x, y, n-1, eaten, win)
@@ -542,6 +550,41 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			}
 		}
 	}
+}
+
+// sleepRisk is the risk in a window of win grains of body b falling asleep
+// now (stage 7-3b), read from what it knows of its own body: it sleeps
+// SleepTicks (nothing it can foresee wakes it), eating nothing and burning
+// as now; it wakes with the debt it repaid off its
+// burn, and its burn rising as the debt then builds at WakeAt; and it
+// keeps on the move through the region it is in for the rest of the
+// window. reserve is what it holds and any rest left (valueInto).
+func (w *World) sleepRisk(b *Body, rs *rates, win, reserve int) float64 {
+	ticks := w.cfg.SleepTicks
+	now := w.planBurn(b)
+	left := b.Energy - now*float64(ticks)
+	if left <= 0 {
+		return 1
+	}
+	ts := w.grains(ticks, now)
+	if ts >= win {
+		return 0
+	}
+	base := now / w.debtBurn(b)
+	debt := math.Max(0, b.Debt-w.cfg.DebtRepay*float64(ticks))
+	after := base * (1 + debt/w.cfg.DebtBurn)
+	// Woken, the pressure is what a sleep of ticks leaves of it now.
+	rise := base * b.Pressure * math.Exp(-float64(ticks)/w.cfg.PressureAsleep) / w.cfg.DebtBurn
+	burn := w.aheadBurn(after, rise)
+	full := w.units(w.maxOf(b))
+	r := w.m.RegionAt(int(math.Floor(b.X)), int(math.Floor(b.Y)))
+	var s Survival
+	if rs != nil {
+		s = w.learnedTable(rs.region[r]*w.factor(w.speedOf(b), burn), full)
+	} else {
+		s = w.survivalFor(r, full, w.factorLevel(w.speedOf(b), burn))
+	}
+	return s.deadAtLeast(win-ts, w.units(left)+reserve-1)
 }
 
 // gapTo is how far p has to go along one axis to be on tile t.
