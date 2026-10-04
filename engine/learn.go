@@ -116,6 +116,10 @@ type Memory struct {
 	// TentUses counts the nights it pitched each tent it had that wore
 	// out: the sum and the tents (stage 8-2a).
 	TentUses [2]float64 `json:",omitempty"`
+	// Cold is the burn it felt asleep in the dark off any place to rest
+	// over the burn it knows of its own body: its sum and count (stage
+	// 8-2a2), against Warm.
+	Cold [2]float64 `json:",omitempty"`
 	// Met are the bodies it has passed evidence with (tell.go).
 	Met map[int64]bool `json:",omitempty"`
 	// Ver counts the changes to the rows it can pass on; Told holds, for

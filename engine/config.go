@@ -164,6 +164,13 @@ type Config struct {
 	Tents                bool
 	TentBorn, TentEnergy float64
 	TentLife             int
+	// NightSaving reads a night's saving in a tent from what the body
+	// felt (stage 8-2a2): asleep in the dark off any place to rest it
+	// learns the burn it felt over its own (Memory.Cold), as it learns
+	// Memory.Warm on one; the saving is its own burn times the difference,
+	// over SleepTicks. Off, the saving is the burn at falling asleep less
+	// the warm burn (8-2a).
+	NightSaving bool
 	// Ownership lets things on the ground have an owner, who alone may
 	// take them (stage 6-4c, own.go). No rule gives a thing an owner yet.
 	Ownership bool
@@ -450,6 +457,7 @@ func DefaultConfig() Config {
 		TentBorn:           0.5,
 		TentEnergy:         10,
 		TentLife:           3000,
+		NightSaving:        true,
 		KeepHeading:        true,
 		TurnOffReverse:     true,
 		Recheck:            300,

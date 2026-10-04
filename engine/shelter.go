@@ -60,6 +60,11 @@ func (w *World) feelWarm(b *Body) {
 	case w.m.ShelterAt(x, y):
 		w.rememberShelter(b, w.m.index(x, y)) // it stands on it
 	case !b.Tent.Pitched: // a tent is as warm (stage 8-2a)
+		if w.cfg.NightSaving && b.Asleep {
+			// The cold it sleeps in without one (stage 8-2a2).
+			b.Memory.Cold[0] += w.planBurn(b) / w.ownBurn(b, true)
+			b.Memory.Cold[1]++
+		}
 		return
 	}
 	b.Memory.Warm[0] += w.planBurn(b) / w.ownBurn(b, true)

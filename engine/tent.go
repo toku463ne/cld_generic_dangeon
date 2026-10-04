@@ -51,12 +51,28 @@ func (w *World) tentWarm(b *Body) float64 {
 // would make now: the nights it expects to use one times a night's saving.
 func (w *World) tentCredit(b *Body) int {
 	n := b.Memory.TentUses[1] + w.cfg.ReuseWeight
-	now, warm := w.planBurn(b), w.tentWarm(b)
-	if n <= 0 || now <= warm {
+	saving := w.nightSaving(b)
+	if n <= 0 || saving <= 0 {
 		return 0
 	}
 	nights := (b.Memory.TentUses[0] + w.cfg.ReusePrior*w.cfg.ReuseWeight) / n
-	return w.units(nights * (now - warm) * float64(w.cfg.SleepTicks))
+	return w.units(nights * saving)
+}
+
+// nightSaving is the energy body b reads a night's sleep out of the cold
+// to save: with NightSaving, its own burn times the cold it felt asleep
+// outside less the warmth it felt on a place to rest or in a tent, over
+// SleepTicks (nothing until it has felt both); without, the burn now less
+// the warm burn, over SleepTicks (8-2a).
+func (w *World) nightSaving(b *Body) float64 {
+	if !w.cfg.NightSaving {
+		return math.Max(0, w.planBurn(b)-w.tentWarm(b)) * float64(w.cfg.SleepTicks)
+	}
+	c, h := b.Memory.Cold, b.Memory.Warm
+	if c[1] == 0 || h[1] == 0 {
+		return 0
+	}
+	return math.Max(0, c[0]/c[1]-h[0]/h[1]) * w.ownBurn(b, true) * float64(w.cfg.SleepTicks)
 }
 
 // canMakeTent reports whether body b could make a tent now.

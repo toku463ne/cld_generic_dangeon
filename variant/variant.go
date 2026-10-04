@@ -27,6 +27,10 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Atdusk is stage 8-2a: a night's saving in a tent is read at the burn of
+// falling asleep.
+const Atdusk = "atdusk"
+
 // Neutral is stage 8-1: a builder expects nothing of a place until one
 // wears out, and does not know which places are its own.
 const Neutral = "neutral"
@@ -223,6 +227,7 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
+func atdusk(c *engine.Config)       { c.NightSaving = false }
 func housed(c *engine.Config)       { c.Tents, c.Building = false, true }
 func neutral(c *engine.Config)      { housed(c); c.OwnPlaces, c.ReusePrior, c.ReuseWeight = false, 0, 0 }
 func unbuilt(c *engine.Config)      { c.Tents, c.Building = false, false }
@@ -279,6 +284,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Atdusk:       atdusk,
 	Neutral:      neutral,
 	Housed:       housed,
 	Unbuilt:      unbuilt,

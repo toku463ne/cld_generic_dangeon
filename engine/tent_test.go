@@ -37,10 +37,13 @@ func TestTent(t *testing.T) {
 		t.Fatal("a tent was made without a sleep")
 	}
 	// Having learned the warmth and expecting nights in it, it makes one.
-	b.Memory.Warm = [2]float64{0.5, 1}
-	b.BurnFelt = 0
-	if w.tentCredit(b) <= 0 && w.planBurn(b) > w.tentWarm(b) {
-		t.Fatal("no credit for a tent with warmth learned")
+	b.Memory.Warm = [2]float64{1, 1}
+	if w.tentCredit(b) != 0 {
+		t.Fatal("credit for a tent before the cold outside was felt")
+	}
+	b.Memory.Cold = [2]float64{1.3, 1}
+	if w.tentCredit(b) <= 0 {
+		t.Fatal("no credit for a tent with cold and warmth felt")
 	}
 	w.cfg.ReusePrior = 50 // nights enough to outweigh the cost whatever the cold
 	w.howSleep(b, Action{Kind: ActSleep})
@@ -82,5 +85,48 @@ func TestTentUnlearned(t *testing.T) {
 	made := w.sleepRiskAt(b, &rs, win, w.tentCredit(b), w.tentWarm(b), b.Energy-w.cfg.TentEnergy)
 	if made < plain {
 		t.Fatalf("an unlearned tent reads safer: %v < %v", made, plain)
+	}
+}
+
+// Reading a night's saving at the burn of falling asleep, the world is
+// stage 8-2a: its fingerprint is the one pinned then.
+func TestAtduskIsStage82a(t *testing.T) {
+	const want = uint64(0x998e11891b32b064)
+	cfg := testConfig(1)
+	cfg.NightSaving = false
+	w, err := NewWorld(cfg, tempMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// Asleep in the dark off any place to rest and out of a tent, a body
+// learns the cold it felt over its own burn; in a pitched tent it learns
+// the warmth instead.
+func TestColdFelt(t *testing.T) {
+	w, err := NewWorld(testConfig(1), tempMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for w.Brightness() >= 0.5 {
+		w.tick++
+	}
+	b := &w.bodies[0]
+	for w.m.ShelterAt(int(b.X), int(b.Y)) {
+		b.X++
+	}
+	b.Asleep = true
+	w.feelWarm(b)
+	if b.Memory.Cold[1] != 1 || b.Memory.Cold[0] != w.planBurn(b)/w.ownBurn(b, true) || b.Memory.Warm[1] != 0 {
+		t.Fatalf("cold %v warm %v", b.Memory.Cold, b.Memory.Warm)
+	}
+	b.Tent = Tent{Has: true, Pitched: true, Until: w.tick + 10}
+	w.feelWarm(b)
+	if b.Memory.Cold[1] != 1 || b.Memory.Warm[1] != 1 {
+		t.Fatalf("in a tent: cold %v warm %v", b.Memory.Cold, b.Memory.Warm)
 	}
 }
