@@ -22,7 +22,11 @@ func (w *World) noteShelters(b *Body) {
 	s := max(w.Sight(), 0)
 	for y := by - s; y <= by+s; y++ {
 		for x := bx - s; x <= bx+s; x++ {
-			if !w.m.InBounds(x, y) || !w.m.ShelterAt(x, y) || !w.seesFrom(b, bx, by, x, y) {
+			if !w.m.InBounds(x, y) || !w.seesFrom(b, bx, by, x, y) {
+				continue
+			}
+			if !w.m.ShelterAt(x, y) {
+				w.forgetPlace(b, w.m.index(x, y))
 				continue
 			}
 			w.rememberShelter(b, w.m.index(x, y))
@@ -72,14 +76,14 @@ func (w *World) shelterAhead(b *Body) (f Food, burn float64, ok bool) {
 	if burn >= w.planBurn(b)*(1-1e-9) { // rounding is not warmth
 		return Food{}, 0, false
 	}
-	here := w.tileOf(b.X, b.Y)
+	here, speed := w.tileOf(b.X, b.Y), w.speedOf(b)
 	best, bt := math.Inf(1), -1
 	for t := range b.Memory.Shelters {
 		if t == here {
 			continue
 		}
 		x, y := t%w.m.Width, t/w.m.Width
-		d := float64(walkTicks(gapTo(b.X, x), gapTo(b.Y, y), w.speedOf(b)))
+		d := float64(walkTicks(gapTo(b.X, x), gapTo(b.Y, y), speed))
 		if d < best || d == best && t < bt {
 			best, bt = d, t
 		}
@@ -97,11 +101,11 @@ func (w *World) ShelterAt(x, y int) bool { return w.m.ShelterAt(x, y) }
 // (x, y) with after grains by an option, going on by walking to place and
 // sleeping there (valueInto): the walk at its burn now, SleepTicks asleep
 // at warm, then keeping on the move through place's region at woken. It
-// returns the ticks of the walk too.
-func (w *World) shelterRisk(b *Body, rs *rates, place Food, x, y float64, after, win, full int, warm, woken float64) (float64, int) {
-	speed := w.speedOf(b)
+// returns the ticks of the walk too. speed and burn are b's (speedOf,
+// readBurn), read once by the caller.
+func (w *World) shelterRisk(b *Body, rs *rates, place Food, x, y float64, after, win, full int, warm, woken, speed, burn float64) (float64, int) {
 	k := walkTicks(gapTo(x, place.X), gapTo(y, place.Y), speed)
-	ku, ts := w.grains(k, w.readBurn(b)), w.grains(w.cfg.SleepTicks, warm)
+	ku, ts := w.grains(k, burn), w.grains(w.cfg.SleepTicks, warm)
 	switch {
 	case after-ku-ts <= 0:
 		return 1, k

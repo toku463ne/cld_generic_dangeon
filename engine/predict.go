@@ -550,7 +550,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 		// ticks of walking, SleepTicks asleep at the warm burn, then on
 		// the move from there at the burn woken to.
 		for f, place := range v.Shelter {
-			r, k := w.shelterRisk(b, rs, place, x, y, whole, wholeWin, full, warm, woken)
+			r, k := w.shelterRisk(b, rs, place, x, y, whole, wholeWin, full, warm, woken, speed, burn)
 			// With TieSpend, a risk no worse that spends less is taken
 			// (stage 6-3a).
 			if r < risk || w.cfg.TieSpend && r == risk && sleepSpend(k, warm, w.wokenBurn(b)) < spendNow {
@@ -589,12 +589,20 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 		}
 		v.Child = append(v.Child, c)
 		for i, win := range windows {
-			if a.Kind == ActSleep {
-				v.Risk[i] = append(v.Risk[i], w.sleepRisk(b, rs, win, reserve))
+			if a.Kind == ActSleep || a.Kind == ActBuild {
+				if a.Kind == ActSleep {
+					v.Risk[i] = append(v.Risk[i], w.sleepRisk(b, rs, win, reserve))
+				} else {
+					v.Risk[i] = append(v.Risk[i], w.buildRisk(b, rs, win, reserve))
+				}
 				if i == 0 {
 					v.Plan = append(v.Plan, -1)
 					v.Arrive = append(v.Arrive, 0)
-					v.Spend = append(v.Spend, sleepSpend(0, w.planBurn(b), w.wokenBurn(b)))
+					sp := sleepSpend(0, w.planBurn(b), w.wokenBurn(b))
+					if a.Kind == ActBuild {
+						sp += w.cfg.BuildEnergy
+					}
+					v.Spend = append(v.Spend, sp)
 				}
 				continue
 			}

@@ -72,7 +72,7 @@ func TestShelterWalk(t *testing.T) {
 	w.ratesOf(b, &rs)
 	win, full := w.windowGrains(), w.units(w.maxOf(b))
 	n := w.units(b.Energy)
-	there, _ := w.shelterRisk(b, &rs, f, b.X, b.Y, n-1, win, full, warm, w.wokenBurn(b))
+	there, _ := w.shelterRisk(b, &rs, f, b.X, b.Y, n-1, win, full, warm, w.wokenBurn(b), w.speedOf(b), w.readBurn(b))
 	if here := w.sleepRisk(b, &rs, win, 0); !(there < here) {
 		t.Fatalf("sleeping at the place %v, where it stands %v", there, here)
 	}
@@ -92,6 +92,7 @@ func TestShelterWalk(t *testing.T) {
 func TestShelterblindIsStage61a(t *testing.T) {
 	const want = uint64(0x4837b6704b743d89)
 	cfg := testConfig(1)
+	cfg.Building = false
 	cfg.ForceAt = 0
 	cfg.ShelterRead = false
 	w, err := NewWorld(cfg, tempMap())

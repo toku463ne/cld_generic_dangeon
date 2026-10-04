@@ -43,7 +43,13 @@ type World struct {
 	// valuation is scratch space for the decision of the body acting now.
 	valuation Valuation
 	ties      []int
-	drawn     bool  // the last decision drew among ties (LastTie); no rule reads it
+	drawn     bool // the last decision drew among ties (LastTie); no rule reads it
+	// places are the built places standing (stage 8-1), oldest first;
+	// placeAt the place each tile belongs to (0: none), and nextPlace the
+	// last place's ID.
+	places    []Place
+	placeAt   []int64
+	nextPlace int64
 	rates     rates // a learning body's estimates, for the decision under way
 
 	// died is the tick each body died, for the provenance instrument
@@ -115,6 +121,7 @@ func (w *World) Step() {
 	w.listAsking()
 	w.decayFood()
 	w.returnFood()
+	w.wearPlaces()
 	for i := range w.bodies {
 		b := &w.bodies[i]
 		if b.Mature == w.tick && b.Mature > 0 {

@@ -107,6 +107,9 @@ type Memory struct {
 	// of its own body: its sum and count.
 	Shelters map[int]bool `json:",omitempty"`
 	Warm     [2]float64   `json:",omitempty"`
+	// Reuse counts how often it slept again on a place it built before the
+	// place wore out: the sum and the places (stage 8-1).
+	Reuse [2]float64 `json:",omitempty"`
 	// Met are the bodies it has passed evidence with (tell.go).
 	Met map[int64]bool `json:",omitempty"`
 	// Ver counts the changes to the rows it can pass on; Told holds, for

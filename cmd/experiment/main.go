@@ -76,11 +76,14 @@ type result struct {
 	sleepless float64
 	asleep    float64 // body-ticks asleep over all body-ticks
 	sheltered float64 // sleeps begun on a place to rest over all sleeps begun
-	aged      float64 // deaths of age (Lifespan)
-	burned    float64
-	actions   [engine.NumActionKinds]float64
-	decided   float64 // decisions over actions (body-ticks)
-	births    float64
+	// places built, sleeps begun on them after the building, and those by
+	// their builders (stage 8-1)
+	built, builtSleeps, returns float64
+	aged                        float64 // deaths of age (Lifespan)
+	burned                      float64
+	actions                     [engine.NumActionKinds]float64
+	decided                     float64 // decisions over actions (body-ticks)
+	births                      float64
 	// provisioned is the food that went straight to resting mothers.
 	provisioned float64
 	// requests are the requests to mate sent, and requestBirths the
@@ -369,6 +372,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	}
 	r.asleep = float64(st.Actions[engine.ActSleep]) / math.Max(total, 1)
 	r.sheltered = float64(st.SleptSheltered) / math.Max(float64(st.Slept), 1)
+	r.built, r.builtSleeps, r.returns = float64(st.Built), float64(st.BuiltSleeps), float64(st.Returns)
 	for k, n := range st.Actions {
 		if total > 0 {
 			r.actions[k] = float64(n) / total
@@ -792,6 +796,9 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"睡眠不足による死", 2, func(r result) float64 { return r.sleepless }},
 		{"眠っている割合", 4, func(r result) float64 { return r.asleep }},
 		{"休める場所で始まった眠りの割合", 4, func(r result) float64 { return r.sheltered }},
+		{"建てた場所", 2, func(r result) float64 { return r.built }},
+		{"建てた場所で始まった眠り", 2, func(r result) float64 { return r.builtSleeps }},
+		{"建てた本人が戻って眠った", 2, func(r result) float64 { return r.returns }},
 		{"体力消耗（合計）", 2, func(r result) float64 { return r.burned }},
 		{"出生", 2, func(r result) float64 { return r.births }},
 		{"成人到達率", 4, func(r result) float64 { return r.adultRate }},

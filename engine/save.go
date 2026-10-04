@@ -20,7 +20,7 @@ import (
 // saved, so that a loaded world can build them before play (World.Warm).
 
 // snapshotVersion changes whenever the format does.
-const snapshotVersion = 38
+const snapshotVersion = 39
 
 type snapshot struct {
 	Version int    `json:"version"`
@@ -47,7 +47,11 @@ type snapshot struct {
 
 	Bodies []Body `json:"bodies"`
 	NextID int64  `json:"nextID"`
-	Stats  Stats  `json:"stats"`
+	// Places are the built places standing, NextPlace the last one's ID
+	// (stage 8-1); their tiles are in the map's places to rest.
+	Places    []Place `json:"places,omitempty"`
+	NextPlace int64   `json:"nextPlace,omitempty"`
+	Stats     Stats   `json:"stats"`
 
 	// Tables are the survival tables the world was reading, for a loaded
 	// world to build ahead (World.Warm). They are the only part of the
@@ -76,6 +80,8 @@ func (w *World) Save(out io.Writer) error {
 		Decayed:     w.food.decayed,
 		Bodies:      w.bodies,
 		NextID:      w.nextID,
+		Places:      w.places,
+		NextPlace:   w.nextPlace,
 		Stats:       w.stats,
 		Tables:      w.Tables(),
 	})
@@ -121,6 +127,8 @@ func Load(in io.Reader) (*World, error) {
 		w.food.foodAt[w.m.index(f.X, f.Y)] = int32(len(w.food.foods))
 		w.food.onGround[w.m.RegionAt(f.X, f.Y)]++
 	}
+	w.places, w.nextPlace = s.Places, s.NextPlace
+	w.loadPlaces()
 	w.initPredict()
 	w.pred.pending = s.Tables
 	w.buildGrid()

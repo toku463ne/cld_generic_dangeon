@@ -167,24 +167,44 @@ func (w *World) sleepDue(b *Body) bool {
 // unless its pressure is below ForceMax and sleeping now would raise its
 // chance of dying within the window by more than StayAwake over its best
 // waking option (life first), read from the decision just made.
+//
+// With Building (stage 8-1) a sleep may be begun by building first: the
+// sleep it falls into is the one of the two read as less risk, drawn
+// between them where they tie.
 func (w *World) dueSleep(b *Body, a Action) Action {
-	sleep := Action{Kind: ActSleep}
-	if b.Pressure >= w.cfg.ForceMax {
-		return sleep
+	if a.Kind == ActSleep || a.Kind == ActBuild {
+		return a
 	}
+	sleep := Action{Kind: ActSleep}
 	v := &w.valuation
 	asleep, awake := math.Inf(1), math.Inf(1)
+	builds := false
 	for j, o := range v.Options {
 		if j >= len(v.Risk[0]) {
 			break
 		}
-		if o.Kind == ActSleep {
+		switch o.Kind {
+		case ActSleep:
 			asleep = v.Risk[0][j]
-		} else {
+		case ActBuild:
+			builds = true
+		default:
 			awake = math.Min(awake, v.Risk[0][j])
 		}
 	}
-	if math.IsInf(asleep, 1) || asleep <= awake+w.cfg.StayAwake {
+	if builds {
+		for j, o := range v.Options {
+			if o.Kind == ActBuild && j < len(v.Risk[0]) {
+				switch r := v.Risk[0][j]; {
+				case r < asleep:
+					sleep, asleep = o, r
+				case r == asleep && w.rng.Intn(2) == 0:
+					sleep = o
+				}
+			}
+		}
+	}
+	if b.Pressure >= w.cfg.ForceMax || math.IsInf(asleep, 1) || asleep <= awake+w.cfg.StayAwake {
 		return sleep
 	}
 	return a

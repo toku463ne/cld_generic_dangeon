@@ -46,6 +46,9 @@ type Body struct {
 	// Sex is Female or Male, drawn when it comes into the world (with
 	// Sexes); NoSex in a world without sexes.
 	Sex Sex `json:",omitempty"`
+	// Skill is the level of each skill it has (stage 8-1; 0 for none):
+	// for now only the ones it was born with.
+	Skill [NumSkills]float64 `json:",omitempty"`
 	// Rested is the tick a mother can mate again after a birth (with
 	// FemaleBears); zero for none yet.
 	Rested int64 `json:",omitempty"`
@@ -108,6 +111,9 @@ const (
 	// ActSleep falls asleep until the pressure falls to WakeAt (Sleep,
 	// stage 7-3b).
 	ActSleep
+	// ActBuild builds a place to rest here and falls asleep on it
+	// (Building, stage 8-1).
+	ActBuild
 	NumActionKinds
 )
 
@@ -179,6 +185,10 @@ type Stats struct {
 	// Slept counts sleeps begun, and SleptSheltered those begun on a place
 	// to rest (stage 6-1b).
 	Slept, SleptSheltered int64 `json:",omitempty"`
+	// Built counts the places built (stage 8-1), BuiltSleeps the sleeps
+	// begun on one by anyone but at its building, and Returns those of
+	// them by its builder.
+	Built, BuiltSleeps, Returns int64 `json:",omitempty"`
 	// SheltersPassed counts the places to rest passed from parent to child
 	// that the child did not know (stage 6-5a).
 	SheltersPassed int64 `json:",omitempty"`
@@ -226,6 +236,7 @@ func (w *World) placeBodies() {
 			Partner: -1,
 		}
 		w.allot(&b)
+		w.drawSkills(&b)
 		b.Energy = w.maxOf(&b)
 		w.bodies = append(w.bodies, b)
 		w.nextID++
@@ -243,6 +254,9 @@ func (w *World) possibleActions(dst []Action, b *Body) []Action {
 	}
 	if w.cfg.Sleep && b.Pressure > w.cfg.WakeAt {
 		dst = append(dst, Action{Kind: ActSleep})
+	}
+	if w.canBuild(b) {
+		dst = append(dst, Action{Kind: ActBuild})
 	}
 	for d, v := range moveDirs {
 		x, y := b.X+v[0]*w.speedOf(b), b.Y+v[1]*w.speedOf(b)
@@ -278,17 +292,25 @@ func (w *World) act(i int, b *Body, a Action) {
 		w.eatFood(w.foodFor(b, t))
 		b.Energy = math.Min(b.Energy+w.cfg.FoodEnergy, w.maxOf(b))
 	case ActSleep:
-		b.Asleep, b.Woke = true, w.tick+int64(w.cfg.SleepTicks)
-		w.stats.Slept++
-		if w.m.ShelterAt(int(math.Floor(b.X)), int(math.Floor(b.Y))) {
-			w.stats.SleptSheltered++
-		}
+		w.noteReturn(b, w.tileOf(b.X, b.Y))
+		w.fallAsleep(b)
+	case ActBuild:
+		w.build(b)
 	case ActPick:
 		t := w.tileOf(b.X, b.Y)
 		w.takeFood(w.foodFor(b, t), b)
 		w.eatHeld(b) // where a meal fits, picking it up is eating it
 	case ActMove:
 		w.step(i, b, a.Dir)
+	}
+}
+
+// fallAsleep has body b fall asleep where it is.
+func (w *World) fallAsleep(b *Body) {
+	b.Asleep, b.Woke = true, w.tick+int64(w.cfg.SleepTicks)
+	w.stats.Slept++
+	if w.m.ShelterAt(int(math.Floor(b.X)), int(math.Floor(b.Y))) {
+		w.stats.SleptSheltered++
 	}
 }
 

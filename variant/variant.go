@@ -27,6 +27,9 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Unbuilt is stage 6-5a: no body builds a place to rest.
+const Unbuilt = "unbuilt"
+
 // Untaught is stage 7-3e: parents do not pass where places to rest are.
 const Untaught = "untaught"
 
@@ -212,7 +215,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func untaught(c *engine.Config)     { c.PassShelters = false }
+func unbuilt(c *engine.Config)      { c.Building = false }
+func untaught(c *engine.Config)     { unbuilt(c); c.PassShelters = false }
 func sleepblind(c *engine.Config)   { untaught(c); c.SleepAhead = false }
 func unforced(c *engine.Config)     { sleepblind(c); c.ForceAt = 0 }
 func shelterblind(c *engine.Config) { unforced(c); c.ShelterRead = false }
@@ -265,6 +269,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Unbuilt:      unbuilt,
 	Untaught:     untaught,
 	Sleepblind:   sleepblind,
 	Unforced:     unforced,

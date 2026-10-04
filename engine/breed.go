@@ -348,6 +348,7 @@ func (w *World) mate(b *Body, id int64) {
 		Partner: -1,
 	}
 	w.allot(&child, p, b)
+	w.drawSkills(&child)
 	w.born = append(w.born, child)
 	w.nextID++
 	w.stats.Births++

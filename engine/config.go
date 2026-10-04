@@ -141,6 +141,14 @@ type Config struct {
 	// spend least energy over Window ticks are kept - the same chance of
 	// living on, for less of the body's energy.
 	TieSpend bool
+	// Building lets a body born with the skill to build (BuildBorn, the
+	// chance at birth) build a place to rest round it when it may sleep,
+	// paying BuildEnergy, and fall asleep there (stage 8-1, raise.go): the
+	// land in the BuildSide square round it becomes a place to rest for
+	// BuildLife ticks.
+	Building               bool
+	BuildBorn, BuildEnergy float64
+	BuildSide, BuildLife   int
 	// Ownership lets things on the ground have an owner, who alone may
 	// take them (stage 6-4c, own.go). No rule gives a thing an owner yet.
 	Ownership bool
@@ -415,6 +423,11 @@ func DefaultConfig() Config {
 		ShelterRead:        true,
 		PassShelters:       true,
 		Ownership:          true,
+		Building:           true,
+		BuildBorn:          0.5,
+		BuildEnergy:        10,
+		BuildSide:          3,
+		BuildLife:          3000,
 		KeepHeading:        true,
 		TurnOffReverse:     true,
 		Recheck:            300,
