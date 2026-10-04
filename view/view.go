@@ -98,8 +98,11 @@ type decision struct {
 	risk  []float64 // first window
 	child []float64
 	seen  []engine.Food
-	// units are the food a plan can point to: seen, then remembered.
-	units  []engine.Food
+	// units are what a plan can point to: food seen, then remembered, then
+	// a place to sleep (6-1b) and home (6-4b).
+	units []engine.Food
+	// kinds name what each of units is.
+	kinds  []string
 	plan   []int
 	arrive []int
 	chosen engine.Action
@@ -253,7 +256,8 @@ func (v *View) trace(b engine.Body, val engine.Valuation, a engine.Action) {
 		tick: v.W.Tick(), body: b, chosen: a, why: val.Why,
 		opts:   append([]engine.Action(nil), val.Options...),
 		seen:   append([]engine.Food(nil), val.Seen...),
-		units:  append(append([]engine.Food(nil), val.Seen...), val.Recalled...),
+		units:  append(append(append(append([]engine.Food(nil), val.Seen...), val.Recalled...), val.Shelter...), val.Home...),
+		kinds:  unitKinds(val),
 		plan:   append([]int(nil), val.Plan...),
 		arrive: append([]int(nil), val.Arrive...),
 	}
@@ -650,10 +654,7 @@ func (v *View) FollowText() string {
 		via := "keep moving in region"
 		if d.plan[j] >= 0 {
 			f := d.units[d.plan[j]]
-			via = fmt.Sprintf("walk to food (%d,%d) in %d", f.X, f.Y, d.arrive[j])
-			if d.plan[j] >= len(d.seen) {
-				via = fmt.Sprintf("walk to remembered food (%d,%d) in %d", f.X, f.Y, d.arrive[j])
-			}
+			via = fmt.Sprintf("walk to %s (%d,%d) in %d", d.kinds[d.plan[j]], f.X, f.Y, d.arrive[j])
 		}
 		if j < len(d.child) && d.child[j] > 0 {
 			via += fmt.Sprintf(", child %.0f", d.child[j])
@@ -821,3 +822,18 @@ func (v *View) ZoomOut() { v.zoom = min(v.zoom+1, len(ticksPerPixel)-1) }
 
 // ZoomIn shows fewer ticks in the history panel.
 func (v *View) ZoomIn() { v.zoom = max(v.zoom-1, 0) }
+
+// unitKinds names what each unit a plan can point to is, in the order of
+// units: food seen, remembered, a place to sleep, home.
+func unitKinds(v engine.Valuation) []string {
+	var ks []string
+	for _, n := range []struct {
+		k string
+		n int
+	}{{"food", len(v.Seen)}, {"remembered food", len(v.Recalled)}, {"a place to sleep", len(v.Shelter)}, {"home", len(v.Home)}} {
+		for i := 0; i < n.n; i++ {
+			ks = append(ks, n.k)
+		}
+	}
+	return ks
+}
