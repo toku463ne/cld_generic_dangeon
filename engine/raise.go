@@ -23,9 +23,11 @@ import "math"
 // nothing learned, building ties sleeping where both read as no risk, and
 // the draw among ties sometimes takes it.
 
-// SkillBuild is the skill of building places to rest.
+// SkillBuild is the skill of building places to rest, SkillTent of making
+// tents (tent.go).
 const (
 	SkillBuild = iota
+	SkillTent
 	NumSkills
 )
 
@@ -45,6 +47,9 @@ type Place struct {
 func (w *World) drawSkills(b *Body) {
 	if w.cfg.Building && w.rng.Float64() < w.cfg.BuildBorn {
 		b.Skill[SkillBuild] = 1
+	}
+	if w.cfg.Tents && w.rng.Float64() < w.cfg.TentBorn {
+		b.Skill[SkillTent] = 1
 	}
 }
 

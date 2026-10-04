@@ -56,10 +56,12 @@ func (w *World) feelWarm(b *Body) {
 		return
 	}
 	x, y := int(math.Floor(b.X)), int(math.Floor(b.Y))
-	if !w.m.ShelterAt(x, y) {
+	switch {
+	case w.m.ShelterAt(x, y):
+		w.rememberShelter(b, w.m.index(x, y)) // it stands on it
+	case !b.Tent.Pitched: // a tent is as warm (stage 8-2a)
 		return
 	}
-	w.rememberShelter(b, w.m.index(x, y)) // it stands on it
 	b.Memory.Warm[0] += w.planBurn(b) / w.ownBurn(b, true)
 	b.Memory.Warm[1]++
 }

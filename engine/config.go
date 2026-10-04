@@ -156,6 +156,14 @@ type Config struct {
 	// as ReuseWeight places (0 and 0: none expected until seen, 8-1).
 	OwnPlaces               bool
 	ReusePrior, ReuseWeight float64
+	// Tents lets a body born with the skill (TentBorn) make a tent as it
+	// falls asleep, paying TentEnergy, carry it, and pitch it wherever it
+	// sleeps, sleeping warm in it; it wears out TentLife ticks after it was
+	// made (stage 8-2a, tent.go). The nights a body expects to use one are
+	// pulled toward ReusePrior by ReuseWeight, as a built place's returns.
+	Tents                bool
+	TentBorn, TentEnergy float64
+	TentLife             int
 	// Ownership lets things on the ground have an owner, who alone may
 	// take them (stage 6-4c, own.go). No rule gives a thing an owner yet.
 	Ownership bool
@@ -430,7 +438,7 @@ func DefaultConfig() Config {
 		ShelterRead:        true,
 		PassShelters:       true,
 		Ownership:          true,
-		Building:           true,
+		Building:           false,
 		BuildBorn:          0.5,
 		BuildEnergy:        10,
 		BuildSide:          3,
@@ -438,6 +446,10 @@ func DefaultConfig() Config {
 		OwnPlaces:          true,
 		ReusePrior:         2,
 		ReuseWeight:        1,
+		Tents:              true,
+		TentBorn:           0.5,
+		TentEnergy:         10,
+		TentLife:           3000,
 		KeepHeading:        true,
 		TurnOffReverse:     true,
 		Recheck:            300,

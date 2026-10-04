@@ -143,6 +143,7 @@ func (w *World) Step() {
 		w.feelBurn(b)
 		w.feelWarm(b)
 		w.sleepTick(b)
+		w.foldTent(b)
 		w.seeLight(b)
 		w.stats.EnergyBurned += burn
 	}

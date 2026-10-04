@@ -31,7 +31,11 @@ const Straightback = "straightback"
 // wears out, and does not know which places are its own.
 const Neutral = "neutral"
 
-// Unbuilt is stage 6-5a: no body builds a place to rest.
+// Housed is stage 8-1b: no tents; bodies build places to rest as they fall
+// asleep.
+const Housed = "housed"
+
+// Unbuilt is stage 6-5a: no tents and no building.
 const Unbuilt = "unbuilt"
 
 // Untaught is stage 7-3e: parents do not pass where places to rest are.
@@ -219,8 +223,9 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func neutral(c *engine.Config)      { c.OwnPlaces, c.ReusePrior, c.ReuseWeight = false, 0, 0 }
-func unbuilt(c *engine.Config)      { neutral(c); c.Building = false }
+func housed(c *engine.Config)       { c.Tents, c.Building = false, true }
+func neutral(c *engine.Config)      { housed(c); c.OwnPlaces, c.ReusePrior, c.ReuseWeight = false, 0, 0 }
+func unbuilt(c *engine.Config)      { c.Tents, c.Building = false, false }
 func untaught(c *engine.Config)     { unbuilt(c); c.PassShelters = false }
 func sleepblind(c *engine.Config)   { untaught(c); c.SleepAhead = false }
 func unforced(c *engine.Config)     { sleepblind(c); c.ForceAt = 0 }
@@ -275,6 +280,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
 	Neutral:      neutral,
+	Housed:       housed,
 	Unbuilt:      unbuilt,
 	Untaught:     untaught,
 	Sleepblind:   sleepblind,

@@ -101,8 +101,8 @@ func (w *World) TempAt(x, y int) (float64, bool) {
 // (stage 7-4): 1 at NormalTemp, rising by 1 for each TempBurn degrees off
 // it, either way.
 func (w *World) tempBurn(b *Body) float64 {
-	if !w.cfg.Temperature {
-		return 1
+	if !w.cfg.Temperature || b.Tent.Pitched {
+		return 1 // a pitched tent keeps the cold out (stage 8-2a)
 	}
 	t, ok := w.TempAt(int(math.Floor(b.X)), int(math.Floor(b.Y)))
 	if !ok {

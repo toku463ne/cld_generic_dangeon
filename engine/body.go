@@ -49,6 +49,8 @@ type Body struct {
 	// Skill is the level of each skill it has (stage 8-1; 0 for none):
 	// for now only the ones it was born with.
 	Skill [NumSkills]float64 `json:",omitempty"`
+	// Tent is the tent it carries (Tents, stage 8-2a).
+	Tent Tent `json:",omitempty"`
 	// Rested is the tick a mother can mate again after a birth (with
 	// FemaleBears); zero for none yet.
 	Rested int64 `json:",omitempty"`
@@ -189,6 +191,9 @@ type Stats struct {
 	// begun on one by anyone but at its building, and Returns those of
 	// them by its builder.
 	Built, BuiltSleeps, Returns int64 `json:",omitempty"`
+	// TentsMade, TentNights and TentsWorn count the tents made, the nights
+	// one was pitched and the tents worn out (stage 8-2a).
+	TentsMade, TentNights, TentsWorn int64 `json:",omitempty"`
 	// SheltersPassed counts the places to rest passed from parent to child
 	// that the child did not know (stage 6-5a).
 	SheltersPassed int64 `json:",omitempty"`

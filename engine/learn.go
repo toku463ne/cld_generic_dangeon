@@ -113,6 +113,9 @@ type Memory struct {
 	// Own are the tiles of the places it built that it has not seen gone
 	// (OwnPlaces, stage 8-1b). They are not passed on.
 	Own map[int]bool `json:",omitempty"`
+	// TentUses counts the nights it pitched each tent it had that wore
+	// out: the sum and the tents (stage 8-2a).
+	TentUses [2]float64 `json:",omitempty"`
 	// Met are the bodies it has passed evidence with (tell.go).
 	Met map[int64]bool `json:",omitempty"`
 	// Ver counts the changes to the rows it can pass on; Told holds, for

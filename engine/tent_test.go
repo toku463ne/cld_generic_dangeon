@@ -1,0 +1,86 @@
+package engine
+
+import "testing"
+
+// Without tents and with building, the world is stage 8-1b: its
+// fingerprint is the one pinned then.
+func TestHousedIsStage81b(t *testing.T) {
+	const want = uint64(0xb14340e47db514ca)
+	cfg := testConfig(1)
+	cfg.Building, cfg.Tents = true, false
+	w, err := NewWorld(cfg, tempMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// A body with the skill falling asleep makes a tent where that reads as
+// less risk, paying for it; one with a tent pitches it and sleeps out of
+// the cold; the tent is folded on waking, and when it wears out the body
+// learns the nights it used it. A body without the skill makes none, and
+// nothing changes how a body sleeps but a sleep.
+func TestTent(t *testing.T) {
+	w := pairWorld(t, Body{ID: 0, X: 5.5, Y: 5.5, Energy: 60, Pressure: 0.5}, Body{ID: 1, X: 20.5, Y: 20.5, Energy: 60, Pressure: 0.5})
+	w.cfg.Tents = true
+	b, o := &w.bodies[0], &w.bodies[1]
+	b.Skill[SkillTent] = 1
+	w.howSleep(o, Action{Kind: ActSleep})
+	if o.Tent.Has {
+		t.Fatal("a body without the skill made a tent")
+	}
+	w.howSleep(b, Action{Kind: ActWait})
+	if b.Tent.Has {
+		t.Fatal("a tent was made without a sleep")
+	}
+	// Having learned the warmth and expecting nights in it, it makes one.
+	b.Memory.Warm = [2]float64{0.5, 1}
+	b.BurnFelt = 0
+	if w.tentCredit(b) <= 0 && w.planBurn(b) > w.tentWarm(b) {
+		t.Fatal("no credit for a tent with warmth learned")
+	}
+	w.cfg.ReusePrior = 50 // nights enough to outweigh the cost whatever the cold
+	w.howSleep(b, Action{Kind: ActSleep})
+	if !b.Tent.Has || !b.Tent.Pitched || b.Tent.Uses != 1 || b.Energy != 60-w.cfg.TentEnergy || w.stats.TentsMade != 1 {
+		t.Fatalf("tent %+v, energy %v", b.Tent, b.Energy)
+	}
+	if w.cfg.Temperature && w.tempBurn(b) != 1 {
+		t.Fatal("a pitched tent does not keep the cold out")
+	}
+	w.act(0, b, Action{Kind: ActSleep})
+	b.Asleep = false
+	w.foldTent(b)
+	if b.Tent.Pitched || !b.Tent.Has {
+		t.Fatalf("not folded on waking: %+v", b.Tent)
+	}
+	w.howSleep(b, Action{Kind: ActSleep})
+	if b.Tent.Uses != 2 || w.stats.TentsMade != 1 {
+		t.Fatalf("pitching again made another or did not count: %+v", b.Tent)
+	}
+	w.tick = b.Tent.Until
+	w.foldTent(b)
+	if b.Tent.Has || b.Memory.TentUses != [2]float64{2, 1} || w.stats.TentsWorn != 1 {
+		t.Fatalf("worn out: %+v, uses %v", b.Tent, b.Memory.TentUses)
+	}
+}
+
+// A body with nothing learned of warmth reads making a tent as the sleep
+// paid for: never less risk than sleeping as it is.
+func TestTentUnlearned(t *testing.T) {
+	w := pairWorld(t, Body{ID: 0, X: 5.5, Y: 5.5, Energy: 30, Pressure: 0.5}, Body{ID: 1, X: 20.5, Y: 20.5, Energy: 60})
+	b := &w.bodies[0]
+	if c := w.tentCredit(b); c != 0 {
+		t.Fatalf("credit %d with no warmth learned", c)
+	}
+	var rs rates
+	w.ratesOf(b, &rs)
+	win := w.pred.windows[0]
+	plain := w.sleepRiskAt(b, &rs, win, 0, w.planBurn(b), b.Energy)
+	made := w.sleepRiskAt(b, &rs, win, w.tentCredit(b), w.tentWarm(b), b.Energy-w.cfg.TentEnergy)
+	if made < plain {
+		t.Fatalf("an unlearned tent reads safer: %v < %v", made, plain)
+	}
+}

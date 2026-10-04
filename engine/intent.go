@@ -94,6 +94,7 @@ func (w *World) turn(b *Body) Action {
 	if w.sleepDue(b) {
 		a = w.dueSleep(b, a)
 	}
+	w.howSleep(b, a)
 	if w.trace != nil {
 		w.trace(*b, w.valuation, a)
 	}

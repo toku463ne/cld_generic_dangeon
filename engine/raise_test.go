@@ -7,7 +7,7 @@ import "testing"
 func TestUnbuiltIsStage65a(t *testing.T) {
 	const want = uint64(0x29581a36e5ebfa84)
 	cfg := testConfig(1)
-	cfg.Building = false
+	cfg.Building, cfg.Tents = false, false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
 		t.Fatal(err)
@@ -113,6 +113,7 @@ func TestBuildRisk(t *testing.T) {
 func TestNeutralIsStage81(t *testing.T) {
 	const want = uint64(0x7189c62dc5180e9f)
 	cfg := testConfig(1)
+	cfg.Building, cfg.Tents = true, false
 	cfg.OwnPlaces, cfg.ReusePrior, cfg.ReuseWeight = false, 0, 0
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {

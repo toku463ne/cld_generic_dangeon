@@ -74,6 +74,10 @@ func TestTriggersFire(t *testing.T) {
 	// (NODE.md: mating is not an intent); on this small map that is up to
 	// half of all ticks, which would hide decisions made every tick.
 	w.cfg.Requests = false
+	// With tents (stage 8-2a) bodies that have one read sleeping at its
+	// warmth and fall asleep before their sleep is due, and on this small
+	// map in 3000 ticks a due sleep may never come.
+	w.cfg.Tents = false
 	run(w, 3000)
 	st := w.Stats()
 	for k := TriggerFirst; k < NumTriggers; k++ {
