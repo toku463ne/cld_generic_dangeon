@@ -120,22 +120,26 @@ func (w *World) send(b *Body) {
 	w.stats.Sent++
 }
 
-// deliverFood puts the units whose way has ended on their place to rest:
-// on the tile sent to, or the nearest free land tile within two of it; with
-// none free the unit is lost, a vacancy.
+// deliverFood puts the units whose way has ended on the tile sent to.
+// With HomeRead (stage 6-4b) a unit finding food there waits on its way
+// until the tile is free (decaying meanwhile like any unit), so delivered
+// food lies only where the mother looks for it; without it (6-4a) the
+// unit goes to the nearest free land within two of the tile, or is lost.
 func (w *World) deliverFood() {
 	f := &w.food
 	kept := f.sending[:0]
 	for _, s := range f.sending {
-		if s.Arrive > w.tick {
+		if s.Arrive > w.tick || w.cfg.HomeRead && f.foodAt[s.Tile] != 0 {
 			kept = append(kept, s)
 			continue
 		}
 		f.held--
-		at := w.freeNear(s.Tile, 2)
-		if at < 0 {
-			f.lost++
-			continue
+		at := s.Tile
+		if !w.cfg.HomeRead {
+			if at = w.freeNear(s.Tile, 2); at < 0 {
+				f.lost++
+				continue
+			}
 		}
 		f.foods = append(f.foods, Food{X: at % w.m.Width, Y: at / w.m.Width})
 		f.born = append(f.born, s.Born)
@@ -183,40 +187,26 @@ func (w *World) noteDelivered(b *Body, t int) {
 	}
 }
 
-// homeRadius is how far from the tile sent to a delivered unit can lie
-// (deliverFood), and so where a mother at home looks for it.
-const homeRadius = 2
-
-// noteHome has resting mother b, at the place her food comes to after
-// asking for it, learn whether food was there (HomeRead, stage 6-4b).
+// noteHome has resting mother b, standing on the tile her food comes to
+// after asking for it, learn whether food was there (HomeRead, stage
+// 6-4b): what lies underfoot, which she sees.
 func (w *World) noteHome(b *Body) {
 	if !w.cfg.Learn || !w.cfg.HomeRead || !w.resting(b) || b.AskedAt <= b.HomeAt {
 		return
 	}
 	home, ok := w.restsAt(b)
-	if !ok {
-		return
-	}
-	hx, hy := home%w.m.Width, home/w.m.Width
-	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
-	if max(abs(bx-hx), abs(by-hy)) > homeRadius {
+	if !ok || w.tileOf(b.X, b.Y) != home {
 		return
 	}
 	found := 0.0
-	for y := hy - homeRadius; y <= hy+homeRadius; y++ {
-		for x := hx - homeRadius; x <= hx+homeRadius; x++ {
-			if w.m.InBounds(x, y) && w.foodOn(w.m.index(x, y)) >= 0 {
-				found = 1
-			}
-		}
-	}
-	w.observe(&b.Memory.Home, 1, found)
-	b.HomeAt = w.tick
-	if found > 0 {
+	if w.foodOn(home) >= 0 {
+		found = 1
 		w.stats.HomeFound++
 	} else {
 		w.stats.HomeMissed++
 	}
+	w.observe(&b.Memory.Home, 1, found)
+	b.HomeAt = w.tick
 }
 
 // homeAhead returns the place resting mother b's food comes to, if she

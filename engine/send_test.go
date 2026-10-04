@@ -9,6 +9,7 @@ func sendWorld(t *testing.T, energy float64) (*World, *Body, *Body) {
 	t.Helper()
 	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 60}, Body{ID: 1, X: 9.5, Y: 2.5, Energy: energy})
 	w.cfg.FemaleBears, w.cfg.FatherSends, w.cfg.SendGate, w.cfg.Provision = true, true, 0.01, false
+	w.cfg.HomeRead = true // delivered onto the tile sent to (6-4b)
 	w.cfg.ForceAt = 0
 	mother, father := &w.bodies[0], &w.bodies[1]
 	mother.Rested, mother.Partner, mother.Asks = w.tick+300, father.ID, 2
@@ -27,7 +28,8 @@ func sendWorld(t *testing.T, energy float64) (*World, *Body, *Body) {
 // A fed father on food sends it, while his resting mate has an ask open,
 // to the place she knows, and her ask is answered: it
 // leaves the ground, is on its way a tick for each Speed of it, keeps its
-// age, and lands there; the account closes throughout. A father whose
+// age, waits while the tile it is sent to has food on it, and lands there
+// once it is free; the account closes throughout. A father whose
 // life needs the unit keeps to his choice, and so does one whose mate has
 // not asked or knows no place to rest.
 func TestFatherSends(t *testing.T) {
@@ -50,10 +52,23 @@ func TestFatherSends(t *testing.T) {
 	if s.Tile != w.m.index(1, 1) || s.Arrive != w.tick+int64(8/w.cfg.Speed+0.5) || s.Mother != mother.ID {
 		t.Fatalf("sent %+v", s)
 	}
+	home := w.m.index(1, 1)
+	if w.foodOn(home) < 0 { // the tile taken: the unit waits on its way
+		w.food.foods = append(w.food.foods, Food{X: 1, Y: 1})
+		w.food.born = append(w.food.born, w.tick)
+		w.food.foodAt[home] = int32(len(w.food.foods))
+		w.food.onGround[w.m.Region[home]]++
+	}
 	for w.tick < s.Arrive {
 		w.tick++
 		w.deliverFood()
 	}
+	if len(w.food.sending) != 1 || w.Stats().Delivered != 0 {
+		t.Fatal("delivered onto a tile with food on it")
+	}
+	w.eatFood(w.foodOn(home))
+	w.tick++
+	w.deliverFood()
 	var at int
 	for tl := range w.food.delivered {
 		at = tl
@@ -61,8 +76,8 @@ func TestFatherSends(t *testing.T) {
 	if len(w.food.delivered) != 1 || w.foodOn(at) < 0 || w.Stats().Delivered != 1 || !w.FoodLedger().Balanced() {
 		t.Fatal("the unit did not come to the place")
 	}
-	if x, y := at%w.m.Width, at/w.m.Width; max(abs(x-1), abs(y-1)) > 2 {
-		t.Fatalf("delivered at (%d,%d), more than two from the place", x, y)
+	if at != w.m.index(1, 1) {
+		t.Fatalf("delivered at (%d,%d), not on the tile sent to", at%w.m.Width, at/w.m.Width)
 	}
 	w.noteDelivered(mother, at)
 	if w.Stats().MotherAte != 1 {

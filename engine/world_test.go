@@ -86,7 +86,7 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0x993f7961d722f3ac)
+	const want = uint64(0xf68b7173e11b46c2)
 	w, err := NewWorld(testConfig(1), tempMap())
 	if err != nil {
 		t.Fatal(err)
