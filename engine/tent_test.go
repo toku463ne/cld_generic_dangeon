@@ -2,22 +2,6 @@ package engine
 
 import "testing"
 
-// Without tents and with building, the world is stage 8-1b: its
-// fingerprint is the one pinned then.
-func TestHousedIsStage81b(t *testing.T) {
-	const want = uint64(0xb14340e47db514ca)
-	cfg := testConfig(1)
-	cfg.Building, cfg.Tents = true, false
-	w, err := NewWorld(cfg, tempMap())
-	if err != nil {
-		t.Fatal(err)
-	}
-	run(w, 1000)
-	if got := w.Fingerprint(); got != want {
-		t.Fatalf("fingerprint = %#x, want %#x", got, want)
-	}
-}
-
 // A body with the skill falling asleep makes a tent where that reads as
 // less risk, paying for it; one with a tent pitches it and sleeps out of
 // the cold; the tent is folded on waking, and when it wears out the body
@@ -93,7 +77,7 @@ func TestTentUnlearned(t *testing.T) {
 func TestAtduskIsStage82a(t *testing.T) {
 	const want = uint64(0x998e11891b32b064)
 	cfg := testConfig(1)
-	cfg.NightSaving, cfg.DropTents = false, false
+	cfg.NightSaving, cfg.DropTents, cfg.Building = false, false, false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
 		t.Fatal(err)
@@ -136,7 +120,7 @@ func TestColdFelt(t *testing.T) {
 func TestBuriedIsStage82a2(t *testing.T) {
 	const want = uint64(0x4cf99317cf4b51a6)
 	cfg := testConfig(1)
-	cfg.DropTents = false
+	cfg.DropTents, cfg.Building = false, false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
 		t.Fatal(err)

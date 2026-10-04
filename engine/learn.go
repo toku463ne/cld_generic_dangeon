@@ -110,8 +110,8 @@ type Memory struct {
 	// Reuse counts how often it slept again on a place it built before the
 	// place wore out: the sum and the places (stage 8-1).
 	Reuse [2]float64 `json:",omitempty"`
-	// Own are the tiles of the places it built that it has not seen gone
-	// (OwnPlaces, stage 8-1b). They are not passed on.
+	// Own are the tiles of the settlements it built that it has not seen
+	// gone (stage 8-2b). They are not passed on.
 	Own map[int]bool `json:",omitempty"`
 	// TentUses counts the nights it pitched each tent it had that wore
 	// out: the sum and the tents (stage 8-2a).

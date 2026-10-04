@@ -32,6 +32,9 @@ func TestFollowsIntentBetweenDecisions(t *testing.T) {
 			if b.Asleep || before[b.ID].Asleep {
 				continue // asleep, or woken this tick: it decides when awake
 			}
+			if b.Work.Site != 0 || before[b.ID].Work.Site != 0 {
+				continue // building is the skill's routine, not decided (8-2b)
+			}
 			if w.Tick()-b.Decided >= int64(w.cfg.Recheck) {
 				t.Fatalf("tick %d body %d: last decided at %d", w.Tick(), b.ID, b.Decided)
 			}

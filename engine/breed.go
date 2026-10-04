@@ -317,6 +317,7 @@ func (w *World) mate(b *Body, id int64) {
 	b.Energy -= w.birthShare(b)
 	p.Energy -= w.birthShare(p)
 	if w.bears() {
+		w.newMate(b.ID, p.ID) // their settlements take the other in (8-2b)
 		for _, x := range []*Body{b, p} {
 			if x.Sex == Female {
 				x.Rested = w.tick + int64(w.cfg.RecoverTicks)

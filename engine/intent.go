@@ -68,6 +68,13 @@ func (w *World) turn(b *Body) Action {
 	why := TriggerEveryTick
 	taken := w.takes(b)
 	w.tell(b)
+	if b.Work.Site != 0 {
+		// Building is the skill's routine (stage 8-2b).
+		a := w.work(b)
+		w.howSleep(b, a)
+		b.Intent, b.Goal, b.Decided = Action{Kind: ActWait}, -1, w.tick
+		return a
+	}
 	if w.cfg.Recheck > 0 {
 		under, saw := w.perceive(b)
 		mates := w.sawMates(b)
@@ -94,6 +101,7 @@ func (w *World) turn(b *Body) Action {
 	if w.sleepDue(b) {
 		a = w.dueSleep(b, a)
 	}
+	a = w.settleInstead(b, a)
 	w.howSleep(b, a)
 	if w.trace != nil {
 		w.trace(*b, w.valuation, a)

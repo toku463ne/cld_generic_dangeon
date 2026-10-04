@@ -29,6 +29,9 @@ func (w *World) noteShelters(b *Body) {
 				w.forgetPlace(b, w.m.index(x, y))
 				continue
 			}
+			if !w.mayEnter(b, w.m.index(x, y)) {
+				continue // another's settlement is no place to rest for it
+			}
 			w.rememberShelter(b, w.m.index(x, y))
 		}
 	}
@@ -87,11 +90,11 @@ func (w *World) shelterAhead(b *Body) (f Food, burn float64, ok bool) {
 	return f, burn, ok
 }
 
-// ownAhead returns the nearest place body b built and remembers, off the
-// tile it stands on (OwnPlaces, stage 8-1b); it is read only where
+// ownAhead returns the nearest settlement tile body b built and
+// remembers, off the tile it stands on (stage 8-2b); it is read only where
 // shelterAhead found a place to walk to.
 func (w *World) ownAhead(b *Body) (Food, bool) {
-	if !w.cfg.OwnPlaces || len(b.Memory.Own) == 0 {
+	if len(b.Memory.Own) == 0 {
 		return Food{}, false
 	}
 	return w.nearestOf(b, b.Memory.Own)
@@ -126,11 +129,8 @@ func (w *World) ShelterAt(x, y int) bool { return w.m.ShelterAt(x, y) }
 // sleeping there (valueInto): the walk at its burn now, SleepTicks asleep
 // at warm, then keeping on the move through place's region at woken. It
 // returns the ticks of the walk too. speed and burn are b's (speedOf,
-// readBurn), read once by the caller; credit is the place's worth beyond
-// the window, in grains, added to what the body can last (a place it
-// built, OwnPlaces).
-func (w *World) shelterRisk(b *Body, rs *rates, place Food, x, y float64, after, win, full int, warm, woken, speed, burn float64, credit int) (float64, int) {
-	after += credit
+// readBurn), read once by the caller.
+func (w *World) shelterRisk(b *Body, rs *rates, place Food, x, y float64, after, win, full int, warm, woken, speed, burn float64) (float64, int) {
 	k := walkTicks(gapTo(x, place.X), gapTo(y, place.Y), speed)
 	ku, ts := w.grains(k, burn), w.grains(w.cfg.SleepTicks, warm)
 	switch {

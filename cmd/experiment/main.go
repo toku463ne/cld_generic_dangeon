@@ -79,6 +79,9 @@ type result struct {
 	// places built, sleeps begun on them after the building, and those by
 	// their builders (stage 8-1)
 	built, builtSleeps, returns float64
+	// settlements begun, trips for food while building, sites given up
+	// (stage 8-2b)
+	begun, fetched, abandoned float64
 	// tents made, nights one was pitched, tents worn out (stage 8-2a)
 	tentsMade, tentNights, tentsWorn float64
 	// tents left by the dead and taken up (stage 8-2a3)
@@ -377,6 +380,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.asleep = float64(st.Actions[engine.ActSleep]) / math.Max(total, 1)
 	r.sheltered = float64(st.SleptSheltered) / math.Max(float64(st.Slept), 1)
 	r.built, r.builtSleeps, r.returns = float64(st.Built), float64(st.BuiltSleeps), float64(st.Returns)
+	r.begun, r.fetched, r.abandoned = float64(st.Begun), float64(st.Fetched), float64(st.Abandoned)
 	r.tentsMade, r.tentNights, r.tentsWorn = float64(st.TentsMade), float64(st.TentNights), float64(st.TentsWorn)
 	r.tentsDropped, r.tentsPicked = float64(st.TentsDropped), float64(st.TentsPicked)
 	for k, n := range st.Actions {
@@ -802,7 +806,10 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"睡眠不足による死", 2, func(r result) float64 { return r.sleepless }},
 		{"眠っている割合", 4, func(r result) float64 { return r.asleep }},
 		{"休める場所で始まった眠りの割合", 4, func(r result) float64 { return r.sheltered }},
+		{"始めた定住場所", 2, func(r result) float64 { return r.begun }},
 		{"建てた場所", 2, func(r result) float64 { return r.built }},
+		{"建てている途中で食べに行った", 2, func(r result) float64 { return r.fetched }},
+		{"あきらめた定住場所", 2, func(r result) float64 { return r.abandoned }},
 		{"建てた場所で始まった眠り", 2, func(r result) float64 { return r.builtSleeps }},
 		{"建てた本人が戻って眠った", 2, func(r result) float64 { return r.returns }},
 		{"作ったテント", 2, func(r result) float64 { return r.tentsMade }},

@@ -27,20 +27,15 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Unsettled is stage 8-2a3: no body builds a settlement.
+const Unsettled = "unsettled"
+
 // Buried is stage 8-2a2: a tent is lost with its owner.
 const Buried = "buried"
 
 // Atdusk is stage 8-2a: a night's saving in a tent is read at the burn of
 // falling asleep.
 const Atdusk = "atdusk"
-
-// Neutral is stage 8-1: a builder expects nothing of a place until one
-// wears out, and does not know which places are its own.
-const Neutral = "neutral"
-
-// Housed is stage 8-1b: no tents; bodies build places to rest as they fall
-// asleep.
-const Housed = "housed"
 
 // Unbuilt is stage 6-5a: no tents and no building.
 const Unbuilt = "unbuilt"
@@ -230,10 +225,9 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func buried(c *engine.Config)       { c.DropTents = false }
+func unsettled(c *engine.Config)    { c.Building = false }
+func buried(c *engine.Config)       { unsettled(c); c.DropTents = false }
 func atdusk(c *engine.Config)       { buried(c); c.NightSaving = false }
-func housed(c *engine.Config)       { c.Tents, c.Building = false, true }
-func neutral(c *engine.Config)      { housed(c); c.OwnPlaces, c.ReusePrior, c.ReuseWeight = false, 0, 0 }
 func unbuilt(c *engine.Config)      { c.Tents, c.Building = false, false }
 func untaught(c *engine.Config)     { unbuilt(c); c.PassShelters = false }
 func sleepblind(c *engine.Config)   { untaught(c); c.SleepAhead = false }
@@ -288,10 +282,9 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Unsettled:    unsettled,
 	Buried:       buried,
 	Atdusk:       atdusk,
-	Neutral:      neutral,
-	Housed:       housed,
 	Unbuilt:      unbuilt,
 	Untaught:     untaught,
 	Sleepblind:   sleepblind,

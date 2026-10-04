@@ -141,21 +141,17 @@ type Config struct {
 	// spend least energy over Window ticks are kept - the same chance of
 	// living on, for less of the body's energy.
 	TieSpend bool
-	// Building lets a body born with the skill to build (BuildBorn, the
-	// chance at birth) build a place to rest round it when it may sleep,
-	// paying BuildEnergy, and fall asleep there (stage 8-1, raise.go): the
-	// land in the BuildSide square round it becomes a place to rest for
-	// BuildLife ticks.
-	Building               bool
-	BuildBorn, BuildEnergy float64
-	BuildSide, BuildLife   int
-	// OwnPlaces has a builder remember the places it built as its own, and
-	// read walking back to one of them with the same worth beyond the
-	// window as building it (stage 8-1b). ReusePrior is the returns a
-	// builder expects of a place before it has seen any wear out, weighed
-	// as ReuseWeight places (0 and 0: none expected until seen, 8-1).
-	OwnPlaces               bool
-	ReusePrior, ReuseWeight float64
+	// Building lets a body born with the skill to build (BuildBorn) begin
+	// a settlement as it falls asleep (stage 8-2b, raise.go): it pays
+	// BuildEnergy, works BuildTicks on its site (going for food in sight
+	// when hungry and coming back), and the land in the BuildSide square
+	// round it becomes its family's for BuildLife ticks, closed to others.
+	// The nights a builder expects to come back are pulled toward
+	// ReusePrior by ReuseWeight places (tents share them).
+	Building                         bool
+	BuildBorn, BuildEnergy           float64
+	BuildSide, BuildLife, BuildTicks int
+	ReusePrior, ReuseWeight          float64
 	// Tents lets a body born with the skill (TentBorn) make a tent as it
 	// falls asleep, paying TentEnergy, carry it, and pitch it wherever it
 	// sleeps, sleeping warm in it; it wears out TentLife ticks after it was
@@ -448,12 +444,12 @@ func DefaultConfig() Config {
 		ShelterRead:        true,
 		PassShelters:       true,
 		Ownership:          true,
-		Building:           false,
+		Building:           true,
 		BuildBorn:          0.5,
 		BuildEnergy:        10,
 		BuildSide:          3,
-		BuildLife:          3000,
-		OwnPlaces:          true,
+		BuildLife:          8000,
+		BuildTicks:         100,
 		ReusePrior:         2,
 		ReuseWeight:        1,
 		Tents:              true,

@@ -51,6 +51,10 @@ type Body struct {
 	Skill [NumSkills]float64 `json:",omitempty"`
 	// Tent is the tent it carries (Tents, stage 8-2a).
 	Tent Tent `json:",omitempty"`
+	// Home is the ID of its settlement standing, zero for none, and Work
+	// the one it is building (Building, stage 8-2b).
+	Home int64 `json:",omitempty"`
+	Work Work  `json:",omitempty"`
 	// Rested is the tick a mother can mate again after a birth (with
 	// FemaleBears); zero for none yet.
 	Rested int64 `json:",omitempty"`
@@ -113,8 +117,7 @@ const (
 	// ActSleep falls asleep until the pressure falls to WakeAt (Sleep,
 	// stage 7-3b).
 	ActSleep
-	// ActBuild builds a place to rest here and falls asleep on it
-	// (Building, stage 8-1).
+	// ActBuild is a tick of work on a settlement (Building, stage 8-2b).
 	ActBuild
 	NumActionKinds
 )
@@ -191,6 +194,10 @@ type Stats struct {
 	// begun on one by anyone but at its building, and Returns those of
 	// them by its builder.
 	Built, BuiltSleeps, Returns int64 `json:",omitempty"`
+	// Begun, Fetched and Abandoned count the settlements begun, the times
+	// a builder went for food in sight, and the sites given up (stage
+	// 8-2b).
+	Begun, Fetched, Abandoned int64 `json:",omitempty"`
 	// TentsMade, TentNights and TentsWorn count the tents made, the nights
 	// one was pitched and the tents worn out (stage 8-2a).
 	TentsMade, TentNights, TentsWorn int64 `json:",omitempty"`
@@ -263,13 +270,10 @@ func (w *World) possibleActions(dst []Action, b *Body) []Action {
 	if w.cfg.Sleep && b.Pressure > w.cfg.WakeAt {
 		dst = append(dst, Action{Kind: ActSleep})
 	}
-	if w.canBuild(b) {
-		dst = append(dst, Action{Kind: ActBuild})
-	}
 	for d, v := range moveDirs {
 		x, y := b.X+v[0]*w.speedOf(b), b.Y+v[1]*w.speedOf(b)
 		t := w.tileOf(x, y)
-		if t >= 0 && w.m.Terrain[t] == TerrainLand && !w.blocks(b, x, y) {
+		if t >= 0 && w.m.Terrain[t] == TerrainLand && !w.blocks(b, x, y) && w.mayEnter(b, t) {
 			dst = append(dst, Action{Kind: ActMove, Dir: d})
 		}
 	}
@@ -303,7 +307,7 @@ func (w *World) act(i int, b *Body, a Action) {
 		w.noteReturn(b, w.tileOf(b.X, b.Y))
 		w.fallAsleep(b)
 	case ActBuild:
-		w.build(b)
+		w.buildTick(b)
 	case ActPick:
 		t := w.tileOf(b.X, b.Y)
 		w.takeFood(w.foodFor(b, t), b)
@@ -340,7 +344,7 @@ func (w *World) step(i int, b *Body, d int) {
 func (w *World) stepTowards(i int, b *Body, d int) {
 	v := moveDirs[d]
 	x, y := b.X+v[0]*w.speedOf(b), b.Y+v[1]*w.speedOf(b)
-	if t := w.tileOf(x, y); t >= 0 && w.m.Terrain[t] == TerrainLand && !w.blocks(b, x, y) {
+	if t := w.tileOf(x, y); t >= 0 && w.m.Terrain[t] == TerrainLand && !w.blocks(b, x, y) && w.mayEnter(b, t) {
 		w.step(i, b, d)
 	}
 }
