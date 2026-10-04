@@ -625,9 +625,13 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 // keeps on the move through the region it is in for the rest of the
 // window. reserve is what it holds and any rest left (valueInto).
 func (w *World) sleepRisk(b *Body, rs *rates, win, reserve int) float64 {
+	return w.sleepRiskAt(b, rs, win, reserve, w.planBurn(b), b.Energy)
+}
+
+// sleepRiskAt is sleepRisk for a sleep at burn now, from energy.
+func (w *World) sleepRiskAt(b *Body, rs *rates, win, reserve int, now, energy float64) float64 {
 	ticks := w.cfg.SleepTicks
-	now := w.planBurn(b)
-	left := b.Energy - now*float64(ticks)
+	left := energy - now*float64(ticks)
 	if left <= 0 {
 		return 1
 	}

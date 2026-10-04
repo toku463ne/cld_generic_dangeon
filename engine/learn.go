@@ -619,6 +619,25 @@ func (w *World) Rates(b Body) (region, path []float64) {
 	return append([]float64(nil), rs.region...), append([]float64(nil), rs.path...)
 }
 
+// SleepHereRisk is the risk in the first window of body b, as a learning
+// body reads it, of falling asleep here now at burn asleep with energy
+// cost spent first: what sleeping on a warm place built where it stands
+// would read as (stage 8, the buildroom count). It reads and changes
+// nothing.
+func (w *World) SleepHereRisk(b Body, asleep, cost float64) float64 {
+	if w.cfg.Window <= 0 || !w.cfg.Learn {
+		return math.NaN()
+	}
+	var rs rates
+	w.ratesOf(&b, &rs)
+	reserve := w.restReserve(&b) + b.Held*w.pred.meal
+	return w.sleepRiskAt(&b, &rs, w.pred.windows[0], reserve, asleep, b.Energy-cost)
+}
+
+// OwnBurn is the burn body b knows of its own body, ahead (build, rest,
+// debt; no cold): what it burns on a warm place. For counts.
+func (w *World) OwnBurn(b Body) float64 { return w.ownBurn(&b, true) }
+
 // SightGain is the factor sight puts on keeping on the move at the light
 // now (SightRead); 1 without it. For counts.
 func (w *World) SightGain() float64 { return w.sightGain() }
