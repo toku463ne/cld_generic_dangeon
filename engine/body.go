@@ -59,6 +59,11 @@ type Body struct {
 	// the tick she was last at the place it comes to after asking (stage
 	// 6-4b).
 	AskedAt, HomeAt int64 `json:",omitempty"`
+	// Home is a mother's home for her rest plus one, zero for none, and
+	// AtHome whether she stood on it at her last decision (HomeKeep, stage
+	// 6-4d).
+	Home   int  `json:",omitempty"`
+	AtHome bool `json:",omitempty"`
 	// Requested is the tick its request to mate stays open until (with
 	// Requests); zero or past for none.
 	Requested int64 `json:",omitempty"`

@@ -92,6 +92,7 @@ func TestShelterWalk(t *testing.T) {
 func TestShelterblindIsStage61a(t *testing.T) {
 	const want = uint64(0x4837b6704b743d89)
 	cfg := testConfig(1)
+	cfg.HomeKeep = false
 	cfg.Ownership = false
 	cfg.HideShelter, cfg.HomeRead = false, false
 	cfg.FatherSends, cfg.Provision = false, true

@@ -52,6 +52,7 @@ func TestOwnership(t *testing.T) {
 func TestOwnerlessIsStage64b(t *testing.T) {
 	const want = uint64(0xf68b7173e11b46c2)
 	cfg := testConfig(1)
+	cfg.HomeKeep = false
 	cfg.Ownership = false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {

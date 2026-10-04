@@ -27,6 +27,10 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Homeforget is stage 6-4c: a mother's home is the place to rest nearest
+// her now, and she reads it only until a visit after asking.
+const Homeforget = "homeforget"
+
 // Ownerless is stage 6-4b: nothing on the ground has an owner.
 const Ownerless = "ownerless"
 
@@ -223,7 +227,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func ownerless(c *engine.Config)    { c.Ownership = false }
+func homeforget(c *engine.Config)   { c.HomeKeep = false }
+func ownerless(c *engine.Config)    { homeforget(c); c.Ownership = false }
 func homeless(c *engine.Config)     { ownerless(c); c.HideShelter, c.HomeRead = false, false }
 func fatherless(c *engine.Config)   { homeless(c); c.FatherSends, c.Provision = false, true }
 func untaught(c *engine.Config)     { fatherless(c); c.PassShelters = false }
@@ -279,6 +284,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Homeforget:   homeforget,
 	Ownerless:    ownerless,
 	Homeless:     homeless,
 	Fatherless:   fatherless,

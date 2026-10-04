@@ -75,7 +75,7 @@ func (w *World) sendInstead(b *Body, a Action) Action {
 	if t := w.tileOf(b.X, b.Y); t < 0 || w.foodFor(b, t) < 0 {
 		return a
 	}
-	if _, ok := w.restsAt(&w.bodies[mi]); !ok {
+	if _, ok := w.homeOf(&w.bodies[mi]); !ok {
 		return a
 	}
 	v := &w.valuation
@@ -105,7 +105,7 @@ func (w *World) send(b *Body) {
 		return
 	}
 	m := &w.bodies[mi]
-	dest, ok := w.restsAt(m)
+	dest, ok := w.homeOf(m)
 	if !ok {
 		return
 	}
@@ -194,14 +194,22 @@ func (w *World) noteDelivered(b *Body, t int) {
 
 // noteHome has resting mother b, standing on the tile her food comes to
 // after asking for it, learn whether food was there (HomeRead, stage
-// 6-4b): what lies underfoot, which she sees.
+// 6-4b): what lies underfoot, which she sees. With HomeKeep (6-4d) she
+// learns once at each arrival, as long as she has asked in this rest.
 func (w *World) noteHome(b *Body) {
-	if !w.cfg.Learn || !w.cfg.HomeRead || !w.resting(b) || b.AskedAt <= b.HomeAt {
+	if !w.cfg.Learn || !w.cfg.HomeRead || !w.resting(b) || !w.homeAsked(b) {
 		return
 	}
-	home, ok := w.restsAt(b)
+	home, ok := w.homeOf(b)
 	if !ok || w.tileOf(b.X, b.Y) != home {
+		b.AtHome = false
 		return
+	}
+	if w.cfg.HomeKeep {
+		if b.AtHome {
+			return // still there: learned at the arrival
+		}
+		b.AtHome = true
 	}
 	found := 0.0
 	if w.foodFor(b, home) >= 0 {
@@ -218,12 +226,31 @@ func (w *World) noteHome(b *Body) {
 // has asked since she was last there, and the chance she reads food there
 // at (HomeRead, stage 6-4b).
 func (w *World) homeAhead(b *Body) (Food, float64, bool) {
-	if !w.cfg.Learn || !w.cfg.HomeRead || !w.resting(b) || b.AskedAt <= b.HomeAt {
+	if !w.cfg.Learn || !w.cfg.HomeRead || !w.resting(b) || !w.homeAsked(b) {
 		return Food{}, 0, false
 	}
-	home, ok := w.restsAt(b)
+	home, ok := w.homeOf(b)
 	if !ok {
 		return Food{}, 0, false
 	}
 	return Food{X: home % w.m.Width, Y: home / w.m.Width}, w.Fresh(b.Memory.Home).estimate(w.cfg.PriorSpot, w.cfg.SpotWeight), true
+}
+
+// homeOf is the tile mother m's food is sent to: with HomeKeep her home
+// for the rest (6-4d), otherwise the place to rest nearest her now.
+func (w *World) homeOf(m *Body) (int, bool) {
+	if w.cfg.HomeKeep {
+		return m.Home - 1, m.Home > 0
+	}
+	return w.restsAt(m)
+}
+
+// homeAsked reports whether resting mother b reads home: with HomeKeep,
+// once she has asked in this rest (she does not give up after a visit that
+// found nothing, 6-4d); otherwise if she asked since her last visit (6-4b).
+func (w *World) homeAsked(b *Body) bool {
+	if w.cfg.HomeKeep {
+		return b.AskedAt > b.Rested-int64(w.cfg.RecoverTicks)
+	}
+	return b.AskedAt > b.HomeAt
 }

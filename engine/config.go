@@ -161,6 +161,12 @@ type Config struct {
 	// take them (stage 6-4c, own.go); the food a father sends is the
 	// mother's. Off, sent food is anyone's (6-4b).
 	Ownership bool
+	// HomeKeep fixes a mother's home at a birth - the place to rest
+	// nearest her that she knows - for the whole rest: her food is sent
+	// there and she reads it there (stage 6-4d). And she keeps reading it
+	// as where her food is likely through the rest of her rest once she has
+	// asked, a visit finding nothing or not, learning at each arrival.
+	HomeKeep bool
 	// KeepHeading breaks ties by the body's last move: when the options of
 	// least risk include moving the way it last moved, it moves that way,
 	// and it draws at random among them otherwise - where the land ends,
@@ -436,6 +442,7 @@ func DefaultConfig() Config {
 		HideShelter:        true,
 		HomeRead:           true,
 		Ownership:          true,
+		HomeKeep:           true,
 		KeepHeading:        true,
 		TurnOffReverse:     true,
 		Recheck:            300,
