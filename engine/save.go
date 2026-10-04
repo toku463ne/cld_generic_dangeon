@@ -20,7 +20,7 @@ import (
 // saved, so that a loaded world can build them before play (World.Warm).
 
 // snapshotVersion changes whenever the format does.
-const snapshotVersion = 37
+const snapshotVersion = 38
 
 type snapshot struct {
 	Version int    `json:"version"`
@@ -44,11 +44,6 @@ type snapshot struct {
 	Lost   int64 `json:"lost,omitempty"`
 	// Decayed counts the units that decayed (FoodLife).
 	Decayed int64 `json:"decayed,omitempty"`
-	// Sending and Delivered are the units fathers sent, on their way, and
-	// the delivered units on the ground by the mother they were sent to
-	// (stage 6-4a).
-	Sending   []Sent        `json:"sending,omitempty"`
-	Delivered map[int]int64 `json:"delivered,omitempty"`
 
 	Bodies []Body `json:"bodies"`
 	NextID int64  `json:"nextID"`
@@ -79,8 +74,6 @@ func (w *World) Save(out io.Writer) error {
 		Picked:      w.food.picked,
 		Lost:        w.food.lost,
 		Decayed:     w.food.decayed,
-		Sending:     w.food.sending,
-		Delivered:   w.food.delivered,
 		Bodies:      w.bodies,
 		NextID:      w.nextID,
 		Stats:       w.stats,
@@ -119,14 +112,6 @@ func Load(in io.Reader) (*World, error) {
 	w.food.owner = append(w.food.owner, s.FoodOwner...)
 	for _, b := range w.bodies {
 		w.food.held += b.Held
-	}
-	w.food.sending = append(w.food.sending, s.Sending...)
-	w.food.held += len(s.Sending)
-	if len(s.Delivered) > 0 {
-		w.food.delivered = map[int]int64{}
-		for t, m := range s.Delivered {
-			w.food.delivered[t] = m
-		}
 	}
 	for _, f := range s.Foods {
 		if !w.m.InBounds(f.X, f.Y) {

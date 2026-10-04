@@ -320,13 +320,6 @@ func (w *World) mate(b *Body, id int64) {
 		for _, x := range []*Body{b, p} {
 			if x.Sex == Female {
 				x.Rested = w.tick + int64(w.cfg.RecoverTicks)
-				if w.cfg.HomeKeep {
-					// Her home for this rest (6-4d).
-					x.Home = 0
-					if t, ok := w.restsAt(x); ok {
-						x.Home = t + 1
-					}
-				}
 				x.Partner = b.ID + p.ID - x.ID // the other
 			}
 		}

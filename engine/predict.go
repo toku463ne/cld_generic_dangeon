@@ -375,11 +375,6 @@ type Valuation struct {
 	// Shelter is the place to rest the body may walk to and sleep at
 	// (stage 6-1b), if any; a Plan past Recalled points to it.
 	Shelter []Food
-	// Home is the place a resting mother's food comes to, read as a unit
-	// there with chance HomeP (stage 6-4b); a Plan past Shelter points to
-	// it.
-	Home  []Food
-	HomeP float64
 	// Spend is, for each option, the energy the plan its risk was read
 	// from spends over Window ticks (stage 6-3a): what TieSpend breaks
 	// ties by.
@@ -398,10 +393,7 @@ func (v *Valuation) unit(i int) Food {
 	if i -= len(v.Seen); i < len(v.Recalled) {
 		return v.Recalled[i]
 	}
-	if i -= len(v.Recalled); i < len(v.Shelter) {
-		return v.Shelter[i]
-	}
-	return v.Home[i-len(v.Shelter)]
+	return v.Shelter[i-len(v.Recalled)]
 }
 
 // Value predicts and values every option body b has now. survival is the
@@ -445,12 +437,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 	}
 	// A place to rest to walk to and sleep at (stage 6-1b): the sleep
 	// there burns warm, and the body wakes to its burn as from any sleep.
-	v.Shelter, v.Home = v.Shelter[:0], v.Home[:0]
-	if rs != nil {
-		if f, p, ok := w.homeAhead(b); ok {
-			v.Home, v.HomeP = append(v.Home, f), p
-		}
-	}
+	v.Shelter = v.Shelter[:0]
 	var warm, woken float64
 	if rs != nil {
 		if f, burn, ok := w.shelterAhead(b); ok {
@@ -568,25 +555,6 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			// (stage 6-3a).
 			if r < risk || w.cfg.TieSpend && r == risk && sleepSpend(k, warm, w.wokenBurn(b)) < spendNow {
 				risk, plan, arrive = r, len(v.Seen)+len(v.Recalled)+f, k
-			}
-		}
-		// Or, a resting mother who asked for food, walk home to it (stage
-		// 6-4b): there with chance HomeP, eaten as one in sight; gone,
-		// she keeps on the move from there.
-		for f, home := range v.Home {
-			k := walkTicks(gapTo(x, home.X), gapTo(y, home.Y), speed)
-			ku := grainsOf(k)
-			r := 1.0
-			if after-ku > 0 {
-				fill := top
-				if room {
-					fill += meal
-				}
-				at := alive(w.m.RegionAt(home.X, home.Y))
-				r = v.HomeP*at.deadAtLeast(win-1-ku, min(after-ku+meal, fill)-1) + (1-v.HomeP)*at.deadAtLeast(win-ku, after-ku)
-			}
-			if r < risk {
-				risk, plan, arrive = r, len(v.Seen)+len(v.Recalled)+len(v.Shelter)+f, k
 			}
 		}
 		return risk, plan, arrive
@@ -716,7 +684,7 @@ func (w *World) inSight(dst []Food, b *Body) []Food {
 	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
 	for y := by - sight; y <= by+sight; y++ {
 		for x := bx - sight; x <= bx+sight; x++ {
-			if w.m.InBounds(x, y) && w.foodFor(b, w.m.index(x, y)) >= 0 && w.seesFood(b, bx, by, x, y) {
+			if w.m.InBounds(x, y) && w.foodFor(b, w.m.index(x, y)) >= 0 && w.seesFrom(b, bx, by, x, y) {
 				dst = append(dst, Food{X: x, Y: y})
 			}
 		}

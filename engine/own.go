@@ -12,8 +12,7 @@ package engine
 // change owner otherwise; taking another's (stealing) and handing over
 // (trading) will be rules of their own, written as exceptions to mayTake.
 //
-// Food that comes back has no owner. Food a father sends a mother is hers
-// (FatherSends, with Ownership).
+// Food that comes back has no owner, and no rule yet gives a thing one.
 
 // noOwner is the owner of a thing nobody owns.
 const noOwner int64 = -1

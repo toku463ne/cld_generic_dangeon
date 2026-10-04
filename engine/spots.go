@@ -33,7 +33,7 @@ func (w *World) noteSpots(b *Body) {
 	s := w.Sight()
 	for y := by - s; y <= by+s; y++ {
 		for x := bx - s; x <= bx+s; x++ {
-			if !w.m.InBounds(x, y) || !w.seesFood(b, bx, by, x, y) {
+			if !w.m.InBounds(x, y) || !w.seesFrom(b, bx, by, x, y) {
 				continue
 			}
 			t := w.m.index(x, y)

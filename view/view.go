@@ -99,7 +99,7 @@ type decision struct {
 	child []float64
 	seen  []engine.Food
 	// units are what a plan can point to: food seen, then remembered, then
-	// a place to sleep (6-1b) and home (6-4b).
+	// a place to sleep (6-1b).
 	units []engine.Food
 	// kinds name what each of units is.
 	kinds  []string
@@ -256,7 +256,7 @@ func (v *View) trace(b engine.Body, val engine.Valuation, a engine.Action) {
 		tick: v.W.Tick(), body: b, chosen: a, why: val.Why,
 		opts:   append([]engine.Action(nil), val.Options...),
 		seen:   append([]engine.Food(nil), val.Seen...),
-		units:  append(append(append(append([]engine.Food(nil), val.Seen...), val.Recalled...), val.Shelter...), val.Home...),
+		units:  append(append(append([]engine.Food(nil), val.Seen...), val.Recalled...), val.Shelter...),
 		kinds:  unitKinds(val),
 		plan:   append([]int(nil), val.Plan...),
 		arrive: append([]int(nil), val.Arrive...),
@@ -824,13 +824,13 @@ func (v *View) ZoomOut() { v.zoom = min(v.zoom+1, len(ticksPerPixel)-1) }
 func (v *View) ZoomIn() { v.zoom = max(v.zoom-1, 0) }
 
 // unitKinds names what each unit a plan can point to is, in the order of
-// units: food seen, remembered, a place to sleep, home.
+// units: food seen, remembered, a place to sleep.
 func unitKinds(v engine.Valuation) []string {
 	var ks []string
 	for _, n := range []struct {
 		k string
 		n int
-	}{{"food", len(v.Seen)}, {"remembered food", len(v.Recalled)}, {"a place to sleep", len(v.Shelter)}, {"home", len(v.Home)}} {
+	}{{"food", len(v.Seen)}, {"remembered food", len(v.Recalled)}, {"a place to sleep", len(v.Shelter)}} {
 		for i := 0; i < n.n; i++ {
 			ks = append(ks, n.k)
 		}

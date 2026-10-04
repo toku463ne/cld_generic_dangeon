@@ -86,7 +86,6 @@ func (w *World) turn(b *Body) Action {
 	w.stats.Decisions[why]++
 	w.noteSpots(b)
 	w.noteShelters(b)
-	w.noteHome(b)
 	w.valuation.Why = why
 	a := w.decide(b)
 	if taken {
@@ -95,7 +94,6 @@ func (w *World) turn(b *Body) Action {
 	if w.sleepDue(b) {
 		a = w.dueSleep(b, a)
 	}
-	a = w.sendInstead(b, a)
 	if w.trace != nil {
 		w.trace(*b, w.valuation, a)
 	}
@@ -145,7 +143,7 @@ func (w *World) perceive(b *Body) (under bool, saw uint64) {
 	n := uint64(0)
 	for y := by - sight; y <= by+sight; y++ {
 		for x := bx - sight; x <= bx+sight; x++ {
-			if w.m.InBounds(x, y) && w.seesFood(b, bx, by, x, y) {
+			if w.m.InBounds(x, y) && w.seesFrom(b, bx, by, x, y) {
 				if t := w.m.index(x, y); w.foodFor(b, t) >= 0 {
 					off := (y-by+sight)*(2*sight+1) + x - bx + sight
 					saw = (saw ^ uint64(off)) * prime

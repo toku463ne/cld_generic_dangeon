@@ -54,10 +54,6 @@ func TestForcedSleep(t *testing.T) {
 func TestUnforcedIsStage61b(t *testing.T) {
 	const want = uint64(0x35148fa949adaa70)
 	cfg := testConfig(1)
-	cfg.HomeKeep = false
-	cfg.Ownership = false
-	cfg.HideShelter, cfg.HomeRead = false, false
-	cfg.FatherSends, cfg.Provision = false, true
 	cfg.ForceAt = 0
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {

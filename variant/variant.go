@@ -27,21 +27,6 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
-// Homeforget is stage 6-4c: a mother's home is the place to rest nearest
-// her now, and she reads it only until a visit after asking.
-const Homeforget = "homeforget"
-
-// Ownerless is stage 6-4b: nothing on the ground has an owner.
-const Ownerless = "ownerless"
-
-// Homeless is stage 6-4a: food on a place to rest shows from anywhere, and
-// a mother does not read home as where her food comes.
-const Homeless = "homeless"
-
-// Fatherless is stage 6-5a: resting mothers are provisioned, and fathers
-// send nothing.
-const Fatherless = "fatherless"
-
 // Untaught is stage 7-3e: parents do not pass where places to rest are.
 const Untaught = "untaught"
 
@@ -227,11 +212,7 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func homeforget(c *engine.Config)   { c.HomeKeep = false }
-func ownerless(c *engine.Config)    { homeforget(c); c.Ownership = false }
-func homeless(c *engine.Config)     { ownerless(c); c.HideShelter, c.HomeRead = false, false }
-func fatherless(c *engine.Config)   { homeless(c); c.FatherSends, c.Provision = false, true }
-func untaught(c *engine.Config)     { fatherless(c); c.PassShelters = false }
+func untaught(c *engine.Config)     { c.PassShelters = false }
 func sleepblind(c *engine.Config)   { untaught(c); c.SleepAhead = false }
 func unforced(c *engine.Config)     { sleepblind(c); c.ForceAt = 0 }
 func shelterblind(c *engine.Config) { unforced(c); c.ShelterRead = false }
@@ -284,10 +265,6 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
-	Homeforget:   homeforget,
-	Ownerless:    ownerless,
-	Homeless:     homeless,
-	Fatherless:   fatherless,
 	Untaught:     untaught,
 	Sleepblind:   sleepblind,
 	Unforced:     unforced,

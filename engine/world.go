@@ -43,10 +43,7 @@ type World struct {
 	// valuation is scratch space for the decision of the body acting now.
 	valuation Valuation
 	ties      []int
-	// mateOf maps each father of a resting mother to her index among the
-	// bodies this tick (FatherSends, stage 6-4a).
-	mateOf map[int64]int
-	rates  rates // a learning body's estimates, for the decision under way
+	rates     rates // a learning body's estimates, for the decision under way
 
 	// died is the tick each body died, for the provenance instrument
 	// (provenance.go). No rule reads it; it is neither saved nor
@@ -117,11 +114,6 @@ func (w *World) Step() {
 	w.listAsking()
 	w.decayFood()
 	w.returnFood()
-	w.deliverFood()
-	if w.cfg.FatherSends && !w.cfg.Provision {
-		w.askProvision() // what fathers answer (6-4a); with Provision, returnFood asks
-	}
-	w.listMates()
 	for i := range w.bodies {
 		b := &w.bodies[i]
 		if b.Mature == w.tick && b.Mature > 0 {
@@ -236,15 +228,6 @@ func (w *World) Sight() int { return w.cfg.Sight }
 // share of the square it sees follows the light, and at one light the same
 // tiles stay seen, so the light alone does not keep a body re-deciding.
 // Nothing is drawn from the random source.
-// seesFood is seesFrom for food: with HideShelter, food on a place to rest
-// is seen only from a place to rest (stage 6-4b).
-func (w *World) seesFood(b *Body, tx, ty, x, y int) bool {
-	if w.cfg.HideShelter && w.m.ShelterAt(x, y) && !w.m.ShelterAt(tx, ty) {
-		return false
-	}
-	return w.seesFrom(b, tx, ty, x, y)
-}
-
 func (w *World) sees(b *Body, x, y int) bool {
 	t := w.tileOf(b.X, b.Y)
 	return w.seesFrom(b, t%w.m.Width, t/w.m.Width, x, y)
@@ -428,10 +411,10 @@ func (w *World) Fingerprint() uint64 {
 			if w.bears() {
 				put(uint64(b.Rested))
 			}
-			if w.bears() && (w.cfg.Provision || w.cfg.FatherSends) {
+			if w.bears() && w.cfg.Provision {
 				put(uint64(b.Partner))
 			}
-			if w.bears() && (w.cfg.Provision || w.cfg.FatherSends) && w.cfg.ProvisionEach {
+			if w.bears() && w.cfg.Provision && w.cfg.ProvisionEach {
 				put(uint64(b.Asks))
 			}
 			if w.cfg.Requests {

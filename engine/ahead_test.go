@@ -59,10 +59,6 @@ func TestSleepAhead(t *testing.T) {
 func TestSleepblindIsStage73d(t *testing.T) {
 	const want = uint64(0x897e8d0ad6f500c1)
 	cfg := testConfig(1)
-	cfg.HomeKeep = false
-	cfg.Ownership = false
-	cfg.HideShelter, cfg.HomeRead = false, false
-	cfg.FatherSends, cfg.Provision = false, true
 	cfg.SleepAhead = false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
