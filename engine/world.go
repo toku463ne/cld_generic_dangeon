@@ -171,6 +171,7 @@ func (w *World) removeDead() {
 			}
 			w.died[b.ID] = w.tick
 			w.loseHeld(&b)
+			w.release(b.ID)
 			w.stats.Deaths[cause]++
 			w.stats.BudgetOut += b.Budget
 			if w.tick < b.Mature {

@@ -157,6 +157,10 @@ type Config struct {
 	// there with the chance her own visits there after asking found food
 	// (pulled toward PriorSpot by SpotWeight, as the spot row is).
 	HideShelter, HomeRead bool
+	// Ownership lets things on the ground have an owner, who alone may
+	// take them (stage 6-4c, own.go); the food a father sends is the
+	// mother's. Off, sent food is anyone's (6-4b).
+	Ownership bool
 	// KeepHeading breaks ties by the body's last move: when the options of
 	// least risk include moving the way it last moved, it moves that way,
 	// and it draws at random among them otherwise - where the land ends,
@@ -431,6 +435,7 @@ func DefaultConfig() Config {
 		SendGate:           0.01,
 		HideShelter:        true,
 		HomeRead:           true,
+		Ownership:          true,
 		KeepHeading:        true,
 		TurnOffReverse:     true,
 		Recheck:            300,

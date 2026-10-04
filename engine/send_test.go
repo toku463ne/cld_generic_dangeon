@@ -18,6 +18,7 @@ func sendWorld(t *testing.T, energy float64) (*World, *Body, *Body) {
 	if w.foodOn(tile) < 0 {
 		w.food.foods = append(w.food.foods, Food{X: tile % w.m.Width, Y: tile / w.m.Width})
 		w.food.born = append(w.food.born, w.tick)
+		w.food.owner = append(w.food.owner, noOwner)
 		w.food.foodAt[tile] = int32(len(w.food.foods))
 		w.food.onGround[w.m.Region[tile]]++
 	}
@@ -56,6 +57,7 @@ func TestFatherSends(t *testing.T) {
 	if w.foodOn(home) < 0 { // the tile taken: the unit waits on its way
 		w.food.foods = append(w.food.foods, Food{X: 1, Y: 1})
 		w.food.born = append(w.food.born, w.tick)
+		w.food.owner = append(w.food.owner, noOwner)
 		w.food.foodAt[home] = int32(len(w.food.foods))
 		w.food.onGround[w.m.Region[home]]++
 	}
@@ -108,6 +110,7 @@ func TestFatherSends(t *testing.T) {
 func TestFatherlessIsStage65a(t *testing.T) {
 	const want = uint64(0x29581a36e5ebfa84)
 	cfg := testConfig(1)
+	cfg.Ownership = false
 	cfg.HideShelter, cfg.HomeRead = false, false
 	cfg.FatherSends, cfg.Provision = false, true
 	w, err := NewWorld(cfg, tempMap())
@@ -161,6 +164,7 @@ func TestHomeRead(t *testing.T) {
 func TestHomelessIsStage64a(t *testing.T) {
 	const want = uint64(0x910c4709afac44ef)
 	cfg := testConfig(1)
+	cfg.Ownership = false
 	cfg.HideShelter, cfg.HomeRead = false, false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {

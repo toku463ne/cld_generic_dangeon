@@ -20,7 +20,7 @@ import (
 // saved, so that a loaded world can build them before play (World.Warm).
 
 // snapshotVersion changes whenever the format does.
-const snapshotVersion = 35
+const snapshotVersion = 36
 
 type snapshot struct {
 	Version int    `json:"version"`
@@ -32,8 +32,10 @@ type snapshot struct {
 	Foods    []Food    `json:"foods"`
 	FoodOwed []float64 `json:"foodOwed"`
 	FoodBorn []int64   `json:"foodBorn"`
-	Appeared int64     `json:"appeared"`
-	Eaten    int64     `json:"eaten"`
+	// FoodOwner is each unit's owner (stage 6-4c), noOwner for none.
+	FoodOwner []int64 `json:"foodOwner,omitempty"`
+	Appeared  int64   `json:"appeared"`
+	Eaten     int64   `json:"eaten"`
 
 	Provisioned int64 `json:"provisioned,omitempty"`
 	// Picked and Lost count the units picked up and lost with the dead
@@ -61,16 +63,17 @@ type snapshot struct {
 // Save writes the whole state of the world.
 func (w *World) Save(out io.Writer) error {
 	return json.NewEncoder(out).Encode(snapshot{
-		Version:  snapshotVersion,
-		Config:   w.cfg,
-		Map:      w.m,
-		Tick:     w.tick,
-		Draws:    w.draws.draws,
-		Foods:    w.food.foods,
-		FoodOwed: w.food.owed,
-		FoodBorn: w.food.born,
-		Appeared: w.food.appeared,
-		Eaten:    w.food.eaten,
+		Version:   snapshotVersion,
+		Config:    w.cfg,
+		Map:       w.m,
+		Tick:      w.tick,
+		Draws:     w.draws.draws,
+		Foods:     w.food.foods,
+		FoodOwed:  w.food.owed,
+		FoodBorn:  w.food.born,
+		FoodOwner: w.food.owner,
+		Appeared:  w.food.appeared,
+		Eaten:     w.food.eaten,
 
 		Provisioned: w.food.provisioned,
 		Picked:      w.food.picked,
@@ -110,6 +113,10 @@ func Load(in io.Reader) (*World, error) {
 		return nil, fmt.Errorf("snapshot has %d food ages for %d units", len(s.FoodBorn), len(s.Foods))
 	}
 	w.food.born = append(w.food.born, s.FoodBorn...)
+	if len(s.FoodOwner) != len(s.Foods) {
+		return nil, fmt.Errorf("snapshot has %d food owners for %d units", len(s.FoodOwner), len(s.Foods))
+	}
+	w.food.owner = append(w.food.owner, s.FoodOwner...)
 	for _, b := range w.bodies {
 		w.food.held += b.Held
 	}

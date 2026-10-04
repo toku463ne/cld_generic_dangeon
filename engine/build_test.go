@@ -53,6 +53,7 @@ func TestOwnBuild(t *testing.T) {
 	b.Energy = 50
 	w.food.foods = append(w.food.foods, Food{})
 	w.food.born = append(w.food.born, w.tick)
+	w.food.owner = append(w.food.owner, noOwner)
 	tile := w.tileOf(b.X, b.Y)
 	if w.foodOn(tile) < 0 {
 		f := Food{X: tile % w.m.Width, Y: tile / w.m.Width}

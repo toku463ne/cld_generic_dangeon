@@ -716,7 +716,7 @@ func (w *World) inSight(dst []Food, b *Body) []Food {
 	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
 	for y := by - sight; y <= by+sight; y++ {
 		for x := bx - sight; x <= bx+sight; x++ {
-			if w.m.InBounds(x, y) && w.foodOn(w.m.index(x, y)) >= 0 && w.seesFood(b, bx, by, x, y) {
+			if w.m.InBounds(x, y) && w.foodFor(b, w.m.index(x, y)) >= 0 && w.seesFood(b, bx, by, x, y) {
 				dst = append(dst, Food{X: x, Y: y})
 			}
 		}

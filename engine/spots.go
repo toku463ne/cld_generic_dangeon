@@ -37,7 +37,7 @@ func (w *World) noteSpots(b *Body) {
 				continue
 			}
 			t := w.m.index(x, y)
-			food := w.foodOn(t) >= 0
+			food := w.foodFor(b, t) >= 0
 			if _, ok := mem.Spots[t]; ok && b.Goal == t {
 				k := 0.0
 				if food {

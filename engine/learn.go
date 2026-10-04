@@ -449,7 +449,7 @@ func (w *World) stepped(b *Body, from, to int) {
 			}
 			t := w.m.index(x, y)
 			food := 0.0
-			if w.foodOn(t) >= 0 {
+			if w.foodFor(b, t) >= 0 {
 				food = 1
 			}
 			r := w.m.Region[t]

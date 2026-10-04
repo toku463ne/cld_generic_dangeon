@@ -37,6 +37,7 @@ func TestSteppingTeaches(t *testing.T) {
 	// Food at (4,2), which comes into view stepping east from (2,2) to (3,2).
 	w.food.foods = append(w.food.foods, Food{X: 4, Y: 2})
 	w.food.born = append(w.food.born, w.tick)
+	w.food.owner = append(w.food.owner, noOwner)
 	w.food.foodAt[w.m.index(4, 2)] = 1
 	b := &Body{Goal: -1}
 	a, c := w.m.index(2, 2), w.m.index(3, 2)
@@ -122,6 +123,7 @@ func TestLearningReadsNoUnseenFood(t *testing.T) {
 			for x := 0; x < 5; x++ {
 				w.food.foods = append(w.food.foods, Food{X: x, Y: 8})
 				w.food.born = append(w.food.born, w.tick)
+				w.food.owner = append(w.food.owner, noOwner)
 				w.food.foodAt[w.m.index(x, 8)] = int32(len(w.food.foods))
 				w.food.onGround[w.m.RegionAt(x, 8)]++
 			}

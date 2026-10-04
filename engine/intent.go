@@ -131,7 +131,7 @@ func (w *World) goalOf(b *Body, a Action) int {
 // tile, and a hash of the food in sight.
 func (w *World) perceive(b *Body) (under bool, saw uint64) {
 	if t := w.tileOf(b.X, b.Y); t >= 0 {
-		under = w.foodOn(t) >= 0
+		under = w.foodFor(b, t) >= 0
 	}
 	// FNV-1a over the tiles of the food in sight, row by row as inSight
 	// lists them, and their count.
@@ -146,7 +146,7 @@ func (w *World) perceive(b *Body) (under bool, saw uint64) {
 	for y := by - sight; y <= by+sight; y++ {
 		for x := bx - sight; x <= bx+sight; x++ {
 			if w.m.InBounds(x, y) && w.seesFood(b, bx, by, x, y) {
-				if t := w.m.index(x, y); w.foodOn(t) >= 0 {
+				if t := w.m.index(x, y); w.foodFor(b, t) >= 0 {
 					off := (y-by+sight)*(2*sight+1) + x - bx + sight
 					saw = (saw ^ uint64(off)) * prime
 					n++

@@ -304,6 +304,7 @@ func TestFoodDecays(t *testing.T) {
 	tile := w.tileOf(b.X, b.Y)
 	w.food.foods = append(w.food.foods, Food{X: tile % w.m.Width, Y: tile / w.m.Width})
 	w.food.born = append(w.food.born, w.tick+5) // appears five ticks later
+	w.food.owner = append(w.food.owner, noOwner)
 	w.food.foodAt[tile] = int32(len(w.food.foods))
 	w.food.appeared++
 	w.foodMoved(w.m.Region[tile], +1)
@@ -327,6 +328,7 @@ func TestFoodDecays(t *testing.T) {
 	w.cfg.FoodLife = 0
 	w.food.foods = append(w.food.foods, Food{X: tile % w.m.Width, Y: tile / w.m.Width})
 	w.food.born = append(w.food.born, 0)
+	w.food.owner = append(w.food.owner, noOwner)
 	w.food.foodAt[tile] = int32(len(w.food.foods))
 	w.tick = 1000
 	w.decayFood()

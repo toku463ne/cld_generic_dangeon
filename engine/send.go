@@ -72,7 +72,7 @@ func (w *World) sendInstead(b *Body, a Action) Action {
 	if !ok || w.bodies[mi].Asks <= 0 {
 		return a // she has not asked (6-4a: what she asks for, no more)
 	}
-	if t := w.tileOf(b.X, b.Y); t < 0 || w.foodOn(t) < 0 {
+	if t := w.tileOf(b.X, b.Y); t < 0 || w.foodFor(b, t) < 0 {
 		return a
 	}
 	if _, ok := w.restsAt(&w.bodies[mi]); !ok {
@@ -99,7 +99,7 @@ func (w *World) sendInstead(b *Body, a Action) Action {
 // send has father b send the unit underfoot to his resting mate.
 func (w *World) send(b *Body) {
 	t := w.tileOf(b.X, b.Y)
-	i := w.foodOn(t)
+	i := w.foodFor(b, t)
 	mi, ok := w.mateOf[b.ID]
 	if i < 0 || !ok {
 		return
@@ -143,6 +143,11 @@ func (w *World) deliverFood() {
 		}
 		f.foods = append(f.foods, Food{X: at % w.m.Width, Y: at / w.m.Width})
 		f.born = append(f.born, s.Born)
+		owner := noOwner
+		if w.cfg.Ownership {
+			owner = s.Mother // hers (6-4c)
+		}
+		f.owner = append(f.owner, owner)
 		f.foodAt[at] = int32(len(f.foods))
 		w.foodMoved(w.m.Region[at], +1)
 		if f.delivered == nil {
@@ -199,7 +204,7 @@ func (w *World) noteHome(b *Body) {
 		return
 	}
 	found := 0.0
-	if w.foodOn(home) >= 0 {
+	if w.foodFor(b, home) >= 0 {
 		found = 1
 		w.stats.HomeFound++
 	} else {

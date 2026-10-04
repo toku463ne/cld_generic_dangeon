@@ -57,6 +57,9 @@ func (l FoodLedger) Balanced() bool {
 type foodState struct {
 	foods  []Food
 	foodAt []int32
+	// owner is each unit's owner, in the order of foods (noOwner: none;
+	// own.go).
+	owner []int64
 	// born is the tick each unit of foods appeared, in the same order.
 	born []int64
 
@@ -159,6 +162,7 @@ func (w *World) placeFood(r RegionID) bool {
 		}
 		f.foods = append(f.foods, Food{X: t % w.m.Width, Y: t / w.m.Width})
 		f.born = append(f.born, w.tick)
+		f.owner = append(f.owner, noOwner)
 		f.foodAt[t] = int32(len(f.foods))
 		f.appeared++
 		w.foodMoved(r, +1)
@@ -365,10 +369,12 @@ func (w *World) liftFood(i int) {
 		moved := f.foods[last]
 		f.foods[i] = moved
 		f.born[i] = f.born[last]
+		f.owner[i] = f.owner[last]
 		f.foodAt[moved.Y*w.m.Width+moved.X] = int32(i + 1)
 	}
 	f.foods = f.foods[:last]
 	f.born = f.born[:last]
+	f.owner = f.owner[:last]
 	delete(f.delivered, gone.Y*w.m.Width+gone.X)
 	w.foodMoved(w.m.RegionAt(gone.X, gone.Y), -1)
 }

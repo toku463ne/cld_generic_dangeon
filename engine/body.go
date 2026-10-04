@@ -250,7 +250,7 @@ func (w *World) placeBodies() {
 // possibleActions appends every action body b can take now.
 func (w *World) possibleActions(dst []Action, b *Body) []Action {
 	dst = append(dst, Action{Kind: ActWait})
-	if t := w.tileOf(b.X, b.Y); t >= 0 && w.foodOn(t) >= 0 {
+	if t := w.tileOf(b.X, b.Y); t >= 0 && w.foodFor(b, t) >= 0 {
 		dst = append(dst, Action{Kind: ActEat})
 		if b.Held < w.cfg.Carry {
 			dst = append(dst, Action{Kind: ActPick})
@@ -291,7 +291,7 @@ func (w *World) act(i int, b *Body, a Action) {
 	case ActEat:
 		t := w.tileOf(b.X, b.Y)
 		w.noteDelivered(b, t)
-		w.eatFood(w.foodOn(t))
+		w.eatFood(w.foodFor(b, t))
 		b.Energy = math.Min(b.Energy+w.cfg.FoodEnergy, w.maxOf(b))
 	case ActSend:
 		w.send(b)
@@ -304,7 +304,7 @@ func (w *World) act(i int, b *Body, a Action) {
 	case ActPick:
 		t := w.tileOf(b.X, b.Y)
 		w.noteDelivered(b, t)
-		w.takeFood(w.foodOn(t), b)
+		w.takeFood(w.foodFor(b, t), b)
 		w.eatHeld(b) // where a meal fits, picking it up is eating it
 	case ActMove:
 		w.step(i, b, a.Dir)
