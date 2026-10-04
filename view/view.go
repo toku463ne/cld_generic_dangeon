@@ -129,6 +129,9 @@ var (
 	meetColor   = color.RGBA{0x40, 0xd0, 0xe0, 0xff}
 	// shelterColor is a place to rest (stage 6-1a).
 	shelterColor = color.RGBA{0xb0, 0x80, 0x50, 0xff}
+	// tentColor marks tents: pitched round a sleeper, folded on the ground,
+	// or carried by a body awake (stage 8-2a).
+	tentColor = color.RGBA{0xff, 0xd0, 0x30, 0xff}
 )
 
 func New(w *engine.World, scale int) *View {
@@ -399,7 +402,31 @@ func (v *View) Render(dst *image.RGBA) {
 	full := v.W.Config().EnergyMax
 	rad := max(v.scale/3, 1)
 	now := v.W.Tick()
+	// Places built (stage 8-1) change while the world runs, so they are
+	// drawn over the ground, not into it.
+	m := v.W.Map()
+	for _, p := range v.W.Places() {
+		for _, t := range p.Tiles {
+			strokeRect(dst, (t%m.Width)*v.scale, (t/m.Width)*v.scale, v.scale, v.scale, shelterColor)
+		}
+	}
+	// Tents lying folded on the ground: a small square.
+	for _, g := range v.W.GroundTents() {
+		s := max(v.scale/3, 1)
+		fillRect(dst, (g.Tile%m.Width)*v.scale+v.scale/2-s/2, (g.Tile/m.Width)*v.scale+v.scale/2-s/2, s, s, tentColor)
+	}
 	for _, b := range v.W.Bodies() {
+		switch {
+		case b.Tent.Pitched:
+			// A pitched tent: a triangle round its sleeper.
+			x, y, h := px(b.X), px(b.Y), v.scale/2
+			line(dst, x-h, y+h, x+h, y+h, tentColor)
+			line(dst, x-h, y+h, x, y-h, tentColor)
+			line(dst, x+h, y+h, x, y-h, tentColor)
+		case b.Tent.Has:
+			// A tent carried: a mark above the body.
+			line(dst, px(b.X)-rad, px(b.Y)-rad-2, px(b.X)+rad, px(b.Y)-rad-2, tentColor)
+		}
 		if b.Asleep {
 			// A sleeper is a ring: its hue, hollow.
 			strokeCircle(dst, px(b.X), px(b.Y), rad, bodyColor(b, now, b.Energy/full))
@@ -605,6 +632,13 @@ func (v *View) FollowText() string {
 	}
 	if temp, ok := v.W.TempAt(int(math.Floor(b.X)), int(math.Floor(b.Y))); ok && v.W.Config().Temperature {
 		fmt.Fprintf(&sb, "  %.1f°  burn x%.2f", temp, v.W.TempBurn(b))
+	}
+	if b.Tent.Has {
+		state := "carried"
+		if b.Tent.Pitched {
+			state = "pitched"
+		}
+		fmt.Fprintf(&sb, "  tent %s, %d nights, wears out at %d", state, b.Tent.Uses, b.Tent.Until)
 	}
 	if warm := b.Memory.Warm; warm[1] > 0 {
 		fmt.Fprintf(&sb, "  knows %d shelter tiles, warm x%.2f", len(b.Memory.Shelters), warm[0]/warm[1])
