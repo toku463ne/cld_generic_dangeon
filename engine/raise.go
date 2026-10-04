@@ -258,9 +258,13 @@ func (w *World) newMate(a, b int64) {
 }
 
 // mayEnter reports whether body b may step onto tile t: anywhere but
-// another's settlement, unless it is family there.
+// another's settlement, unless it is family there, or it stands in that
+// settlement already (inside when it was done, it may walk out).
 func (w *World) mayEnter(b *Body, t int) bool {
 	if w.placeAt == nil || t < 0 || w.placeAt[t] == 0 {
+		return true
+	}
+	if here := w.tileOf(b.X, b.Y); here >= 0 && w.placeAt[here] == w.placeAt[t] {
 		return true
 	}
 	for i := range w.places {

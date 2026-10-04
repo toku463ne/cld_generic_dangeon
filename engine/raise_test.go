@@ -168,6 +168,11 @@ func TestSettlementClosed(t *testing.T) {
 			}
 		}
 	}
+	// A stranger inside when it was done may walk out through it.
+	in2 := Body{ID: 8, X: 5.5, Y: 5.5, Energy: 50}
+	if !w.mayEnter(&in2, w.m.index(6, 6)) {
+		t.Fatal("a stranger inside cannot walk out")
+	}
 	// Its builder dead, it is open to all.
 	w.openPlaces(b.ID)
 	if !w.mayEnter(&s, in) {
