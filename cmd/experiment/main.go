@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/toku463ne/cld_generic_dangeon/engine"
@@ -33,6 +34,10 @@ type options struct {
 	mapName       string
 	width, height int
 	floor         int
+	// jobs is how many runs go at once; brief prints only the conditions
+	// and the paired differences.
+	jobs  int
+	brief bool
 }
 
 func main() {
@@ -49,6 +54,8 @@ func main() {
 	flag.IntVar(&o.height, "h", 0, "map height in tiles (required)")
 	// The collapse floor is the value stage 1-5 fixed (PARAMETERS.md).
 	flag.IntVar(&o.floor, "floor", 20, "collapse floor: a seed whose population falls to this or below stops (fixed at stage 1-5, PARAMETERS.md)")
+	flag.IntVar(&o.jobs, "jobs", 3, "runs at once (each run is its own world, so the numbers do not depend on it)")
+	flag.BoolVar(&o.brief, "brief", false, "print only the conditions and the paired differences (§2, §9)")
 	flag.Parse()
 	o.variants = strings.Split(names, ",")
 
@@ -151,23 +158,68 @@ func run(out, log io.Writer, o options, command string) error {
 		return err
 	}
 
+	// Every run is a world of its own (NewWorld copies the map), so runs
+	// go o.jobs at once and land in their seed's place: the report does not
+	// depend on how many ran together.
 	results := map[string][]result{}
 	for _, v := range o.variants {
-		for s := 0; s < o.seeds; s++ {
-			cfg, _ := variant.Config(v, o.seed0+int64(s))
-			start := time.Now()
-			r, err := runOne(cfg, m, o.ticks, o.floor)
-			if err != nil {
-				return fmt.Errorf("%s seed %d: %w", v, cfg.Seed, err)
+		results[v] = make([]result, o.seeds)
+	}
+	type job struct {
+		v string
+		s int
+	}
+	jobs := make(chan job)
+	errs := make(chan error, len(o.variants)*o.seeds)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	for k := 0; k < max(o.jobs, 1); k++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := range jobs {
+				cfg, _ := variant.Config(j.v, o.seed0+int64(j.s))
+				start := time.Now()
+				r, err := runOne(cfg, m, o.ticks, o.floor)
+				if err != nil {
+					errs <- fmt.Errorf("%s seed %d: %w", j.v, cfg.Seed, err)
+					continue
+				}
+				mu.Lock()
+				results[j.v][j.s] = r
+				// Wall time goes to the log, not the report: it describes
+				// the machine, not the world.
+				fmt.Fprintf(log, "%s seed %d: %d ticks in %v\n", j.v, cfg.Seed, o.ticks, time.Since(start))
+				mu.Unlock()
 			}
-			// Wall time goes to the log, not the report: it describes the
-			// machine, not the world.
-			fmt.Fprintf(log, "%s seed %d: %d ticks in %v\n", v, cfg.Seed, o.ticks, time.Since(start))
-			results[v] = append(results[v], r)
+		}()
+	}
+	for _, v := range o.variants {
+		for s := 0; s < o.seeds; s++ {
+			jobs <- job{v, s}
 		}
 	}
+	close(jobs)
+	wg.Wait()
+	close(errs)
+	if err := <-errs; err != nil {
+		return err
+	}
 
-	writeReport(out, o, m, command, results)
+	if !o.brief {
+		writeReport(out, o, m, command, results)
+		return nil
+	}
+	// Brief: the conditions and the paired differences only.
+	var full strings.Builder
+	writeReport(&full, o, m, command, results)
+	rep := full.String()
+	if i := strings.Index(rep, "| 代表シード"); i > 0 {
+		fmt.Fprint(out, rep[:i]+"\n")
+	}
+	if i := strings.Index(rep, "### 9. 対の差"); i >= 0 {
+		fmt.Fprint(out, rep[i:])
+	}
 	return nil
 }
 
