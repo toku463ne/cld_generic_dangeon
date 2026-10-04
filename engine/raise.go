@@ -269,10 +269,31 @@ func (w *World) mayEnter(b *Body, t int) bool {
 	}
 	for i := range w.places {
 		if p := &w.places[i]; p.ID == w.placeAt[t] {
-			return w.family(b, p)
+			return w.family(b, p) || w.invited(b, p)
 		}
 	}
 	return true
+}
+
+// invited reports whether body b is let into settlement p by consent
+// (MateConsent, stage 8-2b2): one of its family, in it, has a request to
+// mate open, and b is of the other sex - the request is consent to the
+// one who answers it. (Once there is affection, one inside will let others
+// in by it; VISION.)
+func (w *World) invited(b *Body, p *Place) bool {
+	if !w.cfg.MateConsent {
+		return false
+	}
+	for _, i := range w.asking {
+		o := &w.bodies[i]
+		if o.Requested <= w.tick || o.Sex == b.Sex || o.ID == b.ID {
+			continue
+		}
+		if t := w.tileOf(o.X, o.Y); t >= 0 && w.placeAt[t] == p.ID && w.family(o, p) {
+			return true
+		}
+	}
+	return false
 }
 
 // closedTile reports whether tile t belongs to a settlement closed to

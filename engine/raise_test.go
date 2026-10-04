@@ -216,3 +216,53 @@ func TestSettledFood(t *testing.T) {
 		t.Fatal("an open settlement is closed")
 	}
 }
+
+// Without consent by a request to mate, the world is stage 8-2b: its
+// fingerprint is the one pinned then.
+func TestUnconsentedIsStage82b(t *testing.T) {
+	const want = uint64(0x4c3cad7a3ba8bfe9)
+	cfg := testConfig(1)
+	cfg.MateConsent = false
+	w, err := NewWorld(cfg, tempMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// One of the family in its settlement with a request to mate open lets in
+// a body of the other sex, and only while the request is open.
+func TestMateConsent(t *testing.T) {
+	w, b, o := settleWorld(t)
+	b.Work = Work{Site: w.tileOf(b.X, b.Y) + 1, Left: 1}
+	w.act(0, b, Action{Kind: ActBuild})
+	b.Asleep = false
+	in := w.m.index(6, 6)
+	if w.mayEnter(o, in) {
+		t.Fatal("a stranger may enter without a request")
+	}
+	b.Requested = w.tick + 10
+	w.listAsking()
+	if b.Sex == o.Sex {
+		t.Fatal("the pair is of one sex")
+	}
+	if !w.mayEnter(o, in) {
+		t.Fatal("a body of the other sex may not answer a request from inside")
+	}
+	same := Body{ID: 7, Sex: b.Sex, X: 20.5, Y: 20.5}
+	if w.mayEnter(&same, in) {
+		t.Fatal("a body of the same sex is let in by a request to mate")
+	}
+	w.cfg.MateConsent = false
+	if w.mayEnter(o, in) {
+		t.Fatal("let in with MateConsent off")
+	}
+	w.cfg.MateConsent = true
+	b.Requested = w.tick
+	if w.mayEnter(o, in) {
+		t.Fatal("let in after the request closed")
+	}
+}

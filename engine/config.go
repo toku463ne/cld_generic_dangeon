@@ -157,6 +157,10 @@ type Config struct {
 	// another tile, as one drawn onto food does (stage 8-2b, to tell the
 	// food closed in from the ways closed off).
 	SettledFood bool
+	// MateConsent lets a body into another's settlement while one of its
+	// family in it has a request to mate open and the body is of the other
+	// sex: the request is consent (stage 8-2b2).
+	MateConsent bool
 	// Tents lets a body born with the skill (TentBorn) make a tent as it
 	// falls asleep, paying TentEnergy, carry it, and pitch it wherever it
 	// sleeps, sleeping warm in it; it wears out TentLife ticks after it was
@@ -456,6 +460,7 @@ func DefaultConfig() Config {
 		BuildLife:          8000,
 		BuildTicks:         100,
 		SettledFood:        true,
+		MateConsent:        true,
 		ReusePrior:         2,
 		ReuseWeight:        1,
 		Tents:              true,
