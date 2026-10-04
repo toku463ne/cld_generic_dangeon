@@ -149,6 +149,13 @@ type Config struct {
 	Building               bool
 	BuildBorn, BuildEnergy float64
 	BuildSide, BuildLife   int
+	// OwnPlaces has a builder remember the places it built as its own, and
+	// read walking back to one of them with the same worth beyond the
+	// window as building it (stage 8-1b). ReusePrior is the returns a
+	// builder expects of a place before it has seen any wear out, weighed
+	// as ReuseWeight places (0 and 0: none expected until seen, 8-1).
+	OwnPlaces               bool
+	ReusePrior, ReuseWeight float64
 	// Ownership lets things on the ground have an owner, who alone may
 	// take them (stage 6-4c, own.go). No rule gives a thing an owner yet.
 	Ownership bool
@@ -428,6 +435,9 @@ func DefaultConfig() Config {
 		BuildEnergy:        10,
 		BuildSide:          3,
 		BuildLife:          3000,
+		OwnPlaces:          true,
+		ReusePrior:         2,
+		ReuseWeight:        1,
 		KeepHeading:        true,
 		TurnOffReverse:     true,
 		Recheck:            300,

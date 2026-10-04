@@ -85,3 +85,30 @@ func TestSeasonsGoRound(t *testing.T) {
 		t.Fatalf("season at tick %d is %d, want 1", SeasonTicks*5, m.Season(int64(SeasonTicks)*5))
 	}
 }
+
+// The patches map has food only in its four patches, which do not touch
+// the places to rest or each other.
+func TestPatches(t *testing.T) {
+	m := Patches(64, 48)
+	if err := m.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	n := map[engine.RegionID]int{}
+	for y := 0; y < m.Height; y++ {
+		for x := 0; x < m.Width; x++ {
+			r := m.RegionAt(x, y)
+			n[r]++
+			if r != 0 && m.ShelterAt(x, y) {
+				t.Fatalf("a patch lies on a place to rest at (%d,%d)", x, y)
+			}
+		}
+	}
+	for r := engine.RegionID(1); r <= 4; r++ {
+		if n[r] != PatchSize*PatchSize {
+			t.Fatalf("patch %d has %d tiles", r, n[r])
+		}
+	}
+	if m.RegionFood[0] != 0 {
+		t.Fatal("food outside the patches")
+	}
+}

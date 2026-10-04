@@ -12,7 +12,7 @@ import (
 )
 
 // Names lists the maps Build knows.
-var Names = []string{"flat", "constrained", "seasons"}
+var Names = []string{"flat", "constrained", "seasons", "patches"}
 
 // Build returns the named map at the given size.
 func Build(name string, width, height int) (engine.Map, error) {
@@ -23,6 +23,8 @@ func Build(name string, width, height int) (engine.Map, error) {
 		return Constrained(width, height), nil
 	case "seasons":
 		return Seasons(width, height), nil
+	case "patches":
+		return Patches(width, height), nil
 	}
 	return engine.Map{}, fmt.Errorf("unknown map %q (known: %v)", name, Names)
 }
@@ -131,5 +133,36 @@ func Seasons(width, height int) engine.Map {
 		m.SeasonFood = append(m.SeasonFood, shares)
 	}
 	m.SeasonTicks = SeasonTicks
+	return m
+}
+
+// PatchSize is the side of each food patch on the patches map (stage
+// 8-1b): four of them hold some 400 land tiles for a food cap of 300.
+// Provisional; PARAMETERS.md records it.
+const PatchSize = 10
+
+// Patches is the map where food is held in four places (stage 8-1b, the
+// user's design): all land, the food coming back only to four square
+// patches (regions 1 to 4, a quarter of the food each) set as a diamond
+// round the centre - midway along the edges of the square the quadrant
+// centres make, so that no patch lies on the places to rest placed there.
+// The rest of the land (region 0) gets no food. Against the flat map,
+// where food is everywhere, it asks whether a place to stay is worth
+// anything when food holds bodies to a place.
+func Patches(width, height int) engine.Map {
+	m := engine.NewMap(width, height)
+	m.RegionFood = []float64{0, 0.25, 0.25, 0.25, 0.25}
+	m.RegionTemp = temps(len(m.RegionFood))
+	centres := [][2]int{{width / 2, height / 4}, {width / 4, height / 2}, {3 * width / 4, height / 2}, {width / 2, 3 * height / 4}}
+	for i, c := range centres {
+		for y := c[1] - PatchSize/2; y < c[1]-PatchSize/2+PatchSize; y++ {
+			for x := c[0] - PatchSize/2; x < c[0]-PatchSize/2+PatchSize; x++ {
+				if m.InBounds(x, y) {
+					m.SetRegion(x, y, engine.RegionID(i+1))
+				}
+			}
+		}
+	}
+	shelters(&m)
 	return m
 }

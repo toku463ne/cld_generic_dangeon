@@ -110,6 +110,9 @@ type Memory struct {
 	// Reuse counts how often it slept again on a place it built before the
 	// place wore out: the sum and the places (stage 8-1).
 	Reuse [2]float64 `json:",omitempty"`
+	// Own are the tiles of the places it built that it has not seen gone
+	// (OwnPlaces, stage 8-1b). They are not passed on.
+	Own map[int]bool `json:",omitempty"`
 	// Met are the bodies it has passed evidence with (tell.go).
 	Met map[int64]bool `json:",omitempty"`
 	// Ver counts the changes to the rows it can pass on; Told holds, for

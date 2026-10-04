@@ -107,3 +107,80 @@ func TestBuildRisk(t *testing.T) {
 		t.Fatalf("plain %v, warm %v, with returns %v", plain, warm, back)
 	}
 }
+
+// Expecting nothing of a place until one wears out, and not knowing its own
+// places, the world is stage 8-1: its fingerprint is the one pinned then.
+func TestNeutralIsStage81(t *testing.T) {
+	const want = uint64(0x7189c62dc5180e9f)
+	cfg := testConfig(1)
+	cfg.OwnPlaces, cfg.ReusePrior, cfg.ReuseWeight = false, 0, 0
+	w, err := NewWorld(cfg, tempMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// A builder remembers the tiles it built as its own, forgets them when it
+// sees them gone, and does not pass them on. The returns it expects start
+// at ReusePrior and move with what it sees; their worth adds to building
+// and to walking back to its own place, not to another's.
+func TestOwnPlaces(t *testing.T) {
+	w := pairWorld(t, Body{ID: 0, X: 5.5, Y: 5.5, Energy: 60, Pressure: 0.5}, Body{ID: 1, X: 20.5, Y: 20.5, Energy: 60, Pressure: 0.5})
+	w.cfg.Building, w.cfg.ForceAt = true, 0
+	b := &w.bodies[0]
+	b.Skill[SkillBuild] = 1
+	w.act(0, b, Action{Kind: ActBuild})
+	if len(b.Memory.Own) != w.cfg.BuildSide*w.cfg.BuildSide || !b.Memory.Own[w.m.index(5, 5)] {
+		t.Fatalf("own tiles %v", b.Memory.Own)
+	}
+	now, warm := 0.2, 0.1
+	w.cfg.ReusePrior, w.cfg.ReuseWeight = 2, 1
+	prior := w.reuseCredit(b, now, warm)
+	if want := w.units(2 * (now - warm) * float64(w.cfg.SleepTicks)); prior != want {
+		t.Fatalf("credit with nothing seen = %d, want %d", prior, want)
+	}
+	b.Memory.Reuse = [2]float64{0, 3}
+	if c := w.reuseCredit(b, now, warm); c >= prior {
+		t.Fatalf("seeing no returns did not lower the credit: %d", c)
+	}
+	w.cfg.ReusePrior, w.cfg.ReuseWeight = 0, 0
+	if c := w.reuseCredit(b, now, warm); c != 0 {
+		t.Fatalf("8-1 with no returns seen gives credit %d", c)
+	}
+	w.cfg.ReusePrior, w.cfg.ReuseWeight = 2, 1
+	b.Memory.Reuse = [2]float64{}
+
+	// Away from it, after a night there, it reads walking back with credit.
+	b.Asleep, b.Pressure, b.X, b.Y = false, 0.5, 15.5, 5.5
+	b.Memory.Warm = [2]float64{0.3, 1}
+	w.tick = 600 // dark
+	w.decide(b)
+	v := &w.valuation
+	if len(v.Shelter) == 0 || len(v.Credit) != len(v.Shelter) {
+		t.Fatalf("no place to walk back to: %v", v.Shelter)
+	}
+	if !b.Memory.Own[v.Shelter[len(v.Shelter)-1].Y*w.m.Width+v.Shelter[len(v.Shelter)-1].X] || v.Credit[len(v.Credit)-1] <= 0 {
+		t.Fatalf("own place %v read with credit %v", v.Shelter, v.Credit)
+	}
+
+	// Another body learns the tiles but not as its own.
+	o := &w.bodies[1]
+	o.X, o.Y, o.Asleep = 6.5, 6.5, false
+	w.tick = 0
+	w.noteShelters(o)
+	if len(o.Memory.Own) != 0 || !o.Memory.Shelters[w.m.index(5, 5)] {
+		t.Fatal("another body knows the place as its own, or not at all")
+	}
+	w.tick = w.places[0].Until
+	w.wearPlaces()
+	w.tick = (w.tick/int64(w.cfg.DayTicks)+1)*int64(w.cfg.DayTicks) + 100 // in full light
+	b.X, b.Y = 5.5, 5.5
+	w.noteShelters(b)
+	if len(b.Memory.Own) != 0 {
+		t.Fatal("a builder still holds a worn-out place as its own")
+	}
+}

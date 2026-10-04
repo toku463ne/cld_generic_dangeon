@@ -373,8 +373,11 @@ type Valuation struct {
 	Recalled []Food
 	SpotP    float64
 	// Shelter is the place to rest the body may walk to and sleep at
-	// (stage 6-1b), if any; a Plan past Recalled points to it.
+	// (stage 6-1b), if any, and then the nearest it built if that is
+	// another (8-1b); a Plan past Recalled points to them. Credit is each
+	// one's worth beyond the window, in grains.
 	Shelter []Food
+	Credit  []int
 	// Spend is, for each option, the energy the plan its risk was read
 	// from spends over Window ticks (stage 6-3a): what TieSpend breaks
 	// ties by.
@@ -437,11 +440,21 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 	}
 	// A place to rest to walk to and sleep at (stage 6-1b): the sleep
 	// there burns warm, and the body wakes to its burn as from any sleep.
-	v.Shelter = v.Shelter[:0]
+	v.Shelter, v.Credit = v.Shelter[:0], v.Credit[:0]
 	var warm, woken float64
 	if rs != nil {
 		if f, burn, ok := w.shelterAhead(b); ok {
 			v.Shelter, warm, woken = append(v.Shelter, f), burn, w.wokenBurn(b)
+			credit := w.reuseCredit(b, w.planBurn(b), warm)
+			own := b.Memory.Own[f.Y*w.m.Width+f.X]
+			c := 0
+			if own && w.cfg.OwnPlaces {
+				c = credit
+			}
+			v.Credit = append(v.Credit, c)
+			if o, ok := w.ownAhead(b); ok && !own {
+				v.Shelter, v.Credit = append(v.Shelter, o), append(v.Credit, credit)
+			}
 		}
 	}
 	// What a plan spends over Window ticks (stage 6-3a): searching burns
@@ -550,7 +563,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 		// ticks of walking, SleepTicks asleep at the warm burn, then on
 		// the move from there at the burn woken to.
 		for f, place := range v.Shelter {
-			r, k := w.shelterRisk(b, rs, place, x, y, whole, wholeWin, full, warm, woken, speed, burn)
+			r, k := w.shelterRisk(b, rs, place, x, y, whole, wholeWin, full, warm, woken, speed, burn, v.Credit[f])
 			// With TieSpend, a risk no worse that spends less is taken
 			// (stage 6-3a).
 			if r < risk || w.cfg.TieSpend && r == risk && sleepSpend(k, warm, w.wokenBurn(b)) < spendNow {

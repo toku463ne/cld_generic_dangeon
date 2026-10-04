@@ -76,9 +76,26 @@ func (w *World) shelterAhead(b *Body) (f Food, burn float64, ok bool) {
 	if burn >= w.planBurn(b)*(1-1e-9) { // rounding is not warmth
 		return Food{}, 0, false
 	}
+	f, ok = w.nearestOf(b, b.Memory.Shelters)
+	return f, burn, ok
+}
+
+// ownAhead returns the nearest place body b built and remembers, off the
+// tile it stands on (OwnPlaces, stage 8-1b); it is read only where
+// shelterAhead found a place to walk to.
+func (w *World) ownAhead(b *Body) (Food, bool) {
+	if !w.cfg.OwnPlaces || len(b.Memory.Own) == 0 {
+		return Food{}, false
+	}
+	return w.nearestOf(b, b.Memory.Own)
+}
+
+// nearestOf returns the tile of tiles nearest body b by its walk, off the
+// tile it stands on.
+func (w *World) nearestOf(b *Body, tiles map[int]bool) (Food, bool) {
 	here, speed := w.tileOf(b.X, b.Y), w.speedOf(b)
 	best, bt := math.Inf(1), -1
-	for t := range b.Memory.Shelters {
+	for t := range tiles {
 		if t == here {
 			continue
 		}
@@ -89,9 +106,9 @@ func (w *World) shelterAhead(b *Body) (f Food, burn float64, ok bool) {
 		}
 	}
 	if bt < 0 {
-		return Food{}, 0, false
+		return Food{}, false
 	}
-	return Food{X: bt % w.m.Width, Y: bt / w.m.Width}, burn, true
+	return Food{X: bt % w.m.Width, Y: bt / w.m.Width}, true
 }
 
 // ShelterAt reports whether tile (x, y) is a place to rest.
@@ -102,8 +119,11 @@ func (w *World) ShelterAt(x, y int) bool { return w.m.ShelterAt(x, y) }
 // sleeping there (valueInto): the walk at its burn now, SleepTicks asleep
 // at warm, then keeping on the move through place's region at woken. It
 // returns the ticks of the walk too. speed and burn are b's (speedOf,
-// readBurn), read once by the caller.
-func (w *World) shelterRisk(b *Body, rs *rates, place Food, x, y float64, after, win, full int, warm, woken, speed, burn float64) (float64, int) {
+// readBurn), read once by the caller; credit is the place's worth beyond
+// the window, in grains, added to what the body can last (a place it
+// built, OwnPlaces).
+func (w *World) shelterRisk(b *Body, rs *rates, place Food, x, y float64, after, win, full int, warm, woken, speed, burn float64, credit int) (float64, int) {
+	after += credit
 	k := walkTicks(gapTo(x, place.X), gapTo(y, place.Y), speed)
 	ku, ts := w.grains(k, burn), w.grains(w.cfg.SleepTicks, warm)
 	switch {

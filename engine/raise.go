@@ -77,6 +77,15 @@ func (w *World) build(b *Body) {
 			}
 			w.m.SetShelter(x, y)
 			t := w.m.index(x, y)
+			if w.cfg.OwnPlaces {
+				if b.Memory.Own == nil {
+					b.Memory.Own = map[int]bool{}
+				}
+				b.Memory.Own[t] = true
+				if w.cfg.Learn && w.cfg.ShelterRead {
+					w.rememberShelter(b, t) // it knows what it built
+				}
+			}
 			w.placeAt[t] = p.ID
 			p.Tiles = append(p.Tiles, t)
 		}
@@ -139,11 +148,23 @@ func (w *World) buildRisk(b *Body, rs *rates, win, reserve int) float64 {
 	if rs != nil && b.Memory.Warm[1] > 0 {
 		warm = math.Min(now, w.ownBurn(b, true)*b.Memory.Warm[0]/b.Memory.Warm[1])
 	}
-	if rs != nil && b.Memory.Reuse[1] > 0 {
-		back := b.Memory.Reuse[0] / b.Memory.Reuse[1]
-		reserve += w.units(back * (now - warm) * float64(w.cfg.SleepTicks))
+	if rs != nil {
+		reserve += w.reuseCredit(b, now, warm)
 	}
 	return w.sleepRiskAt(b, rs, win, reserve, warm, b.Energy-w.cfg.BuildEnergy)
+}
+
+// reuseCredit is the worth beyond the window, in grains, of a place body
+// b built: the returns it expects (what it learned, pulled toward
+// ReusePrior by ReuseWeight) times one night's saving there, sleeping at
+// warm instead of now.
+func (w *World) reuseCredit(b *Body, now, warm float64) int {
+	n := b.Memory.Reuse[1] + w.cfg.ReuseWeight
+	if n <= 0 || now <= warm {
+		return 0
+	}
+	back := (b.Memory.Reuse[0] + w.cfg.ReusePrior*w.cfg.ReuseWeight) / n
+	return w.units(back * (now - warm) * float64(w.cfg.SleepTicks))
 }
 
 // forgetPlace has body b, seeing tile t is no place to rest, forget it was
@@ -152,6 +173,7 @@ func (w *World) forgetPlace(b *Body, t int) {
 	if b.Memory.Shelters[t] {
 		delete(b.Memory.Shelters, t)
 	}
+	delete(b.Memory.Own, t)
 }
 
 // loadPlaces rebuilds the index of built places' tiles after a load.
