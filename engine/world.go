@@ -50,7 +50,9 @@ type World struct {
 	places    []Place
 	placeAt   []int64
 	nextPlace int64
-	rates     rates // a learning body's estimates, for the decision under way
+	// groundTents are the tents lying folded on tiles (stage 8-2a3).
+	groundTents []GroundTent
+	rates       rates // a learning body's estimates, for the decision under way
 
 	// died is the tick each body died, for the provenance instrument
 	// (provenance.go). No rule reads it; it is neither saved nor
@@ -122,6 +124,7 @@ func (w *World) Step() {
 	w.decayFood()
 	w.returnFood()
 	w.wearPlaces()
+	w.wearGroundTents()
 	for i := range w.bodies {
 		b := &w.bodies[i]
 		if b.Mature == w.tick && b.Mature > 0 {
@@ -144,6 +147,7 @@ func (w *World) Step() {
 		w.feelWarm(b)
 		w.sleepTick(b)
 		w.foldTent(b)
+		w.pickTent(b)
 		w.seeLight(b)
 		w.stats.EnergyBurned += burn
 	}
@@ -172,6 +176,7 @@ func (w *World) removeDead() {
 			}
 			w.died[b.ID] = w.tick
 			w.loseHeld(&b)
+			w.dropTent(&b)
 			w.release(b.ID)
 			w.stats.Deaths[cause]++
 			w.stats.BudgetOut += b.Budget

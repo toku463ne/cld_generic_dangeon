@@ -194,6 +194,9 @@ type Stats struct {
 	// TentsMade, TentNights and TentsWorn count the tents made, the nights
 	// one was pitched and the tents worn out (stage 8-2a).
 	TentsMade, TentNights, TentsWorn int64 `json:",omitempty"`
+	// TentsDropped and TentsPicked count the tents left by the dead and
+	// those taken up (stage 8-2a3).
+	TentsDropped, TentsPicked int64 `json:",omitempty"`
 	// SheltersPassed counts the places to rest passed from parent to child
 	// that the child did not know (stage 6-5a).
 	SheltersPassed int64 `json:",omitempty"`

@@ -126,3 +126,57 @@ func (w *World) foldTent(b *Body) {
 	b.Tent = Tent{}
 	w.stats.TentsWorn++
 }
+
+// Tents left behind (stage 8-2a3, VISION "a dead node's belongings can be
+// recovered"): when a body dies with a tent, the tent stays folded on its
+// tile, wearing out when it would have, owned by no one. A body without a
+// tent that stands on one takes it up - carrying costs it nothing, so
+// there is nothing to choose - and it is its own from then: it pitches it
+// as it falls asleep, child or adult (the skill is for making one).
+
+// GroundTent is a tent lying folded on a tile.
+type GroundTent struct {
+	Tile  int
+	Until int64
+}
+
+// dropTent leaves dead body b's tent on its tile.
+func (w *World) dropTent(b *Body) {
+	if !w.cfg.DropTents || !b.Tent.Has || b.Tent.Until <= w.tick {
+		return
+	}
+	if t := w.tileOf(b.X, b.Y); t >= 0 {
+		w.groundTents = append(w.groundTents, GroundTent{Tile: t, Until: b.Tent.Until})
+		w.stats.TentsDropped++
+	}
+}
+
+// pickTent has body b, with no tent, take up one lying where it stands.
+func (w *World) pickTent(b *Body) {
+	if len(w.groundTents) == 0 || b.Tent.Has {
+		return
+	}
+	t := w.tileOf(b.X, b.Y)
+	for i, g := range w.groundTents {
+		if g.Tile == t {
+			b.Tent = Tent{Has: true, Until: g.Until}
+			w.groundTents = append(w.groundTents[:i], w.groundTents[i+1:]...)
+			w.stats.TentsPicked++
+			return
+		}
+	}
+}
+
+// wearGroundTents removes the tents on the ground worn out by now.
+func (w *World) wearGroundTents() {
+	kept := w.groundTents[:0]
+	for _, g := range w.groundTents {
+		if g.Until > w.tick {
+			kept = append(kept, g)
+		}
+	}
+	w.groundTents = kept
+}
+
+// GroundTents returns the tents lying on the ground.
+func (w *World) GroundTents() []GroundTent { return append([]GroundTent(nil), w.groundTents...) }

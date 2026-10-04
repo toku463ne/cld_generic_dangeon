@@ -20,7 +20,7 @@ import (
 // saved, so that a loaded world can build them before play (World.Warm).
 
 // snapshotVersion changes whenever the format does.
-const snapshotVersion = 40
+const snapshotVersion = 41
 
 type snapshot struct {
 	Version int    `json:"version"`
@@ -51,7 +51,9 @@ type snapshot struct {
 	// (stage 8-1); their tiles are in the map's places to rest.
 	Places    []Place `json:"places,omitempty"`
 	NextPlace int64   `json:"nextPlace,omitempty"`
-	Stats     Stats   `json:"stats"`
+	// GroundTents are the tents lying on the ground (stage 8-2a3).
+	GroundTents []GroundTent `json:"groundTents,omitempty"`
+	Stats       Stats        `json:"stats"`
 
 	// Tables are the survival tables the world was reading, for a loaded
 	// world to build ahead (World.Warm). They are the only part of the
@@ -82,6 +84,7 @@ func (w *World) Save(out io.Writer) error {
 		NextID:      w.nextID,
 		Places:      w.places,
 		NextPlace:   w.nextPlace,
+		GroundTents: w.groundTents,
 		Stats:       w.stats,
 		Tables:      w.Tables(),
 	})
@@ -128,6 +131,7 @@ func Load(in io.Reader) (*World, error) {
 		w.food.onGround[w.m.RegionAt(f.X, f.Y)]++
 	}
 	w.places, w.nextPlace = s.Places, s.NextPlace
+	w.groundTents = s.GroundTents
 	w.loadPlaces()
 	w.initPredict()
 	w.pred.pending = s.Tables

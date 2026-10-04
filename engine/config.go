@@ -171,6 +171,9 @@ type Config struct {
 	// over SleepTicks. Off, the saving is the burn at falling asleep less
 	// the warm burn (8-2a).
 	NightSaving bool
+	// DropTents leaves a dead body's tent on its tile, for any body without
+	// one that stands there to take up (stage 8-2a3).
+	DropTents bool
 	// Ownership lets things on the ground have an owner, who alone may
 	// take them (stage 6-4c, own.go). No rule gives a thing an owner yet.
 	Ownership bool
@@ -458,6 +461,7 @@ func DefaultConfig() Config {
 		TentEnergy:         10,
 		TentLife:           3000,
 		NightSaving:        true,
+		DropTents:          true,
 		KeepHeading:        true,
 		TurnOffReverse:     true,
 		Recheck:            300,

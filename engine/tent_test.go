@@ -93,7 +93,7 @@ func TestTentUnlearned(t *testing.T) {
 func TestAtduskIsStage82a(t *testing.T) {
 	const want = uint64(0x998e11891b32b064)
 	cfg := testConfig(1)
-	cfg.NightSaving = false
+	cfg.NightSaving, cfg.DropTents = false, false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
 		t.Fatal(err)
@@ -128,5 +128,53 @@ func TestColdFelt(t *testing.T) {
 	w.feelWarm(b)
 	if b.Memory.Cold[1] != 1 || b.Memory.Warm[1] != 1 {
 		t.Fatalf("in a tent: cold %v warm %v", b.Memory.Cold, b.Memory.Warm)
+	}
+}
+
+// Losing tents with their owners, the world is stage 8-2a2: its
+// fingerprint is the one pinned then.
+func TestBuriedIsStage82a2(t *testing.T) {
+	const want = uint64(0x4cf99317cf4b51a6)
+	cfg := testConfig(1)
+	cfg.DropTents = false
+	w, err := NewWorld(cfg, tempMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// A dead body's tent stays on its tile until it would have worn out; a
+// body with no tent standing there takes it up, skill or not, and one
+// with a tent leaves it.
+func TestDropTent(t *testing.T) {
+	w := pairWorld(t, Body{ID: 0, X: 5.5, Y: 5.5, Energy: 0}, Body{ID: 1, X: 6.5, Y: 5.5, Energy: 60})
+	w.cfg.DropTents = true
+	dead, o := &w.bodies[0], &w.bodies[1]
+	dead.Tent = Tent{Has: true, Until: w.tick + 500, Uses: 3}
+	w.removeDead()
+	if len(w.bodies) != 1 || len(w.groundTents) != 1 || w.groundTents[0].Until != w.tick+500 {
+		t.Fatalf("ground tents %+v", w.groundTents)
+	}
+	o = &w.bodies[0]
+	o.Tent = Tent{Has: true, Until: w.tick + 100}
+	o.X = 5.5
+	w.pickTent(o)
+	if len(w.groundTents) != 1 {
+		t.Fatal("a body with a tent took up another")
+	}
+	o.Tent = Tent{}
+	w.pickTent(o)
+	if !o.Tent.Has || o.Tent.Until != w.tick+500 || o.Tent.Uses != 0 || len(w.groundTents) != 0 {
+		t.Fatalf("taken up: %+v, ground %v", o.Tent, w.groundTents)
+	}
+	w.groundTents = []GroundTent{{Tile: 3, Until: w.tick + 1}}
+	w.tick++
+	w.wearGroundTents()
+	if len(w.groundTents) != 0 {
+		t.Fatal("a tent on the ground did not wear out")
 	}
 }
