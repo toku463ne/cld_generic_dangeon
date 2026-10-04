@@ -271,6 +271,24 @@ func (w *World) mayEnter(b *Body, t int) bool {
 	return true
 }
 
+// closedTile reports whether tile t belongs to a settlement closed to
+// others (its builder alive).
+func (w *World) closedTile(t int) bool {
+	if w.placeAt == nil || w.placeAt[t] == 0 {
+		return false
+	}
+	for i := range w.places {
+		if p := &w.places[i]; p.ID == w.placeAt[t] {
+			return !p.Open
+		}
+	}
+	return false
+}
+
+// ClosedTile reports whether tile t belongs to a settlement closed to
+// others. For counts.
+func (w *World) ClosedTile(t int) bool { return w.closedTile(t) }
+
 // family reports whether body b belongs to the family of settlement p.
 func (w *World) family(b *Body, p *Place) bool {
 	if p.Open || b.ID == p.Builder || b.ID == p.Mate {

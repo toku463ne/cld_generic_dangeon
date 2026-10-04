@@ -183,3 +183,31 @@ func TestSettlementClosed(t *testing.T) {
 		t.Fatalf("worn out: home %d reuse %v", b.Home, b.Memory.Reuse)
 	}
 }
+
+// With SettledFood off, no food comes back onto a settlement closed to
+// others; once it opens, food may come back there again.
+func TestSettledFood(t *testing.T) {
+	w, b, _ := settleWorld(t)
+	b.Work = Work{Site: w.tileOf(b.X, b.Y) + 1, Left: 1}
+	w.act(0, b, Action{Kind: ActBuild})
+	w.cfg.SettledFood = false
+	for _, f := range w.Foods() {
+		w.eatFood(w.foodOn(w.m.index(f.X, f.Y)))
+	}
+	r := w.m.RegionAt(5, 5)
+	for i := 0; i < 2000; i++ {
+		w.placeFood(r)
+	}
+	for _, f := range w.Foods() {
+		if w.closedTile(w.m.index(f.X, f.Y)) {
+			t.Fatalf("food came back onto a closed settlement at (%d,%d)", f.X, f.Y)
+		}
+	}
+	if !w.closedTile(w.m.index(5, 5)) {
+		t.Fatal("the settlement is not closed")
+	}
+	w.openPlaces(b.ID)
+	if w.closedTile(w.m.index(5, 5)) {
+		t.Fatal("an open settlement is closed")
+	}
+}

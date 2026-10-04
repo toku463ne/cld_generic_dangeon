@@ -27,6 +27,10 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Foodless is stage 8-2b with no food coming back into a settlement closed to
+// others: what is left of its cost is the ways it closes off.
+const Foodless = "foodless"
+
 // Unsettled is stage 8-2a3: no body builds a settlement.
 const Unsettled = "unsettled"
 
@@ -225,6 +229,7 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
+func foodless(c *engine.Config)     { c.SettledFood = false }
 func unsettled(c *engine.Config)    { c.Building = false }
 func buried(c *engine.Config)       { unsettled(c); c.DropTents = false }
 func atdusk(c *engine.Config)       { buried(c); c.NightSaving = false }
@@ -282,6 +287,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Foodless:     foodless,
 	Unsettled:    unsettled,
 	Buried:       buried,
 	Atdusk:       atdusk,

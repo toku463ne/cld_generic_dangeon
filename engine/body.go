@@ -198,6 +198,9 @@ type Stats struct {
 	// a builder went for food in sight, and the sites given up (stage
 	// 8-2b).
 	Begun, Fetched, Abandoned int64 `json:",omitempty"`
+	// MovesClosed counts the moves left out of a body's options because a
+	// settlement was closed to it (stage 8-2b): a count, read by no rule.
+	MovesClosed int64 `json:",omitempty"`
 	// TentsMade, TentNights and TentsWorn count the tents made, the nights
 	// one was pitched and the tents worn out (stage 8-2a).
 	TentsMade, TentNights, TentsWorn int64 `json:",omitempty"`
@@ -273,7 +276,11 @@ func (w *World) possibleActions(dst []Action, b *Body) []Action {
 	for d, v := range moveDirs {
 		x, y := b.X+v[0]*w.speedOf(b), b.Y+v[1]*w.speedOf(b)
 		t := w.tileOf(x, y)
-		if t >= 0 && w.m.Terrain[t] == TerrainLand && !w.blocks(b, x, y) && w.mayEnter(b, t) {
+		if t >= 0 && w.m.Terrain[t] == TerrainLand && !w.blocks(b, x, y) {
+			if !w.mayEnter(b, t) {
+				w.stats.MovesClosed++ // a count; no rule reads it
+				continue
+			}
 			dst = append(dst, Action{Kind: ActMove, Dir: d})
 		}
 	}

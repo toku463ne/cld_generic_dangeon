@@ -152,6 +152,11 @@ type Config struct {
 	BuildBorn, BuildEnergy           float64
 	BuildSide, BuildLife, BuildTicks int
 	ReusePrior, ReuseWeight          float64
+	// SettledFood lets food come back onto the tiles of a settlement
+	// closed to others (its builder alive); off, a unit drawn there tries
+	// another tile, as one drawn onto food does (stage 8-2b, to tell the
+	// food closed in from the ways closed off).
+	SettledFood bool
 	// Tents lets a body born with the skill (TentBorn) make a tent as it
 	// falls asleep, paying TentEnergy, carry it, and pitch it wherever it
 	// sleeps, sleeping warm in it; it wears out TentLife ticks after it was
@@ -450,6 +455,7 @@ func DefaultConfig() Config {
 		BuildSide:          3,
 		BuildLife:          8000,
 		BuildTicks:         100,
+		SettledFood:        true,
 		ReusePrior:         2,
 		ReuseWeight:        1,
 		Tents:              true,
