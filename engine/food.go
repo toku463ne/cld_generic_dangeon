@@ -433,6 +433,7 @@ func (w *World) askProvision() {
 		}
 		if w.rng.Float64() < p && m.Asks < 2 {
 			m.Asks++
+			m.AskedAt = w.tick
 		}
 	}
 }

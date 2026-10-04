@@ -55,6 +55,10 @@ type Body struct {
 	// Asks is how many units a resting mother has asked for and not yet
 	// received (with ProvisionEach).
 	Asks int `json:",omitempty"`
+	// AskedAt is the tick a resting mother last asked for food, and HomeAt
+	// the tick she was last at the place it comes to after asking (stage
+	// 6-4b).
+	AskedAt, HomeAt int64 `json:",omitempty"`
 	// Requested is the tick its request to mate stays open until (with
 	// Requests); zero or past for none.
 	Requested int64 `json:",omitempty"`
@@ -190,6 +194,9 @@ type Stats struct {
 	// or picked up by the mother they were sent to and by anyone else
 	// (stage 6-4a).
 	Sent, Delivered, MotherAte, OthersAte int64 `json:",omitempty"`
+	// HomeFound and HomeMissed count a resting mother's visits home after
+	// asking that found food and that did not (stage 6-4b).
+	HomeFound, HomeMissed int64 `json:",omitempty"`
 }
 
 // RowCount counts, for one learned row, the observations bodies added to it

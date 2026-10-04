@@ -93,7 +93,60 @@ func TestFatherSends(t *testing.T) {
 func TestFatherlessIsStage65a(t *testing.T) {
 	const want = uint64(0x29581a36e5ebfa84)
 	cfg := testConfig(1)
+	cfg.HideShelter, cfg.HomeRead = false, false
 	cfg.FatherSends, cfg.Provision = false, true
+	w, err := NewWorld(cfg, tempMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// Food on a place to rest shows only from a place to rest. A resting
+// mother who asked reads home as a unit she remembers, at the chance her
+// visits there found food, until she has been there; there she learns
+// whether food was.
+func TestHomeRead(t *testing.T) {
+	w, mother, _ := sendWorld(t, 99)
+	w.cfg.HideShelter, w.cfg.HomeRead = true, true
+	w.m = tempMap() // places to rest at (1..3, 1..3)
+	w.light, w.lightFor = 1, w.tick+1
+	if !w.m.ShelterAt(1, 1) || w.seesFood(mother, 4, 2, 3, 2) || !w.seesFood(mother, 2, 2, 3, 2) || !w.seesFood(mother, 4, 2, 5, 2) {
+		t.Fatal("food on a place to rest shows from outside it, or not from inside")
+	}
+	if _, _, ok := w.homeAhead(mother); ok {
+		t.Fatal("reads home before asking")
+	}
+	w.tick += 10
+	mother.AskedAt = w.tick
+	f, p, ok := w.homeAhead(mother)
+	if !ok || f.X != 1 || f.Y != 1 || p != w.cfg.PriorSpot {
+		t.Fatalf("home ahead %v at %v (%v)", f, p, ok)
+	}
+	w.decide(mother)
+	if v := w.valuation; len(v.Home) != 1 || v.Home[0] != f {
+		t.Fatalf("valuation reads home %v", v.Home)
+	}
+	mother.X, mother.Y = 1.5, 1.5
+	w.tick++
+	w.noteHome(mother)
+	if mother.HomeAt != w.tick || mother.Memory.Home.N != 1 {
+		t.Fatalf("at home: learned %+v", mother.Memory.Home)
+	}
+	if _, _, ok := w.homeAhead(mother); ok {
+		t.Fatal("reads home again without asking again")
+	}
+}
+
+// With food on places to rest showing from anywhere and no mother reading
+// home, the world is stage 6-4a: its fingerprint is the one pinned then.
+func TestHomelessIsStage64a(t *testing.T) {
+	const want = uint64(0x910c4709afac44ef)
+	cfg := testConfig(1)
+	cfg.HideShelter, cfg.HomeRead = false, false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
 		t.Fatal(err)

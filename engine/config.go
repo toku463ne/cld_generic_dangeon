@@ -150,6 +150,13 @@ type Config struct {
 	// nearest the mother that she knows. He spends no time on the way.
 	FatherSends bool
 	SendGate    float64
+	// HideShelter hides the food on a place to rest from any body not on a
+	// place to rest itself (stage 6-4b): only one that goes there sees it.
+	// HomeRead has a resting mother who asked for food since she was last
+	// at the place it comes to read that place as a unit she remembers,
+	// there with the chance her own visits there after asking found food
+	// (pulled toward PriorSpot by SpotWeight, as the spot row is).
+	HideShelter, HomeRead bool
 	// KeepHeading breaks ties by the body's last move: when the options of
 	// least risk include moving the way it last moved, it moves that way,
 	// and it draws at random among them otherwise - where the land ends,
@@ -422,6 +429,8 @@ func DefaultConfig() Config {
 		PassShelters:       true,
 		FatherSends:        true,
 		SendGate:           0.01,
+		HideShelter:        true,
+		HomeRead:           true,
 		KeepHeading:        true,
 		TurnOffReverse:     true,
 		Recheck:            300,

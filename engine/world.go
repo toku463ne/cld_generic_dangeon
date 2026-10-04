@@ -235,6 +235,15 @@ func (w *World) Sight() int { return w.cfg.Sight }
 // share of the square it sees follows the light, and at one light the same
 // tiles stay seen, so the light alone does not keep a body re-deciding.
 // Nothing is drawn from the random source.
+// seesFood is seesFrom for food: with HideShelter, food on a place to rest
+// is seen only from a place to rest (stage 6-4b).
+func (w *World) seesFood(b *Body, tx, ty, x, y int) bool {
+	if w.cfg.HideShelter && w.m.ShelterAt(x, y) && !w.m.ShelterAt(tx, ty) {
+		return false
+	}
+	return w.seesFrom(b, tx, ty, x, y)
+}
+
 func (w *World) sees(b *Body, x, y int) bool {
 	t := w.tileOf(b.X, b.Y)
 	return w.seesFrom(b, t%w.m.Width, t/w.m.Width, x, y)

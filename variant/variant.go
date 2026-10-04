@@ -27,6 +27,10 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Homeless is stage 6-4a: food on a place to rest shows from anywhere, and
+// a mother does not read home as where her food comes.
+const Homeless = "homeless"
+
 // Fatherless is stage 6-5a: resting mothers are provisioned, and fathers
 // send nothing.
 const Fatherless = "fatherless"
@@ -216,7 +220,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func fatherless(c *engine.Config)   { c.FatherSends, c.Provision = false, true }
+func homeless(c *engine.Config)     { c.HideShelter, c.HomeRead = false, false }
+func fatherless(c *engine.Config)   { homeless(c); c.FatherSends, c.Provision = false, true }
 func untaught(c *engine.Config)     { fatherless(c); c.PassShelters = false }
 func sleepblind(c *engine.Config)   { untaught(c); c.SleepAhead = false }
 func unforced(c *engine.Config)     { sleepblind(c); c.ForceAt = 0 }
@@ -270,6 +275,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Homeless:     homeless,
 	Fatherless:   fatherless,
 	Untaught:     untaught,
 	Sleepblind:   sleepblind,

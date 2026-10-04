@@ -182,3 +182,53 @@ func (w *World) noteDelivered(b *Body, t int) {
 		w.stats.OthersAte++
 	}
 }
+
+// homeRadius is how far from the tile sent to a delivered unit can lie
+// (deliverFood), and so where a mother at home looks for it.
+const homeRadius = 2
+
+// noteHome has resting mother b, at the place her food comes to after
+// asking for it, learn whether food was there (HomeRead, stage 6-4b).
+func (w *World) noteHome(b *Body) {
+	if !w.cfg.Learn || !w.cfg.HomeRead || !w.resting(b) || b.AskedAt <= b.HomeAt {
+		return
+	}
+	home, ok := w.restsAt(b)
+	if !ok {
+		return
+	}
+	hx, hy := home%w.m.Width, home/w.m.Width
+	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
+	if max(abs(bx-hx), abs(by-hy)) > homeRadius {
+		return
+	}
+	found := 0.0
+	for y := hy - homeRadius; y <= hy+homeRadius; y++ {
+		for x := hx - homeRadius; x <= hx+homeRadius; x++ {
+			if w.m.InBounds(x, y) && w.foodOn(w.m.index(x, y)) >= 0 {
+				found = 1
+			}
+		}
+	}
+	w.observe(&b.Memory.Home, 1, found)
+	b.HomeAt = w.tick
+	if found > 0 {
+		w.stats.HomeFound++
+	} else {
+		w.stats.HomeMissed++
+	}
+}
+
+// homeAhead returns the place resting mother b's food comes to, if she
+// has asked since she was last there, and the chance she reads food there
+// at (HomeRead, stage 6-4b).
+func (w *World) homeAhead(b *Body) (Food, float64, bool) {
+	if !w.cfg.Learn || !w.cfg.HomeRead || !w.resting(b) || b.AskedAt <= b.HomeAt {
+		return Food{}, 0, false
+	}
+	home, ok := w.restsAt(b)
+	if !ok {
+		return Food{}, 0, false
+	}
+	return Food{X: home % w.m.Width, Y: home / w.m.Width}, w.Fresh(b.Memory.Home).estimate(w.cfg.PriorSpot, w.cfg.SpotWeight), true
+}

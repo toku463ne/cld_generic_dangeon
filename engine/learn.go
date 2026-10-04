@@ -102,6 +102,9 @@ type Memory struct {
 	// Spot counts its walks to one: found it there, K times in N.
 	Spots map[int]int64 `json:",omitempty"`
 	Spot  Tally         `json:",omitempty"`
+	// Home counts a resting mother's visits after asking to the place her
+	// food comes to: found food there, K times in N (stage 6-4b).
+	Home Tally `json:",omitempty"`
 	// Shelters are the tiles of places to rest it has seen (stage 6-1b),
 	// and Warm the burn it felt on one in the dark over the burn it knows
 	// of its own body: its sum and count.
@@ -441,7 +444,7 @@ func (w *World) stepped(b *Body, from, to int) {
 			if abs(x-fx) <= s && abs(y-fy) <= s {
 				continue // in view before the step
 			}
-			if !w.seesFrom(b, tx, ty, x, y) {
+			if !w.seesFood(b, tx, ty, x, y) {
 				continue // too dark to see it
 			}
 			t := w.m.index(x, y)
