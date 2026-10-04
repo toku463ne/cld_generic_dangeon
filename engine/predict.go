@@ -986,11 +986,17 @@ func (w *World) decide(b *Body) Action {
 		a = Action{Kind: ActMove, Dir: h}
 		draw = draw || !w.tied(a)
 	}
+	w.drawn = draw
 	if draw {
 		a = v.Options[w.ties[w.rng.Intn(len(w.ties))]]
 	}
 	return a
 }
+
+// LastTie reports whether the last decision drew among the options of
+// least risk (rather than keeping the heading), and how many there were.
+// For counts; no rule reads it.
+func (w *World) LastTie() (drawn bool, ties int) { return w.drawn, len(w.ties) }
 
 // bounce returns heading h reflected off whatever makes moving that way
 // worse than the best: an axis whose step alone is not among the options

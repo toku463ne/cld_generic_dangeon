@@ -43,6 +43,7 @@ type World struct {
 	// valuation is scratch space for the decision of the body acting now.
 	valuation Valuation
 	ties      []int
+	drawn     bool  // the last decision drew among ties (LastTie); no rule reads it
 	rates     rates // a learning body's estimates, for the decision under way
 
 	// died is the tick each body died, for the provenance instrument
