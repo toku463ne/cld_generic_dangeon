@@ -135,134 +135,19 @@ func TestSettleWork(t *testing.T) {
 	}
 }
 
-// Only the builder's family may step into its settlement: its mate and
-// its children not yet of age; others, and its grown children, may not.
-func TestSettlementClosed(t *testing.T) {
-	w, b, o := settleWorld(t)
+// A settlement wears out BuildLife ticks after it was done: its tiles are
+// no place to rest again, and its builder learns its returns and has no
+// home.
+func TestPlaceWears(t *testing.T) {
+	w, b, _ := settleWorld(t)
 	b.Work = Work{Site: w.tileOf(b.X, b.Y) + 1, Left: 1}
 	w.act(0, b, Action{Kind: ActBuild})
 	p := &w.places[0]
-	in := w.m.index(6, 6)
-	if !w.mayEnter(b, in) || w.mayEnter(o, in) {
-		t.Fatal("the builder may not enter, or a stranger may")
-	}
-	w.newMate(b.ID, o.ID)
-	if p.Mate != o.ID || !w.mayEnter(o, in) {
-		t.Fatal("the builder's mate may not enter")
-	}
-	child := Body{ID: 9, Parents: [2]int64{o.ID, b.ID}, Mature: w.tick + 100}
-	if !w.mayEnter(&child, in) {
-		t.Fatal("a child may not enter its parent's settlement")
-	}
-	child.Mature = w.tick
-	if w.mayEnter(&child, in) {
-		t.Fatal("a grown child may still enter")
-	}
-	// A stranger beside it has no move into it.
-	s := Body{ID: 7, X: 7.5, Y: 6.5, Energy: 50}
-	for _, a := range w.possibleActions(nil, &s) {
-		if a.Kind == ActMove {
-			x, y := s.X+moveDirs[a.Dir][0]*w.speedOf(&s), s.Y+moveDirs[a.Dir][1]*w.speedOf(&s)
-			if !w.mayEnter(&s, w.tileOf(x, y)) {
-				t.Fatalf("a stranger may move %d into the settlement", a.Dir)
-			}
-		}
-	}
-	// A stranger inside when it was done may walk out through it.
-	in2 := Body{ID: 8, X: 5.5, Y: 5.5, Energy: 50}
-	if !w.mayEnter(&in2, w.m.index(6, 6)) {
-		t.Fatal("a stranger inside cannot walk out")
-	}
-	// Its builder dead, it is open to all.
-	w.openPlaces(b.ID)
-	if !w.mayEnter(&s, in) {
-		t.Fatal("a dead builder's settlement is still closed")
-	}
-	p.Open = false
-	// It wears out: the builder learns its returns and has no home.
 	b.Asleep = false
 	w.act(0, b, Action{Kind: ActSleep})
 	w.tick = p.Until
 	w.wearPlaces()
-	if b.Home != 0 || b.Memory.Reuse != [2]float64{1, 1} || w.m.ShelterAt(5, 5) || !w.mayEnter(o, in) {
+	if b.Home != 0 || b.Memory.Reuse != [2]float64{1, 1} || w.m.ShelterAt(5, 5) {
 		t.Fatalf("worn out: home %d reuse %v", b.Home, b.Memory.Reuse)
-	}
-}
-
-// With SettledFood off, no food comes back onto a settlement closed to
-// others; once it opens, food may come back there again.
-func TestSettledFood(t *testing.T) {
-	w, b, _ := settleWorld(t)
-	b.Work = Work{Site: w.tileOf(b.X, b.Y) + 1, Left: 1}
-	w.act(0, b, Action{Kind: ActBuild})
-	w.cfg.SettledFood = false
-	for _, f := range w.Foods() {
-		w.eatFood(w.foodOn(w.m.index(f.X, f.Y)))
-	}
-	r := w.m.RegionAt(5, 5)
-	for i := 0; i < 2000; i++ {
-		w.placeFood(r)
-	}
-	for _, f := range w.Foods() {
-		if w.closedTile(w.m.index(f.X, f.Y)) {
-			t.Fatalf("food came back onto a closed settlement at (%d,%d)", f.X, f.Y)
-		}
-	}
-	if !w.closedTile(w.m.index(5, 5)) {
-		t.Fatal("the settlement is not closed")
-	}
-	w.openPlaces(b.ID)
-	if w.closedTile(w.m.index(5, 5)) {
-		t.Fatal("an open settlement is closed")
-	}
-}
-
-// Without consent by a request to mate, the world is stage 8-2b: its
-// fingerprint is the one pinned then.
-func TestUnconsentedIsStage82b(t *testing.T) {
-	const want = uint64(0x4c3cad7a3ba8bfe9)
-	cfg := testConfig(1)
-	cfg.MateConsent = false
-	w, err := NewWorld(cfg, tempMap())
-	if err != nil {
-		t.Fatal(err)
-	}
-	run(w, 1000)
-	if got := w.Fingerprint(); got != want {
-		t.Fatalf("fingerprint = %#x, want %#x", got, want)
-	}
-}
-
-// One of the family in its settlement with a request to mate open lets in
-// a body of the other sex, and only while the request is open.
-func TestMateConsent(t *testing.T) {
-	w, b, o := settleWorld(t)
-	b.Work = Work{Site: w.tileOf(b.X, b.Y) + 1, Left: 1}
-	w.act(0, b, Action{Kind: ActBuild})
-	b.Asleep = false
-	in := w.m.index(6, 6)
-	if w.mayEnter(o, in) {
-		t.Fatal("a stranger may enter without a request")
-	}
-	b.Requested = w.tick + 10
-	w.listAsking()
-	if b.Sex == o.Sex {
-		t.Fatal("the pair is of one sex")
-	}
-	if !w.mayEnter(o, in) {
-		t.Fatal("a body of the other sex may not answer a request from inside")
-	}
-	same := Body{ID: 7, Sex: b.Sex, X: 20.5, Y: 20.5}
-	if w.mayEnter(&same, in) {
-		t.Fatal("a body of the same sex is let in by a request to mate")
-	}
-	w.cfg.MateConsent = false
-	if w.mayEnter(o, in) {
-		t.Fatal("let in with MateConsent off")
-	}
-	w.cfg.MateConsent = true
-	b.Requested = w.tick
-	if w.mayEnter(o, in) {
-		t.Fatal("let in after the request closed")
 	}
 }

@@ -29,9 +29,6 @@ func (w *World) noteShelters(b *Body) {
 				w.forgetPlace(b, w.m.index(x, y))
 				continue
 			}
-			if !w.mayEnter(b, w.m.index(x, y)) {
-				continue // another's settlement is no place to rest for it
-			}
 			w.rememberShelter(b, w.m.index(x, y))
 		}
 	}

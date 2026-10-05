@@ -23,13 +23,12 @@ import "math"
 // wait it sleeps where it is and works on when it wakes; hungry with no
 // food in sight and too little energy for the work left and a night, it
 // gives the site up. Done, the land in the BuildSide square round the site
-// that is no place to rest yet becomes the builder's settlement: warm at
-// night, and closed to all but its family - the builder, the other parent
-// of its last child, and its children not yet of age. A body inside when
-// it is done may step out but not back in. It wears out BuildLife ticks
+// that is no place to rest yet becomes a settlement: warm at night and open
+// to all, like the places the world lays out (lives are some seven days,
+// and a builder all but never came back to a place it closed to others -
+// the user took ownership out, 2026-10-05). It wears out BuildLife ticks
 // after it was done, and its builder, if alive, learns how often it came
-// back to sleep in it. When its builder dies it is owned by no one and open
-// to all, as a dead body's things are, until it wears out.
+// back to sleep in it.
 
 // SkillBuild is the skill of building settlements, SkillTent of making
 // tents (tent.go).
@@ -43,11 +42,6 @@ const (
 type Place struct {
 	ID      int64
 	Builder int64
-	// Mate is the other parent of the builder's last child, -1 for none.
-	Mate int64
-	// Open is whether its builder has died: owned by no one, it is open
-	// to all until it wears out (as a dead body's things are, own.go).
-	Open bool `json:",omitempty"`
 	// Tiles are its tiles; Until the tick it wears out.
 	Tiles []int
 	Until int64
@@ -177,7 +171,7 @@ func (w *World) toward(b *Body, t int) Action {
 	a := math.Atan2(ty-b.Y, tx-b.X)
 	d := (int(math.Round(a/(math.Pi/4))) + 8) % 8
 	x, y := b.X+moveDirs[d][0]*w.speedOf(b), b.Y+moveDirs[d][1]*w.speedOf(b)
-	if to := w.tileOf(x, y); to < 0 || w.m.Terrain[to] != TerrainLand || w.blocks(b, x, y) || !w.mayEnter(b, to) {
+	if to := w.tileOf(x, y); to < 0 || w.m.Terrain[to] != TerrainLand || w.blocks(b, x, y) {
 		return Action{Kind: ActWait}
 	}
 	return Action{Kind: ActMove, Dir: d}
@@ -204,7 +198,7 @@ func (w *World) settle(b *Body) {
 		w.placeAt = make([]int64, len(w.m.Terrain))
 	}
 	w.nextPlace++
-	p := Place{ID: w.nextPlace, Builder: b.ID, Mate: w.mateOfBuilder(b), Until: w.tick + int64(w.cfg.BuildLife)}
+	p := Place{ID: w.nextPlace, Builder: b.ID, Until: w.tick + int64(w.cfg.BuildLife)}
 	site := b.Work.Site - 1
 	bx, by := site%w.m.Width, site/w.m.Width
 	lo := w.cfg.BuildSide / 2
@@ -229,106 +223,6 @@ func (w *World) settle(b *Body) {
 	w.places = append(w.places, p)
 	b.Home = p.ID
 	w.stats.Built++
-}
-
-// mateOfBuilder is the other parent of body b's last child, -1 for none.
-func (w *World) mateOfBuilder(b *Body) int64 {
-	if b.Partner >= 0 {
-		return b.Partner // a mother knows the father of her last child
-	}
-	for i := range w.bodies {
-		if o := &w.bodies[i]; o.Partner == b.ID {
-			return o.ID
-		}
-	}
-	return -1
-}
-
-// newMate has the settlements of a birth's parents a and b take the other
-// parent as their builder's mate.
-func (w *World) newMate(a, b int64) {
-	for i := range w.places {
-		switch p := &w.places[i]; p.Builder {
-		case a:
-			p.Mate = b
-		case b:
-			p.Mate = a
-		}
-	}
-}
-
-// mayEnter reports whether body b may step onto tile t: anywhere but
-// another's settlement, unless it is family there, or it stands in that
-// settlement already (inside when it was done, it may walk out).
-func (w *World) mayEnter(b *Body, t int) bool {
-	if w.placeAt == nil || t < 0 || w.placeAt[t] == 0 {
-		return true
-	}
-	if here := w.tileOf(b.X, b.Y); here >= 0 && w.placeAt[here] == w.placeAt[t] {
-		return true
-	}
-	for i := range w.places {
-		if p := &w.places[i]; p.ID == w.placeAt[t] {
-			return w.family(b, p) || w.invited(b, p)
-		}
-	}
-	return true
-}
-
-// invited reports whether body b is let into settlement p by consent
-// (MateConsent, stage 8-2b2): one of its family, in it, has a request to
-// mate open, and b is of the other sex - the request is consent to the
-// one who answers it. (Once there is affection, one inside will let others
-// in by it; VISION.)
-func (w *World) invited(b *Body, p *Place) bool {
-	if !w.cfg.MateConsent {
-		return false
-	}
-	for _, i := range w.asking {
-		o := &w.bodies[i]
-		if o.Requested <= w.tick || o.Sex == b.Sex || o.ID == b.ID {
-			continue
-		}
-		if t := w.tileOf(o.X, o.Y); t >= 0 && w.placeAt[t] == p.ID && w.family(o, p) {
-			return true
-		}
-	}
-	return false
-}
-
-// closedTile reports whether tile t belongs to a settlement closed to
-// others (its builder alive).
-func (w *World) closedTile(t int) bool {
-	if w.placeAt == nil || w.placeAt[t] == 0 {
-		return false
-	}
-	for i := range w.places {
-		if p := &w.places[i]; p.ID == w.placeAt[t] {
-			return !p.Open
-		}
-	}
-	return false
-}
-
-// ClosedTile reports whether tile t belongs to a settlement closed to
-// others. For counts.
-func (w *World) ClosedTile(t int) bool { return w.closedTile(t) }
-
-// family reports whether body b belongs to the family of settlement p.
-func (w *World) family(b *Body, p *Place) bool {
-	if p.Open || b.ID == p.Builder || b.ID == p.Mate {
-		return true
-	}
-	return b.Mature > w.tick && (b.Parents[0] == p.Builder || b.Parents[1] == p.Builder)
-}
-
-// openPlaces opens the settlements of dead body id to all.
-func (w *World) openPlaces(id int64) {
-	for i := range w.places {
-		if p := &w.places[i]; p.Builder == id {
-			p.Open = true
-		}
-	}
 }
 
 // noteReturn counts body b's sleep, begun on tile t, as a return to a

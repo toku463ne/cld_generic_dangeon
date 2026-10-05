@@ -178,7 +178,6 @@ func (w *World) removeDead() {
 			w.loseHeld(&b)
 			w.dropTent(&b)
 			w.release(b.ID)
-			w.openPlaces(b.ID)
 			w.stats.Deaths[cause]++
 			w.stats.BudgetOut += b.Budget
 			if w.tick < b.Mature {

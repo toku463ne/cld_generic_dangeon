@@ -150,7 +150,7 @@ func (w *World) placeFood(r RegionID) bool {
 	const tries = 8
 	for i := 0; i < tries; i++ {
 		t := land[w.rng.Intn(len(land))]
-		if f.foodAt[t] != 0 || !w.cfg.SettledFood && w.closedTile(t) {
+		if f.foodAt[t] != 0 {
 			continue
 		}
 		f.foods = append(f.foods, Food{X: t % w.m.Width, Y: t / w.m.Width})
