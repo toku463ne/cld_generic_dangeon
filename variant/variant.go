@@ -27,6 +27,13 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Sight0 and Sight2 are the sight sweep before stage 9-3 (sight as a
+// budget slot): every body sees only its own tile, or two tiles out.
+const (
+	Sight0 = "sight0"
+	Sight2 = "sight2"
+)
+
 // Unkept is stage 8-2b3: food on a place to rest lasts no longer than
 // anywhere.
 const Unkept = "unkept"
@@ -287,6 +294,8 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Sight0:       func(c *engine.Config) { c.Sight = 0 },
+	Sight2:       func(c *engine.Config) { c.Sight = 2 },
 	Unkept:       unkept,
 	Unsettled:    unsettled,
 	Buried:       buried,
