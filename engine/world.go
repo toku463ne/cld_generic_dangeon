@@ -89,6 +89,9 @@ func NewWorld(cfg Config, m Map) (*World, error) {
 	if cfg.AgeBand > 0 && (cfg.AgeEpoch <= 0 || len(cfg.AgeTrust) == 0) {
 		return nil, fmt.Errorf("AgeBand needs AgeEpoch above zero and AgeTrust")
 	}
+	if cfg.AllotSight && (cfg.SightMost < 1 || cfg.Sight < 0 || cfg.Sight > cfg.SightMost) {
+		return nil, fmt.Errorf("AllotSight needs 0 <= Sight <= SightMost and SightMost >= 1, got Sight %d SightMost %d", cfg.Sight, cfg.SightMost)
+	}
 	if cfg.DayTicks > 0 && (cfg.NightTicks < 0 || cfg.NightTicks > cfg.DayTicks || cfg.NightSight > cfg.Sight || cfg.TwilightTicks < 0 || cfg.TwilightTicks > cfg.NightTicks || cfg.TwilightTicks > cfg.DayTicks-cfg.NightTicks) {
 		return nil, fmt.Errorf("a night (NightTicks) must fit in a day (DayTicks), its twilights (TwilightTicks) in both, and see no further than the day (Sight)")
 	}
@@ -236,6 +239,26 @@ func (w *World) Night() bool { return w.Brightness() < 0.5 }
 // keeps it.
 func (w *World) Sight() int { return w.cfg.Sight }
 
+// sightOf is how far body b sees, in tiles: its own drawn sight
+// (AllotSight, stage 9-3), or the config's.
+func (w *World) sightOf(b *Body) int {
+	if b.Sight > 0 {
+		return b.Sight - 1
+	}
+	return w.cfg.Sight
+}
+
+// BodySight is sightOf, for counts and clients.
+func (w *World) BodySight(b Body) int { return w.sightOf(&b) }
+
+// maxSight is the largest sight any body can have, for sizing bounds.
+func (w *World) maxSight() int {
+	if w.cfg.AllotSight && w.cfg.SightMost > w.cfg.Sight {
+		return w.cfg.SightMost
+	}
+	return w.cfg.Sight
+}
+
 // sees reports whether body b sees tile (x, y) now: within NightSight of
 // its tile always, within Sight when the light is above the tile's
 // threshold for b, a number in [0, 1) fixed by the body and the tile. The
@@ -250,7 +273,7 @@ func (w *World) sees(b *Body, x, y int) bool {
 // seesFrom is sees with body b standing on tile (tx, ty).
 func (w *World) seesFrom(b *Body, tx, ty, x, y int) bool {
 	d := max(abs(x-tx), abs(y-ty))
-	if d > w.cfg.Sight {
+	if d > w.sightOf(b) {
 		return false
 	}
 	if d <= w.cfg.NightSight {
@@ -346,6 +369,10 @@ func (w *World) Fingerprint() uint64 {
 		// And the age of coming of age, where bodies breed.
 		if w.cfg.Allot && w.cfg.AllotInherit {
 			put(uint64(b.Level))
+		}
+		// The drawn sight is state only where a body has one.
+		if b.Sight != 0 {
+			put(uint64(b.Sight))
 		}
 		// And what it has learned, where bodies learn.
 		if w.cfg.Learn {

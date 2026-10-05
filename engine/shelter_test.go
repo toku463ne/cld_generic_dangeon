@@ -92,6 +92,7 @@ func TestShelterWalk(t *testing.T) {
 func TestShelterblindIsStage61a(t *testing.T) {
 	const want = uint64(0x4837b6704b743d89)
 	cfg := testConfig(1)
+	cfg.AllotSight = false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ShelterFoodLife = 0
 	cfg.ForceAt = 0

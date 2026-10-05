@@ -37,10 +37,10 @@ func TestSleepAhead(t *testing.T) {
 		t.Fatalf("noon: waking factor %v, sleeping now %v: sleeping through the night should leave brighter hours", awake, slept)
 	}
 	s := lightSched{lit: true, s1: 100, s2: 600}
-	if got, want := s.mean(1000, w), (100*3+500*1+400*3)/1000.0; math.Abs(got-want) > 1e-12 {
+	if got, want := s.mean(1000, w, w.cfg.Sight), (100*3+500*1+400*3)/1000.0; math.Abs(got-want) > 1e-12 {
 		t.Fatalf("mean with no sleep in the window %v, want %v", got, want)
 	}
-	if got, want := s.mean(100, w), (100*3+167*1+400*3)/667.0; math.Abs(got-want) > 1e-12 {
+	if got, want := s.mean(100, w, w.cfg.Sight), (100*3+167*1+400*3)/667.0; math.Abs(got-want) > 1e-12 {
 		t.Fatalf("mean around a sleep at 100 %v, want %v", got, want)
 	}
 	b.Pressure = 0.7
@@ -59,6 +59,7 @@ func TestSleepAhead(t *testing.T) {
 func TestSleepblindIsStage73d(t *testing.T) {
 	const want = uint64(0x897e8d0ad6f500c1)
 	cfg := testConfig(1)
+	cfg.AllotSight = false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ShelterFoodLife = 0
 	cfg.SleepAhead = false

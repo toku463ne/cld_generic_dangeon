@@ -19,7 +19,7 @@ func (w *World) noteShelters(b *Body) {
 		return
 	}
 	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
-	s := max(w.Sight(), 0)
+	s := max(w.sightOf(b), 0)
 	for y := by - s; y <= by+s; y++ {
 		for x := bx - s; x <= bx+s; x++ {
 			if !w.m.InBounds(x, y) || !w.seesFrom(b, bx, by, x, y) {

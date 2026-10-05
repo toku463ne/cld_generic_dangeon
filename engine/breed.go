@@ -148,7 +148,7 @@ func (w *World) moved(i, from, to int) {
 // mates calls f with every fertile body other than b standing on a tile
 // within Sight of b's tile, in the order of the grid.
 func (w *World) mates(b *Body, f func(*Body)) {
-	sight := w.Sight()
+	sight := w.sightOf(b)
 	if !w.cfg.Breed || sight < 0 || w.grid == nil {
 		return
 	}
@@ -203,7 +203,7 @@ func (w *World) mateOptions(dst []Action, b *Body) []Action {
 		if w.far == nil {
 			w.far = map[int64]int{}
 		}
-		gap := math.Max(math.Abs(o.X-b.X), math.Abs(o.Y-b.Y)) - float64(w.Sight())
+		gap := math.Max(math.Abs(o.X-b.X), math.Abs(o.Y-b.Y)) - float64(w.sightOf(b))
 		w.far[o.ID] = int(math.Ceil(math.Max(gap, 0) / w.speedOf(b)))
 	})
 	return dst
@@ -264,7 +264,7 @@ func (w *World) requesters(b *Body, f func(*Body)) {
 			continue
 		}
 		d := max(abs(int(math.Floor(o.X))-bx), abs(int(math.Floor(o.Y))-by))
-		if d <= w.cfg.RequestRange && (d > w.cfg.Sight || !w.seesFrom(b, bx, by, int(math.Floor(o.X)), int(math.Floor(o.Y)))) {
+		if d <= w.cfg.RequestRange && (d > w.sightOf(b) || !w.seesFrom(b, bx, by, int(math.Floor(o.X)), int(math.Floor(o.Y)))) {
 			f(o)
 		}
 	}

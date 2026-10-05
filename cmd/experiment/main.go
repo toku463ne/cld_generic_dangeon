@@ -108,8 +108,12 @@ type result struct {
 	// bodies born into it (stage 9-1); genBirths the births by generation.
 	maxGen, topGenBirths float64
 	genBirths            []int64
-	regions              []float64 // regions with a body in them, at tick 0 and each checkpoint
-	valley               float64   // fewest bodies at any tick after tick 0
+	// sightLow and sightHigh are the mean shares of adults at sight 0 and
+	// at SightMost (stage 9-3), sampled with the adults; zero without
+	// AllotSight.
+	sightLow, sightHigh float64
+	regions             []float64 // regions with a body in them, at tick 0 and each checkpoint
+	valley              float64   // fewest bodies at any tick after tick 0
 	// displace is the mean straight-line distance, in tiles, a body gets
 	// from where it was 1000 ticks before (over bodies alive at both ends,
 	// every 1000 ticks after tick 5000); edge the mean share of the living
@@ -278,6 +282,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	})
 	var was map[int64][2]float64
 	var dSum, dN, eSum, eN, aSum, aN, mSum, mN, fSum float64
+	var sLow, sHigh, sN float64
 	for _, b := range w.Bodies() {
 		known[b.ID] = b
 	}
@@ -355,15 +360,27 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 			bs := w.Bodies()
 			on := 0.0
 			var bySex [3]float64
+			low, high := 0.0, 0.0
 			for _, b := range bs {
 				if w.Tick() >= b.Mature {
 					bySex[b.Sex]++
+					switch w.BodySight(b) {
+					case 0:
+						low++
+					case cfg.SightMost:
+						high++
+					}
 				}
 			}
 			if len(bs) > 0 {
 				adults := bySex[0] + bySex[1] + bySex[2]
 				aSum += adults / float64(len(bs))
 				aN++
+				if cfg.AllotSight && adults > 0 {
+					sLow += low / adults
+					sHigh += high / adults
+					sN++
+				}
 				if f, m := bySex[engine.Female], bySex[engine.Male]; f+m > 0 {
 					mSum += math.Min(f, m) / (f + m)
 					fSum += f / (f + m)
@@ -417,6 +434,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.displace, r.edge = dSum/math.Max(dN, 1), eSum/math.Max(eN, 1)
 	r.back = backs / math.Max(traced, 1)
 	r.adults = aSum / math.Max(aN, 1)
+	r.sightLow, r.sightHigh = sLow/math.Max(sN, 1), sHigh/math.Max(sN, 1)
 	r.minority, r.female = math.NaN(), math.NaN()
 	if mN > 0 {
 		r.minority, r.female = mSum/mN, fSum/mN
@@ -906,6 +924,8 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"真後ろへの手（決定のうち）", 4, func(r result) float64 { return r.back }},
 		{"決定の割合", 4, func(r result) float64 { return r.decided }},
 		{"成人の割合", 4, func(r result) float64 { return r.adults }},
+		{"視野0の成人の割合", 4, func(r result) float64 { return r.sightLow }},
+		{"視野が最大の成人の割合", 4, func(r result) float64 { return r.sightHigh }},
 		{"休んでいる母に配られた食料", 2, func(r result) float64 { return r.provisioned }},
 		{"成人のうち女の割合", 4, func(r result) float64 { return r.female }},
 		{"交配要求で成り立った出生", 2, func(r result) float64 { return r.requestBirths }},

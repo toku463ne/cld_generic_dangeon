@@ -34,6 +34,10 @@ const (
 	Sight2 = "sight2"
 )
 
+// Unsighted is stage 8-2c: sight is not in the budget, every body seeing
+// the config's Sight.
+const Unsighted = "unsighted"
+
 // Unkept is stage 8-2b3: food on a place to rest lasts no longer than
 // anywhere.
 const Unkept = "unkept"
@@ -236,7 +240,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func unkept(c *engine.Config)       { c.ShelterFoodLife = 0 }
+func unsighted(c *engine.Config)    { c.AllotSight = false }
+func unkept(c *engine.Config)       { unsighted(c); c.ShelterFoodLife = 0 }
 func unsettled(c *engine.Config)    { unkept(c); c.Building = false }
 func buried(c *engine.Config)       { unsettled(c); c.DropTents = false }
 func atdusk(c *engine.Config)       { buried(c); c.NightSaving = false }
@@ -294,8 +299,9 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
-	Sight0:       func(c *engine.Config) { c.Sight = 0 },
-	Sight2:       func(c *engine.Config) { c.Sight = 2 },
+	Unsighted:    unsighted,
+	Sight0:       func(c *engine.Config) { unsighted(c); c.Sight = 0 },
+	Sight2:       func(c *engine.Config) { unsighted(c); c.Sight = 2 },
 	Unkept:       unkept,
 	Unsettled:    unsettled,
 	Buried:       buried,

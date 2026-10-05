@@ -22,7 +22,7 @@ import (
 // it decides: a remembered tile back in sight it walked to teaches the
 // spot row; every tile in sight is remembered with food or forgotten.
 func (w *World) noteSpots(b *Body) {
-	if !w.cfg.Learn || w.cfg.SpotRead <= 0 || w.Sight() < 0 {
+	if !w.cfg.Learn || w.cfg.SpotRead <= 0 || w.sightOf(b) < 0 {
 		return
 	}
 	mem := &b.Memory
@@ -30,7 +30,7 @@ func (w *World) noteSpots(b *Body) {
 		mem.Spots = map[int]int64{}
 	}
 	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
-	s := w.Sight()
+	s := w.sightOf(b)
 	for y := by - s; y <= by+s; y++ {
 		for x := bx - s; x <= bx+s; x++ {
 			if !w.m.InBounds(x, y) || !w.seesFrom(b, bx, by, x, y) {

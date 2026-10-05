@@ -36,8 +36,9 @@ func (w *World) sleepFore(b *Body) (lump int, awake, slept float64) {
 	if !ok {
 		return lump, 1, 1
 	}
-	now := w.sightGain()
-	return lump, sched.mean(due, w) / now, sched.mean(0, w) / now
+	sight := w.sightOf(b)
+	now := w.sightGainFor(sight, w.Brightness())
+	return lump, sched.mean(due, w, sight) / now, sched.mean(0, w, sight) / now
 }
 
 // ticksToForce is how many ticks of waking take body b's pressure to
@@ -73,9 +74,9 @@ func (w *World) lightAhead(b *Body) (lightSched, bool) {
 
 // mean is the mean sight gain over the window's ticks but the SleepTicks
 // from sleep on.
-func (l lightSched) mean(sleep int, w *World) float64 {
+func (l lightSched) mean(sleep int, w *World, sight int) float64 {
 	win := w.cfg.Window
-	lit, dark := w.sightGainAt(1), w.sightGainAt(0)
+	lit, dark := w.sightGainFor(sight, 1), w.sightGainFor(sight, 0)
 	// over sums the gain over ticks [a, b).
 	over := func(a, b int) float64 {
 		sum := 0.0
@@ -97,17 +98,9 @@ func (l lightSched) mean(sleep int, w *World) float64 {
 	end := min(sleep+w.cfg.SleepTicks, win)
 	awake := win - (end - sleep)
 	if awake <= 0 {
-		return w.sightGain()
+		return w.sightGainFor(sight, w.Brightness())
 	}
 	return (over(0, win) - over(sleep, end)) / float64(awake)
-}
-
-// sightGainAt is sightGain at light l.
-func (w *World) sightGainAt(l float64) float64 {
-	if !w.cfg.SightRead || w.cfg.Sight < 0 {
-		return 1
-	}
-	return float64(2*w.cfg.NightSight+1) + 2*float64(w.cfg.Sight-w.cfg.NightSight)*l
 }
 
 // lumpGrains is the grains a foreseen sleep is taken off the window: the

@@ -144,7 +144,7 @@ func (w *World) perceive(b *Body) (under bool, saw uint64) {
 	// lists them, and their count.
 	const prime = 1099511628211
 	saw = 14695981039346656037
-	sight := w.Sight()
+	sight := w.sightOf(b)
 	if sight < 0 {
 		return under, saw
 	}

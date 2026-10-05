@@ -390,7 +390,7 @@ func (w *World) ratesOf(b *Body, rs *rates) {
 	rs.lump, rs.awake, rs.slept = w.sleepFore(b)
 	for r := 0; r < n; r++ {
 		p := w.Fresh(b.Memory.region(RegionID(r))).estimate(land, w.cfg.RegionWeight)
-		g := w.sightGain()
+		g := w.sightGainFor(w.sightOf(b), w.Brightness())
 		rs.region = append(rs.region, math.Min(p*g, 1))
 		rs.path = append(rs.path, math.Min(w.pathFrom(path, p)*g, 1))
 		rs.tables = append(rs.tables, Survival{})
@@ -401,15 +401,16 @@ func (w *World) ratesOf(b *Body, rs *rates) {
 	}
 }
 
-// sightGain is how many tiles come into view per tile a body crosses at the
-// light now, over the one it steps on (SightRead, stage 7-2a): the factor
-// on the chance per tile of meeting food when keeping on the move. One
-// without SightRead or sight.
-func (w *World) sightGain() float64 {
-	if !w.cfg.SightRead || w.cfg.Sight < 0 {
+// sightGainFor is how many tiles come into view per tile a body of the
+// given sight crosses at light l, over the one it steps on (SightRead,
+// stage 7-2a): the factor on the chance per tile of meeting food when
+// keeping on the move. One without SightRead or sight.
+func (w *World) sightGainFor(sight int, l float64) float64 {
+	if !w.cfg.SightRead || sight < 0 {
 		return 1
 	}
-	return float64(2*w.cfg.NightSight+1) + 2*float64(w.cfg.Sight-w.cfg.NightSight)*w.Brightness()
+	ns := min(w.cfg.NightSight, sight)
+	return float64(2*ns+1) + 2*float64(sight-ns)*l
 }
 
 // rateTable returns region r's survival table for the rates, a body of the
@@ -433,14 +434,14 @@ func (w *World) rateTable(rs *rates, r RegionID, full int, factor float64) Survi
 // were, and leaving the walks out made them read three times as poor (food
 // ahead is seen, and walked to, before it is stepped on).
 func (w *World) stepped(b *Body, from, to int) {
-	if !w.cfg.Learn || from == to || to < 0 || w.Sight() < 0 {
+	if !w.cfg.Learn || from == to || to < 0 || w.sightOf(b) < 0 {
 		return
 	}
 	mem := &b.Memory
 	if mem.Walked == nil {
 		mem.Walked = map[int]int64{}
 	}
-	s := w.Sight()
+	s := w.sightOf(b)
 	tx, ty := to%w.m.Width, to/w.m.Width
 	fx, fy := -1<<20, -1<<20
 	if from >= 0 {
@@ -545,7 +546,7 @@ func (w *World) learnedTable(q float64, full int) Survival {
 	if !ok {
 		meal := w.pred.meal
 		ahead := w.grains(w.pathTicks(w.cfg.Speed), w.cfg.EnergyBurn)
-		tt := TruthTable{Meal: meal, Full: full, Reach: w.grains(w.reach(w.cfg.Speed), w.cfg.EnergyBurn), Over: w.cfg.Carry * meal}
+		tt := TruthTable{Meal: meal, Full: full, Reach: w.grains(w.reach(w.maxSight(), w.cfg.Speed), w.cfg.EnergyBurn), Over: w.cfg.Carry * meal}
 		win := w.windowGrains()
 		tt.Extra = []int{win - ahead, win - ahead/2 - 1}
 		if ts := w.grains(w.cfg.SleepTicks, w.cfg.EnergyBurn); w.cfg.Sleep && ts < win {
@@ -653,7 +654,7 @@ func (w *World) OwnBurn(b Body) float64 { return w.ownBurn(&b, true) }
 
 // SightGain is the factor sight puts on keeping on the move at the light
 // now (SightRead); 1 without it. For counts.
-func (w *World) SightGain() float64 { return w.sightGain() }
+func (w *World) SightGain() float64 { return w.sightGainFor(w.cfg.Sight, w.Brightness()) }
 
 // ValueWith values body b's options as a learning body would, but with the
 // given estimates of food per tile - per region, and of the tiles it walked

@@ -47,6 +47,10 @@ type Body struct {
 	// 0 for them, the greater parent's plus one for a child (stage 9-1).
 	// No rule reads it; it is an instrument.
 	Generation int `json:",omitempty"`
+	// Sight is the tiles it sees plus one, drawn at birth with AllotSight
+	// (stage 9-3); zero stands for the config's Sight, as a zero build
+	// stands for the config's values.
+	Sight int `json:",omitempty"`
 	// Sex is Female or Male, drawn when it comes into the world (with
 	// Sexes); NoSex in a world without sexes.
 	Sex Sex `json:",omitempty"`

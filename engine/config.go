@@ -320,6 +320,19 @@ type Config struct {
 	// AllotMutation is the chance it then moves one level.
 	AllotInherit  bool
 	AllotMutation float64
+	// AllotSight puts sight into the budget (stage 9-3): a body draws its
+	// sight in whole tiles, 0 to SightMost, the config's Sight the neutral
+	// level, and each tile above or below neutral costs or refunds
+	// SightTrade of the budget the speed/energy pair splits. The first
+	// bodies draw uniformly; a child takes the same drawn parent's sight
+	// as it takes the share's level, moved one with chance AllotMutation
+	// (inward at the ends). Sight comes in a handful of whole tiles, so it
+	// trades against the pair instead of joining the normalized shares,
+	// where its few steps would leave most of a share's range buying
+	// nothing.
+	AllotSight bool
+	SightMost  int
+	SightTrade float64
 	// Learn has bodies read their own memory instead of the world's true
 	// rules about the world (learn.go): the food of a region, of the tiles
 	// they walked lately, and the chance a mate becomes a child. Off, they
@@ -478,6 +491,9 @@ func DefaultConfig() Config {
 		AllotCurve:         0.5,
 		AllotInherit:       true,
 		AllotMutation:      0.1,
+		AllotSight:         true,
+		SightMost:          2,
+		SightTrade:         1.0 / 3,
 		Budget:             1,
 		Learn:              true,
 		PriorFood:          0.01,

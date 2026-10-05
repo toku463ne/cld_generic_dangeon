@@ -257,3 +257,85 @@ func TestSleepRiskReads(t *testing.T) {
 		t.Fatalf("a sleep that repays the debt (%v) does not read safer than one that keeps it (%v)", repaid, kept)
 	}
 }
+
+// With sight in the budget, the first bodies draw their sight; a child
+// takes the drawn parent's, moved a level with the mutation chance; a
+// tile off the neutral scales what the pair's shares buy; and bodies see
+// as far as their own sight.
+func TestAllotSight(t *testing.T) {
+	w := newTestWorld(t, 7)
+	if !w.cfg.AllotSight {
+		t.Fatal("AllotSight is off by default")
+	}
+	seen := map[int]bool{}
+	for _, b := range w.Bodies() {
+		if b.Sight < 1 || b.Sight > w.cfg.SightMost+1 {
+			t.Fatalf("a first body drew sight %d", b.Sight)
+		}
+		seen[b.Sight-1] = true
+	}
+	if len(seen) < 2 {
+		t.Fatalf("first bodies drew only sights %v", seen)
+	}
+	// A tile off the neutral scales the pair.
+	var plain, dear, cheap Body
+	w.cfg.AllotLevels = 1 // share fixed at one half: only sight differs
+	w.cfg.AllotInherit = false
+	draw := func(dst *Body, sight int) {
+		for i := 0; i < 200; i++ {
+			var b Body
+			w.allot(&b)
+			if b.Sight == sight+1 {
+				*dst = b
+				return
+			}
+		}
+		t.Fatalf("no body drew sight %d in 200 draws", sight)
+	}
+	draw(&plain, w.cfg.Sight)
+	draw(&dear, w.cfg.SightMost)
+	draw(&cheap, 0)
+	if !(dear.Build.Speed < plain.Build.Speed && plain.Build.Speed < cheap.Build.Speed) {
+		t.Fatalf("speeds for sight %d/%d/%d: %v %v %v", w.cfg.SightMost, w.cfg.Sight, 0, dear.Build.Speed, plain.Build.Speed, cheap.Build.Speed)
+	}
+	if !(dear.Build.EnergyMax < plain.Build.EnergyMax && plain.Build.EnergyMax < cheap.Build.EnergyMax) {
+		t.Fatal("most energy does not fall as sight rises")
+	}
+	if f := plain.Build.Speed; math.Abs(f-w.cfg.Speed) > 1e-12 {
+		t.Fatalf("neutral sight at an even split buys speed %v, want the config's %v", f, w.cfg.Speed)
+	}
+	// A child takes the drawn parent's sight (mutation off).
+	w.cfg.AllotInherit, w.cfg.AllotMutation = true, 0
+	var child Body
+	w.allot(&child, &dear, &dear)
+	if child.Sight != dear.Sight {
+		t.Fatalf("child sight %d, parent %d", child.Sight, dear.Sight)
+	}
+	// Bodies see as far as their own sight.
+	w.light = 1
+	far, near := &Body{ID: 1, X: 5.5, Y: 5.5, Sight: 2 + 1}, &Body{ID: 2, X: 5.5, Y: 5.5, Sight: 0 + 1}
+	if !w.seesFrom(far, 5, 5, 7, 5) || w.seesFrom(near, 5, 5, 6, 5) || !w.seesFrom(near, 5, 5, 5, 5) {
+		t.Fatal("sight does not bound seeing")
+	}
+	// The zero value stands for the config's.
+	none := &Body{ID: 3}
+	if w.sightOf(none) != w.cfg.Sight {
+		t.Fatalf("zero sight reads as %d, want the config's %d", w.sightOf(none), w.cfg.Sight)
+	}
+}
+
+// With sight out of the budget, the world is stage 8-2c: its fingerprint
+// is the one pinned then.
+func TestUnsightedIsStage82c(t *testing.T) {
+	const want = uint64(0x4c3cad7a3ba8bfe9)
+	cfg := testConfig(1)
+	cfg.AllotSight = false
+	w, err := NewWorld(cfg, tempMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}

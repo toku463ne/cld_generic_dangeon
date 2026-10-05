@@ -29,7 +29,7 @@ import "sort"
 // tell passes evidence between body b and every body in its sight it has
 // not met.
 func (w *World) tell(b *Body) {
-	sight := w.Sight()
+	sight := w.sightOf(b)
 	if !w.cfg.Learn || !w.cfg.Tell || w.grid == nil || sight < 0 {
 		return
 	}

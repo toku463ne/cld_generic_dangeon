@@ -305,7 +305,11 @@ func (w *World) SetBuild(id int64, build Build) bool {
 // with no parents draws its level, each as likely; with AllotInherit a
 // child takes the level of one of its parents, drawn, and with chance
 // AllotMutation moves it one level up or down (inward at the ends).
-// Without AllotInherit a child draws too. Its energy is held to its most.
+// Without AllotInherit a child draws too. With AllotSight it then draws
+// its sight the same way - uniform with no parents, the same drawn
+// parent's otherwise, moved with AllotMutation - and each tile off the
+// neutral (the config's Sight) costs or refunds SightTrade of what the
+// pair splits. Its energy is held to its most.
 func (w *World) allot(b *Body, parents ...*Body) {
 	b.Budget = w.cfg.Budget
 	w.stats.BudgetIn += b.Budget
@@ -314,10 +318,12 @@ func (w *World) allot(b *Body, parents ...*Body) {
 	}
 	n := w.cfg.AllotLevels
 	k := 0
+	var from *Body
 	switch {
 	case n <= 1:
 	case w.cfg.AllotInherit && len(parents) == 2:
-		k = parents[w.rng.Intn(2)].Level
+		from = parents[w.rng.Intn(2)]
+		k = from.Level
 		if w.rng.Float64() < w.cfg.AllotMutation {
 			if w.rng.Intn(2) == 0 {
 				k--
@@ -339,7 +345,36 @@ func (w *World) allot(b *Body, parents ...*Body) {
 		s += w.cfg.AllotSpread * (2*float64(k)/float64(n-1) - 1)
 	}
 	b.Level, b.Share = k, s
-	b.Build = w.buildOf([NumAbilities]float64{AbilitySpeed: s, AbilityEnergyMax: 1 - s})
+	// Sight is drawn after the share, from the same parent (stage 9-3),
+	// and each tile off the neutral scales what is left for the pair.
+	r := 1.0
+	if w.cfg.AllotSight {
+		sight := w.cfg.Sight
+		if w.cfg.AllotInherit && len(parents) == 2 {
+			if from == nil {
+				from = parents[w.rng.Intn(2)]
+			}
+			sight = w.sightOf(from)
+			if w.rng.Float64() < w.cfg.AllotMutation {
+				if w.rng.Intn(2) == 0 {
+					sight--
+				} else {
+					sight++
+				}
+				if sight < 0 {
+					sight = 1
+				}
+				if sight > w.cfg.SightMost {
+					sight = w.cfg.SightMost - 1
+				}
+			}
+		} else {
+			sight = w.rng.Intn(w.cfg.SightMost + 1)
+		}
+		b.Sight = sight + 1
+		r = math.Max(1+w.cfg.SightTrade*float64(w.cfg.Sight-sight), 0.05)
+	}
+	b.Build = w.buildOf([NumAbilities]float64{AbilitySpeed: s * r, AbilityEnergyMax: (1 - s) * r})
 	b.Energy = math.Min(b.Energy, w.maxOf(b))
 }
 

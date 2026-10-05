@@ -68,7 +68,7 @@ func (w *World) TruthTable() TruthTable {
 		Meal:  w.units(w.cfg.FoodEnergy),
 		Full:  w.units(w.cfg.EnergyMax),
 		Meet:  make([]float64, len(w.m.RegionFood)),
-		Reach: w.grains(w.reach(w.slowest()), w.cfg.EnergyBurn),
+		Reach: w.grains(w.reach(w.maxSight(), w.slowest()), w.cfg.EnergyBurn),
 	}
 	t.Over = w.cfg.Carry * t.Meal
 	for r := range t.Meet {
@@ -149,11 +149,11 @@ func (w *World) windowGrains() int {
 // unit in sight from where any option can leave it: the unit is up to Sight
 // tiles from the body's tile on either axis, and a move takes the body up to
 // speed out of it, so each axis has at most Sight+speed to cover.
-func (w *World) reach(speed float64) int {
-	if w.cfg.Sight < 0 || speed <= 0 {
+func (w *World) reach(sight int, speed float64) int {
+	if sight < 0 || speed <= 0 {
 		return 0
 	}
-	gap := float64(w.cfg.Sight) + speed
+	gap := float64(sight) + speed
 	return walkTicks(gap, gap, speed)
 }
 
@@ -689,7 +689,7 @@ func gapTo(p float64, t int) float64 {
 // stands on, row by row. A body sees the tile it stands on and the square
 // of tiles around it; the food is all a body perceives.
 func (w *World) inSight(dst []Food, b *Body) []Food {
-	sight := w.Sight()
+	sight := w.sightOf(b)
 	if sight < 0 {
 		return dst
 	}
@@ -820,7 +820,7 @@ func (w *World) tableAt(r RegionID, k survKey) *table {
 	p := &w.pred
 	t, ok := p.cache[r][k]
 	if !ok {
-		tt := TruthTable{Meal: p.meal, Full: k.full, Reach: w.grains(w.reach(w.slowest()), w.cfg.EnergyBurn), Over: w.cfg.Carry * p.meal}
+		tt := TruthTable{Meal: p.meal, Full: k.full, Reach: w.grains(w.reach(w.maxSight(), w.slowest()), w.cfg.EnergyBurn), Over: w.cfg.Carry * p.meal}
 		meet := math.Min(w.meetAt(r, k.food, w.cfg.Speed, w.cfg.EnergyBurn)*w.factorOf(k.factor), 1)
 		t = &table{s: tt.NewSurvival(meet, p.windows), used: w.tick}
 		p.cache[r][k] = t
