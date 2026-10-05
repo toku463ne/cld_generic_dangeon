@@ -55,6 +55,7 @@ func TestUnforcedIsStage61b(t *testing.T) {
 	const want = uint64(0x35148fa949adaa70)
 	cfg := testConfig(1)
 	cfg.Building, cfg.Tents = false, false
+	cfg.ShelterFoodLife = 0
 	cfg.ForceAt = 0
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {

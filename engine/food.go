@@ -315,16 +315,25 @@ func dropOldest(born []int64) []int64 {
 }
 
 // decayFood turns the units that have lasted FoodLife ticks into vacancies:
-// those on the ground, then those held. It draws nothing from the random
-// source.
+// those on the ground, then those held. On a place to rest a ground unit
+// lasts ShelterFoodLife ticks instead (stage 8-2c). It draws nothing from
+// the random source.
 func (w *World) decayFood() {
 	if w.cfg.FoodLife <= 0 {
 		return
 	}
 	f := &w.food
 	end := w.tick - int64(w.cfg.FoodLife)
+	endKept := end
+	if w.cfg.ShelterFoodLife > 0 {
+		endKept = w.tick - int64(w.cfg.ShelterFoodLife)
+	}
 	for i := 0; i < len(f.foods); {
-		if f.born[i] <= end {
+		e := end
+		if endKept != end && w.m.ShelterAt(f.foods[i].X, f.foods[i].Y) {
+			e = endKept
+		}
+		if f.born[i] <= e {
 			w.liftFood(i) // the last unit moves into slot i: look at it next
 			f.decayed++
 			continue

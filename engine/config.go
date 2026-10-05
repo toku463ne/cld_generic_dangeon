@@ -32,6 +32,12 @@ type Config struct {
 	// which comes back by the region shares like any other. Zero for food
 	// that never decays.
 	FoodLife int
+	// ShelterFoodLife is how many ticks a unit lasts instead while it
+	// lies on a place to rest (stage 8-2c, VISION "定住場所"): food keeps
+	// longer there. The tile is read when decay is due, so a place
+	// wearing out lets the ordinary life catch up. No rule and no body
+	// reads the difference. Zero for the same life as anywhere.
+	ShelterFoodLife int
 
 	// Bodies is how many bodies the world starts with, placed on land.
 	Bodies int
@@ -407,6 +413,7 @@ func DefaultConfig() Config {
 		FoodEnergy:         30,
 		Grain:              0.1,
 		FoodLife:           1000,
+		ShelterFoodLife:    3000,
 		Bodies:             200,
 		EnergyMax:          100,
 		EnergyBurn:         0.1,

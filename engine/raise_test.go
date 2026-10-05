@@ -7,6 +7,7 @@ import "testing"
 func TestUnbuiltIsStage65a(t *testing.T) {
 	const want = uint64(0x29581a36e5ebfa84)
 	cfg := testConfig(1)
+	cfg.ShelterFoodLife = 0
 	cfg.Building, cfg.Tents = false, false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
@@ -23,6 +24,7 @@ func TestUnbuiltIsStage65a(t *testing.T) {
 func TestUnsettledIsStage82a3(t *testing.T) {
 	const want = uint64(0x9548c615c7b26c29)
 	cfg := testConfig(1)
+	cfg.ShelterFoodLife = 0
 	cfg.Building = false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {

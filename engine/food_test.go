@@ -356,3 +356,71 @@ func TestFoodLedgerClosesWithDecay(t *testing.T) {
 		t.Fatal("nothing decayed")
 	}
 }
+
+// A ground unit on a place to rest lasts ShelterFoodLife ticks and one
+// off it FoodLife; the place wearing away, the ordinary life catches up.
+// A held unit keeps FoodLife wherever its holder stands.
+func TestShelterFoodLife(t *testing.T) {
+	w, b := soloWorld(t, 90)
+	w.cfg.FoodLife, w.cfg.ShelterFoodLife = 10, 30
+	w.cfg.FoodReturn = 0 // nothing comes back, so the ground holds only the test's units
+	w.cfg.Carry = 1
+	kept, plain := w.tileOf(b.X, b.Y), w.tileOf(b.X, b.Y)+1
+	w.m.SetShelter(kept%w.m.Width, kept/w.m.Width)
+	w.act(0, b, Action{Kind: ActPick}) // held, standing on the place
+	for _, tile := range []int{kept, plain} {
+		w.food.foods = append(w.food.foods, Food{X: tile % w.m.Width, Y: tile / w.m.Width})
+		w.food.born = append(w.food.born, 0)
+		w.food.owner = append(w.food.owner, noOwner)
+		w.food.foodAt[tile] = int32(len(w.food.foods))
+		w.food.appeared++
+		w.foodMoved(w.m.Region[tile], +1)
+	}
+	w.tick = 10
+	w.decayFood()
+	if l := w.FoodLedger(); l.Decayed != 2 || l.Held != 0 || w.foodOn(kept) < 0 || w.foodOn(plain) >= 0 || !l.Balanced() {
+		t.Fatalf("at FoodLife: %+v, held %d", l, b.Held)
+	}
+	w.tick = 29
+	w.decayFood()
+	if l := w.FoodLedger(); l.Decayed != 2 || w.foodOn(kept) < 0 {
+		t.Fatalf("before ShelterFoodLife: %+v", l)
+	}
+	w.tick = 30
+	w.decayFood()
+	if l := w.FoodLedger(); l.Decayed != 3 || w.foodOn(kept) >= 0 || !l.Balanced() {
+		t.Fatalf("at ShelterFoodLife: %+v", l)
+	}
+	// The place wearing away, the ordinary life catches up at once.
+	w.food.foods = append(w.food.foods, Food{X: kept % w.m.Width, Y: kept / w.m.Width})
+	w.food.born = append(w.food.born, 15)
+	w.food.owner = append(w.food.owner, noOwner)
+	w.food.foodAt[kept] = int32(len(w.food.foods))
+	w.food.appeared++
+	w.foodMoved(w.m.Region[kept], +1)
+	w.decayFood()
+	if w.foodOn(kept) < 0 {
+		t.Fatal("decayed on the place before its longer life")
+	}
+	w.m.Shelter[kept] = false
+	w.decayFood()
+	if l := w.FoodLedger(); l.Decayed != 4 || w.foodOn(kept) >= 0 || !l.Balanced() {
+		t.Fatalf("the place gone: %+v", l)
+	}
+}
+
+// With food lasting no longer on places to rest, the world is stage
+// 8-2b3: its fingerprint is the one pinned then.
+func TestUnkeptIsStage82b3(t *testing.T) {
+	const want = uint64(0x4c3cad7a3ba8bfe9)
+	cfg := testConfig(1)
+	cfg.ShelterFoodLife = 0
+	w, err := NewWorld(cfg, tempMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}

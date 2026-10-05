@@ -27,6 +27,10 @@ const Restless = "restless"
 // may send a body straight back the way it came.
 const Straightback = "straightback"
 
+// Unkept is stage 8-2b3: food on a place to rest lasts no longer than
+// anywhere.
+const Unkept = "unkept"
+
 // Unsettled is stage 8-2a3: no body builds a settlement.
 const Unsettled = "unsettled"
 
@@ -225,10 +229,11 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func unsettled(c *engine.Config)    { c.Building = false }
+func unkept(c *engine.Config)       { c.ShelterFoodLife = 0 }
+func unsettled(c *engine.Config)    { unkept(c); c.Building = false }
 func buried(c *engine.Config)       { unsettled(c); c.DropTents = false }
 func atdusk(c *engine.Config)       { buried(c); c.NightSaving = false }
-func unbuilt(c *engine.Config)      { c.Tents, c.Building = false, false }
+func unbuilt(c *engine.Config)      { unkept(c); c.Tents, c.Building = false, false }
 func untaught(c *engine.Config)     { unbuilt(c); c.PassShelters = false }
 func sleepblind(c *engine.Config)   { untaught(c); c.SleepAhead = false }
 func unforced(c *engine.Config)     { sleepblind(c); c.ForceAt = 0 }
@@ -282,6 +287,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Unkept:       unkept,
 	Unsettled:    unsettled,
 	Buried:       buried,
 	Atdusk:       atdusk,
