@@ -132,6 +132,10 @@ var (
 	// tentColor marks tents: pitched round a sleeper, folded on the ground,
 	// or carried by a body awake (stage 8-2a).
 	tentColor = color.RGBA{0xff, 0xd0, 0x30, 0xff}
+	// Sight rings (stage 9-3): a body that drew sight 0 wears a dark
+	// ring, one at SightMost a white one; the neutral sight is bare.
+	sightLowColor  = color.RGBA{0x10, 0x10, 0x18, 0xff}
+	sightHighColor = color.RGBA{0xff, 0xff, 0xff, 0xff}
 )
 
 func New(w *engine.World, scale int) *View {
@@ -370,7 +374,7 @@ func (v *View) Render(dst *image.RGBA) {
 			v.drawTrail(dst, t, followColor)
 		}
 		// What it sees.
-		r := v.W.Sight()
+		r := v.W.BodySight(fb)
 		tx, ty := int(math.Floor(fb.X)), int(math.Floor(fb.Y))
 		if r >= 0 {
 			strokeRect(dst, (tx-r)*v.scale, (ty-r)*v.scale, (2*r+1)*v.scale, (2*r+1)*v.scale, followColor)
@@ -426,6 +430,14 @@ func (v *View) Render(dst *image.RGBA) {
 		case b.Tent.Has:
 			// A tent carried: a mark above the body.
 			line(dst, px(b.X)-rad, px(b.Y)-rad-2, px(b.X)+rad, px(b.Y)-rad-2, tentColor)
+		}
+		if cfg := v.W.Config(); cfg.AllotSight {
+			switch v.W.BodySight(b) {
+			case 0:
+				strokeCircle(dst, px(b.X), px(b.Y), rad+1, sightLowColor)
+			case cfg.SightMost:
+				strokeCircle(dst, px(b.X), px(b.Y), rad+1, sightHighColor)
+			}
 		}
 		if b.Asleep {
 			// A sleeper is a ring: its hue, hollow.
@@ -622,7 +634,7 @@ func (v *View) FollowText() string {
 		return fmt.Sprintf("body #%d is dead", v.follow)
 	}
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "body #%d%s  energy %.1f  age %d  heading %s", b.ID, sexName(b, v.W.Tick()), b.Energy, v.W.Tick()-b.Born, dirName(b.Heading))
+	fmt.Fprintf(&sb, "body #%d%s  energy %.1f  age %d  sight %d  heading %s", b.ID, sexName(b, v.W.Tick()), b.Energy, v.W.Tick()-b.Born, v.W.BodySight(b), dirName(b.Heading))
 	if v.W.Config().Sleep {
 		state := "awake"
 		if b.Asleep {
