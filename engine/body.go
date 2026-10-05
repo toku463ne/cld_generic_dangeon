@@ -43,6 +43,10 @@ type Body struct {
 	// Parents are the IDs of the two bodies it was born of, -1 for the
 	// first bodies.
 	Parents [2]int64
+	// Generation is how many births lie between it and the first bodies:
+	// 0 for them, the greater parent's plus one for a child (stage 9-1).
+	// No rule reads it; it is an instrument.
+	Generation int `json:",omitempty"`
 	// Sex is Female or Male, drawn when it comes into the world (with
 	// Sexes); NoSex in a world without sexes.
 	Sex Sex `json:",omitempty"`
@@ -169,6 +173,10 @@ type Stats struct {
 	// Births counts the bodies born (breed.go). Of them, Matured became
 	// adults and DiedYoung died before.
 	Births, Matured, DiedYoung int64
+	// GenBirths counts the bodies that came into the world by generation:
+	// the first bodies at 0, a child at the greater parent's generation
+	// plus one (stage 9-1).
+	GenBirths []int64 `json:",omitempty"`
 	// BudgetIn and BudgetOut are the budgets brought in by the born and
 	// taken out by the dead (BudgetLedger).
 	BudgetIn, BudgetOut float64
@@ -253,6 +261,7 @@ func (w *World) placeBodies() {
 		w.allot(&b)
 		w.drawSkills(&b)
 		b.Energy = w.maxOf(&b)
+		w.noteGeneration(0)
 		w.bodies = append(w.bodies, b)
 		w.nextID++
 	}

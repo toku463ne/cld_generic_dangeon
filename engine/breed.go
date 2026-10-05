@@ -349,7 +349,17 @@ func (w *World) mate(b *Body, id int64) {
 	}
 	w.allot(&child, p, b)
 	w.drawSkills(&child)
+	child.Generation = max(p.Generation, b.Generation) + 1
+	w.noteGeneration(child.Generation)
 	w.born = append(w.born, child)
 	w.nextID++
 	w.stats.Births++
+}
+
+// noteGeneration counts a body coming into the world at generation g.
+func (w *World) noteGeneration(g int) {
+	for len(w.stats.GenBirths) <= g {
+		w.stats.GenBirths = append(w.stats.GenBirths, 0)
+	}
+	w.stats.GenBirths[g]++
 }

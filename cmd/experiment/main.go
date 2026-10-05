@@ -103,9 +103,13 @@ type result struct {
 	// requests are the requests to mate sent, and requestBirths the
 	// births they brought about.
 	requests, requestBirths float64
-	adultRate               float64   // matured over matured and died young; NaN with neither
-	regions                 []float64 // regions with a body in them, at tick 0 and each checkpoint
-	valley                  float64   // fewest bodies at any tick after tick 0
+	adultRate               float64 // matured over matured and died young; NaN with neither
+	// maxGen is the highest generation born by the end, topGenBirths the
+	// bodies born into it (stage 9-1); genBirths the births by generation.
+	maxGen, topGenBirths float64
+	genBirths            []int64
+	regions              []float64 // regions with a body in them, at tick 0 and each checkpoint
+	valley               float64   // fewest bodies at any tick after tick 0
 	// displace is the mean straight-line distance, in tiles, a body gets
 	// from where it was 1000 ticks before (over bodies alive at both ends,
 	// every 1000 ticks after tick 5000); edge the mean share of the living
@@ -432,6 +436,11 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.asleep = float64(st.Actions[engine.ActSleep]) / math.Max(total, 1)
 	r.sheltered = float64(st.SleptSheltered) / math.Max(float64(st.Slept), 1)
 	r.built, r.builtSleeps, r.returns = float64(st.Built), float64(st.BuiltSleeps), float64(st.Returns)
+	if n := len(st.GenBirths); n > 0 {
+		r.maxGen = float64(n - 1)
+		r.topGenBirths = float64(st.GenBirths[n-1])
+		r.genBirths = append([]int64(nil), st.GenBirths...)
+	}
 	r.begun, r.fetched, r.abandoned = float64(st.Begun), float64(st.Fetched), float64(st.Abandoned)
 	r.tentsMade, r.tentNights, r.tentsWorn = float64(st.TentsMade), float64(st.TentNights), float64(st.TentsWorn)
 	r.tentsDropped, r.tentsPicked = float64(st.TentsDropped), float64(st.TentsPicked)
@@ -730,6 +739,24 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		p("成人到達率: —（成人した子も成人前に死んだ子もいない）\n\n")
 	}
 
+	p("### 補助の表: 世代ごとの出生（%s、上位3世代）\n\n", base)
+	p("| 世代 | 出生（1シードあたり） |\n| --- | --- |\n")
+	top := 0
+	for _, r := range rs {
+		if n := len(r.genBirths); n > top {
+			top = n
+		}
+	}
+	for g := top - 1; g >= 0 && g >= top-3; g-- {
+		p("| %d | %s |\n", g, fmtMeanSE(collect(rs, func(r result) float64 {
+			if g < len(r.genBirths) {
+				return float64(r.genBirths[g])
+			}
+			return 0
+		}), 2))
+	}
+	p("\n")
+
 	if baseCfg, _ := variant.Config(base, o.seed0); baseCfg.Allot {
 		writeAllot(p, o, rs, every, rows)
 	}
@@ -872,6 +899,8 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"体力消耗（合計）", 2, func(r result) float64 { return r.burned }},
 		{"出生", 2, func(r result) float64 { return r.births }},
 		{"成人到達率", 4, func(r result) float64 { return r.adultRate }},
+		{"最大世代数", 2, func(r result) float64 { return r.maxGen }},
+		{"最大世代数の出生数", 2, func(r result) float64 { return r.topGenBirths }},
 		{"1000 tick の変位（タイル）", 2, func(r result) float64 { return r.displace }},
 		{"縁（地図の端か水の隣）にいる割合", 4, func(r result) float64 { return r.edge }},
 		{"真後ろへの手（決定のうち）", 4, func(r result) float64 { return r.back }},

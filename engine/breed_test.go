@@ -420,3 +420,32 @@ func TestRestingMotherReadsHerRestEnding(t *testing.T) {
 		}
 	}
 }
+
+// The first bodies are generation 0; a child is the greater parent's
+// generation plus one, and the births are counted by generation.
+func TestGenerations(t *testing.T) {
+	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 80}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 60})
+	a, b := &w.bodies[0], &w.bodies[1]
+	a.Generation, b.Generation = 2, 5
+	w.stats.GenBirths = nil
+	a.Intent = Action{Kind: ActMate, Mate: 1}
+	w.act(1, b, Action{Kind: ActMate, Mate: 0})
+	if len(w.born) != 1 || w.born[0].Generation != 6 {
+		t.Fatalf("child of generations 2 and 5: %+v", w.born)
+	}
+	if len(w.stats.GenBirths) != 7 || w.stats.GenBirths[6] != 1 {
+		t.Fatalf("births by generation: %v", w.stats.GenBirths)
+	}
+	w2, err := NewWorld(testConfig(1), testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, o := range w2.Bodies() {
+		if o.Generation != 0 {
+			t.Fatalf("a first body at generation %d", o.Generation)
+		}
+	}
+	if n := len(w2.Bodies()); len(w2.stats.GenBirths) != 1 || w2.stats.GenBirths[0] != int64(n) {
+		t.Fatalf("first bodies counted: %v, want [%d]", w2.stats.GenBirths, n)
+	}
+}
