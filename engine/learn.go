@@ -107,8 +107,11 @@ type Memory struct {
 	// of its own body: its sum and count.
 	Shelters map[int]bool `json:",omitempty"`
 	Warm     [2]float64   `json:",omitempty"`
-	// Reuse counts how often it slept again on a place it built before the
-	// place wore out: the sum and the places (stage 8-1).
+	// Reuse is the evidence behind the nights a body expects to come back
+	// to a place it builds (stage 8-1): the sum and the count. With
+	// ReuseNights each sleep after its first is one count - begun within
+	// a place's reach of the last, or not (stage 9-3b); without, a place
+	// wearing out is one, with its returns as the sum.
 	Reuse [2]float64 `json:",omitempty"`
 	// Own are the tiles of the settlements it built that it has not seen
 	// gone (stage 8-2b). They are not passed on.

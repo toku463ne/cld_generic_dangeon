@@ -34,6 +34,15 @@ const (
 	Sight2 = "sight2"
 )
 
+// Unbedded is stage 9-3b less its second rule: a builder weighs building
+// against sleeping as it stands only, not against a known bed.
+const Unbedded = "unbedded"
+
+// Hopeful is stage 9-3: a builder's expected returns are never corrected
+// in time (learned only at a wear-out no builder lives to see), and the
+// comparison ignores known beds.
+const Hopeful = "hopeful"
+
 // Unsighted is stage 8-2c: sight is not in the budget, every body seeing
 // the config's Sight.
 const Unsighted = "unsighted"
@@ -240,7 +249,9 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func unsighted(c *engine.Config)    { c.AllotSight = false }
+func unbedded(c *engine.Config)     { c.SeekBed = false }
+func hopeful(c *engine.Config)      { unbedded(c); c.ReuseNights = false }
+func unsighted(c *engine.Config)    { hopeful(c); c.AllotSight = false }
 func unkept(c *engine.Config)       { unsighted(c); c.ShelterFoodLife = 0 }
 func unsettled(c *engine.Config)    { unkept(c); c.Building = false }
 func buried(c *engine.Config)       { unsettled(c); c.DropTents = false }
@@ -299,6 +310,8 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Unbedded:     unbedded,
+	Hopeful:      hopeful,
 	Unsighted:    unsighted,
 	Sight0:       func(c *engine.Config) { unsighted(c); c.Sight = 0 },
 	Sight2:       func(c *engine.Config) { unsighted(c); c.Sight = 2 },

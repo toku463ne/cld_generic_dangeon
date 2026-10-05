@@ -12,10 +12,13 @@ import "math"
 // sleeping as it is with building here for BuildTicks and then sleeping in
 // it - paying BuildEnergy and the burn of the work first, sleeping at the
 // warmth it learned (Memory.Warm), and as reserve the nights it expects to
-// come back (Memory.Reuse, learned when one of its settlements wears out,
-// pulled toward ReusePrior by ReuseWeight) times a night's saving
-// (nightSaving) - and on a tie the draw takes either. A sleep that may not
-// wait (ForceMax) is not put off for it.
+// come back (Memory.Reuse: each sleep says whether it began within a
+// place's reach of the last, ReuseNights; pulled toward ReusePrior by
+// ReuseWeight) times a night's saving (nightSaving) - and on a tie the
+// draw takes either. With SeekBed the comparison is against the best way
+// to sleep tonight without building: as it is, or walking to the nearest
+// place to rest it remembers. A sleep that may not wait (ForceMax) is not
+// put off for it.
 //
 // Building is a skill's own routine, not decided tick by tick: the body
 // works on its site; hungry (a meal fits) with food in sight it goes for
@@ -96,6 +99,9 @@ func (w *World) settleInstead(b *Body, a Action) Action {
 	w.ratesOf(b, &rs)
 	now := w.planBurn(b)
 	plain := w.sleepRiskAt(b, &rs, win, reserve, now, b.Energy)
+	if w.cfg.SeekBed {
+		plain = math.Min(plain, w.bedRisk(b, &rs, win, reserve))
+	}
 	work := w.cfg.BuildEnergy + float64(w.cfg.BuildTicks)*now
 	built := w.sleepRiskAt(b, &rs, win, reserve+w.reuseCredit(b), w.tentWarm(b), b.Energy-work)
 	if built < plain || built == plain && w.rng.Intn(2) == 0 {
@@ -105,6 +111,20 @@ func (w *World) settleInstead(b *Body, a Action) Action {
 		return Action{Kind: ActBuild}
 	}
 	return a
+}
+
+// bedRisk is the risk of walking to the nearest place to rest body b
+// remembers and sleeping there (SeekBed, stage 9-3b): the best way to
+// sleep tonight without building, besides sleeping as it stands. One
+// where it knows no place it would sleep warmer at.
+func (w *World) bedRisk(b *Body, rs *rates, win, reserve int) float64 {
+	f, warm, ok := w.shelterAhead(b)
+	if !ok {
+		return 1
+	}
+	after := w.units(b.Energy) + reserve - 1
+	r, _ := w.shelterRisk(b, rs, f, b.X, b.Y, after, win, w.units(w.maxOf(b)), warm, w.wokenBurn(b), w.speedOf(b), w.readBurn(b))
+	return r
 }
 
 // reuseCredit is the worth beyond tonight, in grains, of a settlement body
@@ -226,18 +246,31 @@ func (w *World) settle(b *Body) {
 }
 
 // noteReturn counts body b's sleep, begun on tile t, as a return to a
-// settlement it built.
+// settlement it built, and with ReuseNights has it learn whether the
+// sleep began within a built place's reach of its last one (stage 9-3b):
+// whether it is one to come back to where it sleeps.
 func (w *World) noteReturn(b *Body, t int) {
-	if t < 0 || w.placeAt == nil || w.placeAt[t] == 0 {
-		return
-	}
-	w.stats.BuiltSleeps++
-	for i := range w.places {
-		if p := &w.places[i]; p.ID == w.placeAt[t] && p.Builder == b.ID {
-			p.Returns++
-			w.stats.Returns++
+	if t >= 0 && w.placeAt != nil && w.placeAt[t] != 0 {
+		w.stats.BuiltSleeps++
+		for i := range w.places {
+			if p := &w.places[i]; p.ID == w.placeAt[t] && p.Builder == b.ID {
+				p.Returns++
+				w.stats.Returns++
+			}
 		}
 	}
+	if !w.cfg.ReuseNights || !w.cfg.Learn || t < 0 {
+		return
+	}
+	if b.LastSlept > 0 {
+		lo := w.cfg.BuildSide / 2
+		px, py := (b.LastSlept-1)%w.m.Width, (b.LastSlept-1)/w.m.Width
+		if abs(t%w.m.Width-px) <= lo && abs(t/w.m.Width-py) <= lo {
+			b.Memory.Reuse[0]++
+		}
+		b.Memory.Reuse[1]++
+	}
+	b.LastSlept = t + 1
 }
 
 // wearPlaces removes the settlements worn out by now; a builder still
@@ -260,7 +293,9 @@ func (w *World) wearPlaces() {
 				if b.Home == p.ID {
 					b.Home = 0
 				}
-				if w.cfg.Learn {
+				if w.cfg.Learn && !w.cfg.ReuseNights {
+					// Worn-out learning: with ReuseNights the nights
+					// themselves teach it (stage 9-3b).
 					b.Memory.Reuse[0] += float64(p.Returns)
 					b.Memory.Reuse[1]++
 				}

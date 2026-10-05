@@ -333,6 +333,20 @@ type Config struct {
 	AllotSight bool
 	SightMost  int
 	SightTrade float64
+	// ReuseNights has every body learn, each sleep it begins after its
+	// first, whether it began within a built place's reach (BuildSide/2)
+	// of where its last sleep began (Memory.Reuse; stage 9-3b): whether
+	// it is one to come back to where it sleeps, known before it ever
+	// builds. Off, it learns only when a place of its wears out - which,
+	// with BuildLife beyond a lifespan, never comes in a life, and a
+	// body builds at most once, so the prior is never corrected in time.
+	ReuseNights bool
+	// SeekBed has a builder, weighing a settlement as it falls asleep,
+	// compare building against the best way to sleep tonight without
+	// building: as it stands, or walking to the nearest place to rest it
+	// remembers (stage 9-3b). Off, it compares against sleeping as it
+	// stands only.
+	SeekBed bool
 	// Learn has bodies read their own memory instead of the world's true
 	// rules about the world (learn.go): the food of a region, of the tiles
 	// they walked lately, and the chance a mate becomes a child. Off, they
@@ -494,6 +508,8 @@ func DefaultConfig() Config {
 		AllotSight:         true,
 		SightMost:          2,
 		SightTrade:         1.0 / 3,
+		ReuseNights:        true,
+		SeekBed:            true,
 		Budget:             1,
 		Learn:              true,
 		PriorFood:          0.01,

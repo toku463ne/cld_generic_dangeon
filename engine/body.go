@@ -51,6 +51,9 @@ type Body struct {
 	// (stage 9-3); zero stands for the config's Sight, as a zero build
 	// stands for the config's values.
 	Sight int `json:",omitempty"`
+	// LastSlept is the tile its last sleep began on, plus one; zero for
+	// none yet (ReuseNights, stage 9-3b).
+	LastSlept int `json:",omitempty"`
 	// Sex is Female or Male, drawn when it comes into the world (with
 	// Sexes); NoSex in a world without sexes.
 	Sex Sex `json:",omitempty"`

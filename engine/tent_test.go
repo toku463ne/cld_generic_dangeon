@@ -78,6 +78,7 @@ func TestAtduskIsStage82a(t *testing.T) {
 	const want = uint64(0x998e11891b32b064)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.ShelterFoodLife = 0
 	cfg.NightSaving, cfg.DropTents, cfg.Building = false, false, false
 	w, err := NewWorld(cfg, tempMap())
@@ -123,6 +124,7 @@ func TestBuriedIsStage82a2(t *testing.T) {
 	const want = uint64(0x4cf99317cf4b51a6)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.ShelterFoodLife = 0
 	cfg.DropTents, cfg.Building = false, false
 	w, err := NewWorld(cfg, tempMap())

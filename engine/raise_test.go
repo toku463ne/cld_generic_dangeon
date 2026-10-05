@@ -8,6 +8,7 @@ func TestUnbuiltIsStage65a(t *testing.T) {
 	const want = uint64(0x29581a36e5ebfa84)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.ShelterFoodLife = 0
 	cfg.Building, cfg.Tents = false, false
 	w, err := NewWorld(cfg, tempMap())
@@ -26,6 +27,7 @@ func TestUnsettledIsStage82a3(t *testing.T) {
 	const want = uint64(0x9548c615c7b26c29)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.ShelterFoodLife = 0
 	cfg.Building = false
 	w, err := NewWorld(cfg, tempMap())
@@ -144,6 +146,7 @@ func TestSettleWork(t *testing.T) {
 // home.
 func TestPlaceWears(t *testing.T) {
 	w, b, _ := settleWorld(t)
+	w.cfg.ReuseNights = false // the worn-out learning is the old rule's
 	b.Work = Work{Site: w.tileOf(b.X, b.Y) + 1, Left: 1}
 	w.act(0, b, Action{Kind: ActBuild})
 	p := &w.places[0]
@@ -153,5 +156,93 @@ func TestPlaceWears(t *testing.T) {
 	w.wearPlaces()
 	if b.Home != 0 || b.Memory.Reuse != [2]float64{1, 1} || w.m.ShelterAt(5, 5) {
 		t.Fatalf("worn out: home %d reuse %v", b.Home, b.Memory.Reuse)
+	}
+}
+
+// With ReuseNights, each sleep after the first teaches whether it began
+// within a built place's reach of the last (stage 9-3b), and the credit
+// read before building falls with the evidence.
+func TestReuseNights(t *testing.T) {
+	w, b, _ := settleWorld(t)
+	if !w.cfg.ReuseNights {
+		t.Fatal("ReuseNights is off by default")
+	}
+	b.Memory.Warm, b.Memory.Cold = [2]float64{0.5, 1}, [2]float64{1.3, 1}
+	rich := w.reuseCredit(b)
+	if rich <= 0 {
+		t.Fatalf("no evidence and a warm night learned read credit %d", rich)
+	}
+	w.noteReturn(b, w.tileOf(b.X, b.Y))
+	if b.Memory.Reuse != [2]float64{0, 0} || b.LastSlept != w.tileOf(b.X, b.Y)+1 {
+		t.Fatalf("first sleep: reuse %v, last %d", b.Memory.Reuse, b.LastSlept)
+	}
+	w.noteReturn(b, w.tileOf(b.X, b.Y)+1) // next door: within a place's reach
+	if b.Memory.Reuse != [2]float64{1, 1} {
+		t.Fatalf("a sleep within reach: %v", b.Memory.Reuse)
+	}
+	w.noteReturn(b, w.m.index(10, 8))
+	if b.Memory.Reuse != [2]float64{1, 2} {
+		t.Fatalf("a sleep far off: %v", b.Memory.Reuse)
+	}
+	b.Memory.Reuse = [2]float64{0, 40}
+	if poor := w.reuseCredit(b); poor >= rich {
+		t.Fatalf("forty nights of never returning left the credit %d, was %d", poor, rich)
+	}
+}
+
+// With SeekBed, a builder weighs building against the best way to sleep
+// tonight without building - walking to a known warm bed beats raising a
+// new place next to it (stage 9-3b).
+func TestSeekBed(t *testing.T) {
+	w, b, _ := settleWorld(t)
+	if !w.cfg.SeekBed {
+		t.Fatal("SeekBed is off by default")
+	}
+	if r := w.bedRisk(b, nil, 100, 0); r != 1 {
+		t.Fatalf("no bed known reads %v, want 1", r)
+	}
+	// A warm bed next door, its warmth learned; never one to come back.
+	bt := w.m.index(6, 5)
+	w.m.SetShelter(6, 5)
+	b.Memory.Shelters = map[int]bool{bt: true}
+	b.Memory.Warm = [2]float64{0.5, 1}
+	b.Memory.Cold = [2]float64{1.3, 1}
+	b.Memory.Reuse = [2]float64{0, 40}
+	b.Pressure, b.Energy = 0.8, 40
+	var rs rates
+	w.ratesOf(b, &rs)
+	win := w.pred.windows[0]
+	bed := w.bedRisk(b, &rs, win, 0)
+	plain := w.sleepRiskAt(b, &rs, win, 0, w.planBurn(b), b.Energy)
+	if bed >= plain {
+		t.Fatalf("a warm bed next door reads no better than the cold ground: %v >= %v", bed, plain)
+	}
+	begun := w.stats.Begun
+	for i := 0; i < 50; i++ {
+		b.Work, b.Home = Work{}, 0
+		if a := w.settleInstead(b, Action{Kind: ActSleep}); a.Kind == ActBuild {
+			b.Energy += w.cfg.BuildEnergy // undo the payment for the next trial
+		}
+	}
+	if w.stats.Begun != begun {
+		t.Fatalf("built %d times beside a warm bed", w.stats.Begun-begun)
+	}
+}
+
+// With the nights not teaching and known beds not weighed, the world is
+// stage 9-3: its fingerprint is the one pinned then (the pinned 1000
+// ticks hold no second sleep, so it equals the base pin, as a pin it
+// stays once they part).
+func TestHopefulIsStage93(t *testing.T) {
+	const want = uint64(0x8ec1735068644be4)
+	cfg := testConfig(1)
+	cfg.ReuseNights, cfg.SeekBed = false, false
+	w, err := NewWorld(cfg, tempMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
 	}
 }

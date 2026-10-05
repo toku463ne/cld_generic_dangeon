@@ -330,6 +330,7 @@ func TestUnsightedIsStage82c(t *testing.T) {
 	const want = uint64(0x4c3cad7a3ba8bfe9)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.ReuseNights, cfg.SeekBed = false, false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
 		t.Fatal(err)

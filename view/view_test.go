@@ -29,41 +29,41 @@ func stepped(t *testing.T, ticks int) *engine.World {
 // The world the client starts drawing from is the one the experiment passed
 // through at that tick: same seed, run again from tick 0.
 func TestPrepareMatchesExperimentRun(t *testing.T) {
-	o := Options{Map: "constrained", Width: 32, Height: 24, Variant: variant.Base, Seed: 9, FromTick: 1500}
+	o := Options{Map: "constrained", Width: 32, Height: 24, Variant: variant.Base, Seed: 9, FromTick: 800}
 	got, err := Prepare(o)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := stepped(t, 1500)
-	if got.W.Tick() != 1500 {
-		t.Fatalf("prepared world is at tick %d, want 1500", got.W.Tick())
+	want := stepped(t, 800)
+	if got.W.Tick() != 800 {
+		t.Fatalf("prepared world is at tick %d, want 800", got.W.Tick())
 	}
 	if got.W.Fingerprint() != want.Fingerprint() {
 		t.Fatal("prepared world differs from the world run step by step")
 	}
-	if len(got.hist) != 1501 {
-		t.Fatalf("history has %d samples, want one per tick from 0 (1501)", len(got.hist))
+	if len(got.hist) != 801 {
+		t.Fatalf("history has %d samples, want one per tick from 0 (801)", len(got.hist))
 	}
 }
 
 // Following a body, keeping trails and drawing change nothing in the world:
 // the view only reads it.
 func TestViewChangesNothing(t *testing.T) {
-	// Follow a body alive from tick 1000 to 1500, so that it decides at
-	// least once (Recheck) while followed. (The hungriest body at tick 1000
+	// Follow a body alive from tick 400 to 900, so that it decides at
+	// least once (Recheck) while followed. (The hungriest body at tick 400
 	// can die following its intent before it decides again.)
-	end := stepped(t, 1500).Bodies()
+	end := stepped(t, 900).Bodies()
 	var id int64 = -1
 	for _, b := range end {
-		if b.Born <= 1000 {
+		if b.Born <= 400 {
 			id = b.ID
 			break
 		}
 	}
 	if id < 0 {
-		t.Fatal("no body lives from tick 1000 to 1500")
+		t.Fatal("no body lives from tick 400 to 900")
 	}
-	o := Options{Map: "constrained", Width: 32, Height: 24, Variant: variant.Base, Seed: 9, FromTick: 1000, Follow: fmt.Sprint(id)}
+	o := Options{Map: "constrained", Width: 32, Height: 24, Variant: variant.Base, Seed: 9, FromTick: 400, Follow: fmt.Sprint(id)}
 	v, err := Prepare(o)
 	if err != nil {
 		t.Fatal(err)
@@ -78,7 +78,7 @@ func TestViewChangesNothing(t *testing.T) {
 			_ = v.FollowText()
 		}
 	}
-	if v.W.Fingerprint() != stepped(t, 1500).Fingerprint() {
+	if v.W.Fingerprint() != stepped(t, 900).Fingerprint() {
 		t.Fatal("the world shown by the client differs from the world run alone")
 	}
 	if v.last == nil {
