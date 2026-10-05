@@ -21,6 +21,28 @@ type Build struct {
 	EnergyBurn float64 `json:",omitempty"`
 }
 
+// The abilities that share the budget (stage 9-2; VISION "遺伝子"). Each
+// holds a share of its body's budget, and what a share buys multiplies
+// the config's value: (NumAbilities x share)^AllotCurve, 1 at the even
+// split. An ability joins the budget only in the stage whose rules read
+// it - no slot ahead of its rule.
+const (
+	AbilitySpeed = iota
+	AbilityEnergyMax
+	NumAbilities
+)
+
+// buildOf is the build a body's shares of its budget buy.
+func (w *World) buildOf(shares [NumAbilities]float64) Build {
+	buy := func(a int, base float64) float64 {
+		return base * math.Pow(float64(NumAbilities)*shares[a], w.cfg.AllotCurve)
+	}
+	return Build{
+		Speed:     buy(AbilitySpeed, w.cfg.Speed),
+		EnergyMax: buy(AbilityEnergyMax, w.cfg.EnergyMax),
+	}
+}
+
 func (w *World) speedOf(b *Body) float64 {
 	speed := w.cfg.Speed
 	if b.Build.Speed > 0 {
@@ -317,10 +339,7 @@ func (w *World) allot(b *Body, parents ...*Body) {
 		s += w.cfg.AllotSpread * (2*float64(k)/float64(n-1) - 1)
 	}
 	b.Level, b.Share = k, s
-	b.Build = Build{
-		Speed:     w.cfg.Speed * math.Pow(2*s, w.cfg.AllotCurve),
-		EnergyMax: w.cfg.EnergyMax * math.Pow(2*(1-s), w.cfg.AllotCurve),
-	}
+	b.Build = w.buildOf([NumAbilities]float64{AbilitySpeed: s, AbilityEnergyMax: 1 - s})
 	b.Energy = math.Min(b.Energy, w.maxOf(b))
 }
 
