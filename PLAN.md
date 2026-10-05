@@ -298,6 +298,7 @@
   - **事前カウントの結果**（[`docs/experiments/20261005-keeproom-count.md`](docs/experiments/20261005-keeproom-count.md)）: 触れるのはどの地図でも全単位の 1% 未満（flat 腐り 14% × 定住場所の上 6.7%、constrained 18% × 2.8%、patches は腐りが 0.6%）。規則の意味は「送る・置く」で初めて生まれる。
   - **予想**（事前カウントのあとに書いた）: 3 地図とも個体数・出生・餓死は誤差の内、崩壊は flat で 0〜2 / 36（8-2b3 と同じ率。この規則では動かない）。定住場所の上に残る食料は増えるが、1シードあたり同時に数単位（flat: 腐り 46 / 35000 tick × 延びる 2000 tick ≈ 2.6 単位）。
   - **完了条件**: 定住場所の上の単位は `FoodLife` を超えて残り `ShelterFoodLife` で腐る・外は `FoodLife` で腐る・場所が消えると追いつく・帳簿が閉じる（テスト）。flat・patches・constrained で `unkept` と対の差（flat は 36 シード、flat の崩壊率と出生を引き続き見る）。
+  - **結果**（[`docs/experiments/20261005-8-2c.md`](docs/experiments/20261005-8-2c.md)）: 予想どおり 3 地図とも誤差の内（flat +4.8 ± 4.3・崩壊 2 / 36 → 0 / 36 は良い向きの境目、patches +2.9 ± 3.3、constrained −3.0 ± 3.3）。閉じて「送る・置く」へ。
 
 ### 段階9 遺伝子と種族
 
