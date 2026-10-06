@@ -320,6 +320,11 @@ type Config struct {
 	// AllotMutation is the chance it then moves one level.
 	AllotInherit  bool
 	AllotMutation float64
+	// AllotMix has a child draw, for each slot of the budget (the share's
+	// level, sight, fertility), which parent it takes it from, each slot
+	// on its own (stage 9-5a). Off, every slot comes from the one parent
+	// drawn for the share: stage 9-4.
+	AllotMix bool
 	// AllotSight puts sight into the budget (stage 9-3): a body draws its
 	// sight in whole tiles, 0 to SightMost, the config's Sight the neutral
 	// level, and each tile above or below neutral costs or refunds
@@ -524,6 +529,7 @@ func DefaultConfig() Config {
 		AllotCurve:         0.5,
 		AllotInherit:       true,
 		AllotMutation:      0.1,
+		AllotMix:           true,
 		AllotSight:         true,
 		SightMost:          2,
 		SightTrade:         1.0 / 3,

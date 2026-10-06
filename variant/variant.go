@@ -34,6 +34,10 @@ const (
 	Sight2 = "sight2"
 )
 
+// Unmixed is stage 9-4: a child takes every slot of its budget from the
+// one parent drawn.
+const Unmixed = "unmixed"
+
 // Unfertile is stage 9-3b: fertility is not in the budget, and every
 // mating agreed on makes a child.
 const Unfertile = "unfertile"
@@ -258,7 +262,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func unfertile(c *engine.Config)    { c.AllotFertility = false }
+func unmixed(c *engine.Config)      { c.AllotMix = false }
+func unfertile(c *engine.Config)    { unmixed(c); c.AllotFertility = false }
 func unbedded(c *engine.Config)     { unfertile(c); c.SeekBed = false }
 func hopeful(c *engine.Config)      { unbedded(c); c.ReuseNights = false }
 func unsighted(c *engine.Config)    { hopeful(c); c.AllotSight = false }
@@ -320,6 +325,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Unmixed:      unmixed,
 	Unfertile:    unfertile,
 	Evenfert:     func(c *engine.Config) { c.FertStep, c.FertTrade = 0, 0 },
 	Unbedded:     unbedded,

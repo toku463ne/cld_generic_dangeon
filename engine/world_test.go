@@ -86,8 +86,24 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0xacf99f0e85055c7)
+	const want = uint64(0xb7f7a7323c817ef3)
 	w, err := NewWorld(testConfig(1), tempMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// With every slot from the one drawn parent, the world is stage 9-4: its
+// fingerprint is the one pinned then.
+func TestUnmixedIsStage94(t *testing.T) {
+	const want = uint64(0xacf99f0e85055c7)
+	cfg := testConfig(1)
+	cfg.AllotMix = false
+	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +118,7 @@ func TestFingerprint(t *testing.T) {
 func TestUnfertileIsStage93b(t *testing.T) {
 	const want = uint64(0x8ec1735068644be4)
 	cfg := testConfig(1)
-	cfg.AllotFertility = false
+	cfg.AllotMix, cfg.AllotFertility = false, false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
 		t.Fatal(err)

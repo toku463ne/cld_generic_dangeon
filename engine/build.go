@@ -306,12 +306,13 @@ func (w *World) SetBuild(id int64, build Build) bool {
 // child takes the level of one of its parents, drawn, and with chance
 // AllotMutation moves it one level up or down (inward at the ends).
 // Without AllotInherit a child draws too. With AllotSight it then draws
-// its sight the same way - uniform with no parents, the same drawn
-// parent's otherwise, moved with AllotMutation - and each tile off the
-// neutral (the config's Sight) costs or refunds SightTrade of what the
-// pair splits; with AllotFertility its fertility level likewise, each
-// level off the neutral FertTrade (stage 9-4). Its energy is held to its
-// most.
+// its sight the same way - uniform with no parents, a parent's
+// otherwise, moved with AllotMutation - and each tile off the neutral
+// (the config's Sight) costs or refunds SightTrade of what the pair
+// splits; with AllotFertility its fertility level likewise, each level
+// off the neutral FertTrade (stage 9-4). The parent each slot comes from
+// is the one drawn for the share, or with AllotMix drawn again for every
+// slot (stage 9-5a). Its energy is held to its most.
 func (w *World) allot(b *Body, parents ...*Body) {
 	b.Budget = w.cfg.Budget
 	w.stats.BudgetIn += b.Budget
@@ -342,7 +343,7 @@ func (w *World) allot(b *Body, parents ...*Body) {
 		if !w.cfg.AllotInherit || len(parents) != 2 {
 			return w.rng.Intn(most + 1)
 		}
-		if from == nil {
+		if from == nil || w.cfg.AllotMix {
 			from = parents[w.rng.Intn(2)]
 		}
 		return w.mutate(of(from), most+1)

@@ -411,3 +411,39 @@ func TestAllotFertility(t *testing.T) {
 		t.Fatalf("zero fertility reads as level %d chance %v, want %d %v", w.fertOf(none), w.fertility(none), neutral, w.cfg.Fertility)
 	}
 }
+
+// With AllotMix a child draws the parent of each slot of its budget on
+// its own, so a child may have one parent's sight and the other's
+// fertility; without, every slot is the one drawn parent's (stage 9-5a).
+func TestAllotMix(t *testing.T) {
+	w := newTestWorld(t, 7)
+	if !w.cfg.AllotMix {
+		t.Fatal("AllotMix is off by default")
+	}
+	w.cfg.AllotMutation = 0
+	a := &Body{ID: 1, Level: 0, Sight: 0 + 1, Fert: 0 + 1}
+	b := &Body{ID: 2, Level: w.cfg.AllotLevels - 1, Sight: w.cfg.SightMost + 1, Fert: w.cfg.FertMost + 1}
+	same := func(c *Body, p *Body) bool { return c.Level == p.Level && c.Sight == p.Sight && c.Fert == p.Fert }
+	mixed := 0
+	for i := 0; i < 200; i++ {
+		var c Body
+		w.allot(&c, a, b)
+		if (c.Level != a.Level && c.Level != b.Level) || (c.Sight != a.Sight && c.Sight != b.Sight) || (c.Fert != a.Fert && c.Fert != b.Fert) {
+			t.Fatalf("child %+v is neither parent's in some slot", c)
+		}
+		if !same(&c, a) && !same(&c, b) {
+			mixed++
+		}
+	}
+	if mixed == 0 {
+		t.Fatal("no child mixed its parents' slots in 200 draws")
+	}
+	w.cfg.AllotMix = false
+	for i := 0; i < 200; i++ {
+		var c Body
+		w.allot(&c, a, b)
+		if !same(&c, a) && !same(&c, b) {
+			t.Fatalf("without AllotMix child %+v mixed its parents", c)
+		}
+	}
+}

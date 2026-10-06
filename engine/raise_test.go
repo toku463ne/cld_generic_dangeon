@@ -238,7 +238,7 @@ func TestSeekBed(t *testing.T) {
 func TestHopefulIsStage93(t *testing.T) {
 	const want = uint64(0x8ec1735068644be4)
 	cfg := testConfig(1)
-	cfg.AllotFertility = false
+	cfg.AllotMix, cfg.AllotFertility = false, false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
