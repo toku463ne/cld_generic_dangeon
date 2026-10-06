@@ -99,6 +99,7 @@ func TestTemplessIsStage73b(t *testing.T) {
 	const want = uint64(0x646724f710d7c857)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ShelterFoodLife = 0
@@ -150,6 +151,7 @@ func TestShelterlessIsStage72b(t *testing.T) {
 	const want = uint64(0x1bfef7f1f18d1e4)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ShelterFoodLife = 0

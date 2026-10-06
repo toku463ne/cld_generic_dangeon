@@ -86,8 +86,24 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0x8ec1735068644be4)
+	const want = uint64(0xacf99f0e85055c7)
 	w, err := NewWorld(testConfig(1), tempMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// Without fertility in the budget, the world is stage 9-3b: every mating
+// agreed on makes a child, and its fingerprint is the one pinned then.
+func TestUnfertileIsStage93b(t *testing.T) {
+	const want = uint64(0x8ec1735068644be4)
+	cfg := testConfig(1)
+	cfg.AllotFertility = false
+	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,6 +119,7 @@ func TestSleeplessIsStage73a(t *testing.T) {
 	const want = uint64(0x1d4e57530eb1be2)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -124,6 +141,7 @@ func TestSightblindIsStage71b(t *testing.T) {
 	const want = uint64(0x409a3a08ad1e8f4d)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -223,6 +241,7 @@ func TestDaylongIsStage44(t *testing.T) {
 	const want = uint64(0x34007a7f0ff94cb7)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -244,6 +263,7 @@ func TestUnrecalledIsStage51(t *testing.T) {
 	const want = uint64(0xa916798dcb31162b)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -270,6 +290,7 @@ func TestHalflifeIsStage41(t *testing.T) {
 	const want = uint64(0xec3dfcb8c3052cd6)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -297,6 +318,7 @@ func TestUnheldIsStage40(t *testing.T) {
 	const want = uint64(0x6ef3c0d651de9b21)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -325,6 +347,7 @@ func TestRestblindIsStage38(t *testing.T) {
 	const want = uint64(0x73bc7c20c5e30753)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -354,6 +377,7 @@ func TestUnaskedIsStage37(t *testing.T) {
 	const want = uint64(0x8b58dcb766926bae)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -384,6 +408,7 @@ func TestUnagedIsStage36(t *testing.T) {
 	const want = uint64(0x65bf2b7d036f7a4a)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -416,6 +441,7 @@ func TestSlowgrowIsStage35b(t *testing.T) {
 	const want = uint64(0x96b92ba04979efda)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -448,6 +474,7 @@ func TestAgelessIsStage34(t *testing.T) {
 	const want = uint64(0x2e11cd59bbea95ba)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -481,6 +508,7 @@ func TestBusyIsStage33d(t *testing.T) {
 	const want = uint64(0xf5894766a5495f52)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -514,6 +542,7 @@ func TestDoubledIsStage33c(t *testing.T) {
 	const want = uint64(0xd4656f63a57a704b)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -548,6 +577,7 @@ func TestLeanIsStage33b(t *testing.T) {
 	const want = uint64(0xfb7c99516ff15951)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -582,6 +612,7 @@ func TestPerunitIsStage33(t *testing.T) {
 	const want = uint64(0x160f88aa4a56bb14)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -616,6 +647,7 @@ func TestUnfedIsStage32(t *testing.T) {
 	const want = uint64(0x2cdcb2147b3e2cfc)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -650,6 +682,7 @@ func TestEvenIsStage31(t *testing.T) {
 	const want = uint64(0x5af7133341342c88)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -684,6 +717,7 @@ func TestSexlessIsStage24(t *testing.T) {
 	const want = uint64(0xe11e99c952b0c044)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -717,6 +751,7 @@ func TestAgedIsStage23(t *testing.T) {
 	const want = uint64(0x183d565350053ffe)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -751,6 +786,7 @@ func TestKinIsStage22(t *testing.T) {
 	const want = uint64(0xb5fb25e4363e7f6c)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -785,6 +821,7 @@ func TestNearIsThird21(t *testing.T) {
 	const want = uint64(0xd32d3dc3d4a4c1c3)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -819,6 +856,7 @@ func TestMixedIsSecond21(t *testing.T) {
 	const want = uint64(0xe603a1fde7c5a398)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -853,6 +891,7 @@ func TestUndecayedIsFirst21(t *testing.T) {
 	const want = uint64(0x4fc09ac1b5ef5f0a)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -887,6 +926,7 @@ func TestUntoldIsStage20(t *testing.T) {
 	const want = uint64(0x75682f5e7fe91d62)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -921,6 +961,7 @@ func TestTruthIsBeforeStage16(t *testing.T) {
 	const want = uint64(0xb8ed150c7cbf824b)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.Sleep = false     // before stage 7-3b
@@ -953,6 +994,7 @@ func TestBounceIsStage15(t *testing.T) {
 	const want = uint64(0xf7c67a3be62ca6be)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -987,6 +1029,7 @@ func TestDrawnIsCollisions(t *testing.T) {
 	const want = uint64(0xe4ce1d34b72b02f4)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.Sleep = false     // before stage 7-3b
@@ -1020,6 +1063,7 @@ func TestOverlapIsStage14(t *testing.T) {
 	const want = uint64(0x6dda229acfd53e93)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -1055,6 +1099,7 @@ func TestFixedIsStage13(t *testing.T) {
 	const want = uint64(0x31db5a227bba52b8)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -1090,6 +1135,7 @@ func TestNoBreedIsStage12e(t *testing.T) {
 	const want = uint64(0xc6343895ef84fe4d)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -1125,6 +1171,7 @@ func TestEverytickIsStage12r(t *testing.T) {
 	const want = uint64(0x72d49e5113ca37a8)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -1160,6 +1207,7 @@ func TestStraightbackIsStage12q(t *testing.T) {
 	const want = uint64(0x598db45e1aaf44c7)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -1195,6 +1243,7 @@ func TestNoHeadingIsStage12p(t *testing.T) {
 	const want = uint64(0x46ffb00b8b64a80)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -1230,6 +1279,7 @@ func TestNoSightIsFirstStage12(t *testing.T) {
 	const want = uint64(0x51de0e4034431e90)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -1265,6 +1315,7 @@ func TestNoWindowIsStage11(t *testing.T) {
 	const want = uint64(0xa43263b50e366b1e)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0

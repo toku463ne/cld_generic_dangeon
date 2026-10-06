@@ -415,9 +415,13 @@ func (w *World) Value(t TruthTable, survival []Survival, b Body) Valuation {
 // gives the survival table of a region for b's build. child is the chance
 // a mate makes a child; path reads keeping on the move with the path row
 // (learn.go).
-func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive func(RegionID) Survival, child float64, rs *rates, b *Body) {
+func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive func(RegionID) Survival, agree float64, rs *rates, b *Body) {
 	path := rs != nil
 	speed, burn := w.speedOf(b), w.readBurn(b)
+	// A mating agreed on makes a child with the body's own fertility
+	// times the neutral, read for the partner it cannot see (stage 9-4).
+	conceive := w.fertility(b) * w.fertChance(w.cfg.FertMost/2)
+	child := agree * conceive
 	// A resting mother's reserve is energy she has not got yet (stage 4-0),
 	// and the food a body holds is energy it eats as soon as a whole meal
 	// fits (stage 4-1): both add to what it can last, but not to what a
@@ -581,10 +585,11 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			d := moveDirs[a.Dir]
 			x, y = b.X+d[0]*speed, b.Y+d[1]*speed
 		case ActMate:
-			// Read as agreed: the share paid, and a child - with the
-			// chance child, and otherwise a tick spent as a wait. A
-			// requester out of sight is reached first, k ticks of walking
-			// (Requests).
+			// Read as agreed and conceived: the share paid, and a child -
+			// with the chance child; otherwise, agreed but not conceived,
+			// the mating alone paid (stage 9-4), or not agreed, a tick
+			// spent as a wait. A requester out of sight is reached first,
+			// k ticks of walking (Requests).
 			after = w.units(b.Energy-w.birthShare(b)) + reserve - 1 - grainsOf(w.farTicks(a.Mate))
 		}
 		c := 0.0
@@ -605,7 +610,12 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			risk, plan, arrive := read(a, x, y, after, eaten, win)
 			if a.Kind == ActMate && c < 1 {
 				unpaid, _, _ := read(a, x, y, n-1, eaten, win)
-				risk = c*risk + (1-c)*unpaid
+				agreed := risk
+				if conceive < 1 {
+					mated, _, _ := read(a, x, y, w.units(b.Energy-w.matingShare(b))+reserve-1-grainsOf(w.farTicks(a.Mate)), eaten, win)
+					agreed = conceive*risk + (1-conceive)*mated
+				}
+				risk = agree*agreed + (1-agree)*unpaid
 			}
 			v.Risk[i] = append(v.Risk[i], risk)
 			if i == 0 {
@@ -918,7 +928,7 @@ func (w *World) decide(b *Body) Action {
 		rs := &w.rates
 		w.ratesOf(b, rs)
 		alive := func(r RegionID) Survival { return w.rateTable(rs, r, full, factor) }
-		w.valueInto(v, w.pred.meal, full, w.pred.windows, alive, w.childRate(b), rs, b)
+		w.valueInto(v, w.pred.meal, full, w.pred.windows, alive, w.mateRate(b), rs, b)
 		v.Belief = w.belief(b)
 	case w.cfg.Window > 0 && b.Build == (Build{}) && w.readBurn(b) == w.cfg.EnergyBurn && w.ageFactor(b) == 1:
 		w.valueInto(v, w.pred.meal, w.pred.full, w.pred.windows, w.survival, 1, nil, b)

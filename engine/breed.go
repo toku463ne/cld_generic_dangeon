@@ -68,6 +68,11 @@ func (w *World) birthShare(b *Body) float64 {
 	return w.cfg.MateEnergy
 }
 
+// matingShare is the energy body b pays for the mating itself, at every
+// mating agreed on whether or not a child comes of it (stage 9-4):
+// MateEnergy, or its whole share of a birth where that is less.
+func (w *World) matingShare(b *Body) float64 { return math.Min(w.cfg.MateEnergy, w.birthShare(b)) }
+
 // canPay reports whether body b can pay its share of a birth and live.
 func (w *World) canPay(b *Body) bool { return b.Energy-w.birthShare(b) > 0 }
 
@@ -293,10 +298,12 @@ func dirTowards(dx, dy float64) int {
 	return (int(math.Round(math.Atan2(dy, dx)/(math.Pi/4))) + 8) % 8
 }
 
-// mate carries out body b's mate with the body whose ID is id: a birth if
+// mate carries out body b's mate with the body whose ID is id: a mating if
 // the partner's intent is a mate with b, it is still in sight, and both can
-// pay. Afterwards neither intends to mate, so the partner's own turn this
-// tick does not make a second child.
+// pay, and a birth if the two parents' fertility allows it (stage 9-4).
+// Afterwards neither intends to mate, so the partner's own turn this tick
+// does not make a second child. A mating with no child costs the two the
+// mating alone, and leaves their requests open: they may try again.
 func (w *World) mate(b *Body, id int64) {
 	var p *Body
 	w.mates(b, func(o *Body) {
@@ -308,6 +315,23 @@ func (w *World) mate(b *Body, id int64) {
 	// request is itself consent (stage M-3).
 	requested := p != nil && w.cfg.Requests && p.Requested > w.tick
 	if p == nil || (p.Intent != (Action{Kind: ActMate, Mate: b.ID}) && !requested) || !w.canPay(b) || !w.canPay(p) {
+		return
+	}
+	// Agreed: the mate row learns of it, child or none (stage 9-4).
+	w.stats.Matings++
+	w.noteFert(&w.stats.FertMatings, b, p)
+	if w.cfg.Learn {
+		b.Memory.Mated++
+		p.Memory.Mated++
+		if w.cfg.AgeBand > 0 {
+			w.observe(&b.Memory.Mate, 0, 1)
+			w.observe(&p.Memory.Mate, 0, 1)
+		}
+	}
+	b.Intent, p.Intent = Action{Kind: ActWait}, Action{Kind: ActWait}
+	if c := w.fertility(b) * w.fertility(p); c < 1 && w.rng.Float64() >= c {
+		b.Energy -= w.matingShare(b)
+		p.Energy -= w.matingShare(p)
 		return
 	}
 	if requested {
@@ -324,15 +348,7 @@ func (w *World) mate(b *Body, id int64) {
 			}
 		}
 	}
-	if w.cfg.Learn {
-		b.Memory.Kids++
-		p.Memory.Kids++
-		if w.cfg.AgeBand > 0 {
-			w.observe(&b.Memory.Mate, 0, 1)
-			w.observe(&p.Memory.Mate, 0, 1)
-		}
-	}
-	b.Intent, p.Intent = Action{Kind: ActWait}, Action{Kind: ActWait}
+	w.noteFert(&w.stats.FertBirths, b, p)
 	child := Body{
 		ID:      w.nextID,
 		X:       b.X,
@@ -354,6 +370,21 @@ func (w *World) mate(b *Body, id int64) {
 	w.born = append(w.born, child)
 	w.nextID++
 	w.stats.Births++
+}
+
+// noteFert counts, by fertility level, the two parents of a mating or of
+// a birth (stage 9-4); nothing without AllotFertility.
+func (w *World) noteFert(counts *[]int64, b, p *Body) {
+	if !w.cfg.AllotFertility {
+		return
+	}
+	for _, x := range []*Body{b, p} {
+		k := w.fertOf(x)
+		for len(*counts) <= k {
+			*counts = append(*counts, 0)
+		}
+		(*counts)[k]++
+	}
 }
 
 // noteGeneration counts a body coming into the world at generation g.

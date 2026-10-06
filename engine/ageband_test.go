@@ -99,9 +99,9 @@ func TestMateRowAges(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		w.observe(&b.Memory.Mate, 1, 0)
 	}
-	fresh := w.childRate(&b)
+	fresh := w.mateRate(&b)
 	w.tick = 1000
-	if aged := w.childRate(&b); !(aged > fresh) || aged > w.cfg.PriorChild {
+	if aged := w.mateRate(&b); !(aged > fresh) || aged > w.cfg.PriorChild {
 		t.Fatalf("child rate fresh %v, aged %v", fresh, aged)
 	}
 }

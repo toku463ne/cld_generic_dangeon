@@ -333,6 +333,25 @@ type Config struct {
 	AllotSight bool
 	SightMost  int
 	SightTrade float64
+	// AllotFertility puts fertility into the budget (stage 9-4; VISION
+	// "繁殖能力"): a body draws a fertility level, 0 to FertMost, drawn,
+	// inherited, mutated and traded against the speed/energy pair as its
+	// sight is, FertTrade a level off the neutral level (FertMost/2). A
+	// level's chance is Fertility at the neutral level and FertStep more
+	// or less a level off it, held to 0..1; a mating agreed on makes a
+	// child with the chance the two parents' chances multiply to (each
+	// parent independently). The mating itself (MateEnergy each) is paid
+	// at every mating agreed on, child or none, so that the chance stays
+	// in the valuation - a cost paid only on success drops out of it
+	// (stage 1-6); the birth (the rest of BirthEnergy, and the mother's
+	// rest) is paid at a birth only. A body knows its own chance and reads
+	// the neutral for its partner's, which it cannot see. Off, every
+	// mating agreed on makes a child, as in stage 9-3b.
+	AllotFertility bool
+	FertMost       int
+	FertTrade      float64
+	Fertility      float64
+	FertStep       float64
 	// ReuseNights has every body learn, each sleep it begins after its
 	// first, whether it began within a built place's reach (BuildSide/2)
 	// of where its last sleep began (Memory.Reuse; stage 9-3b): whether
@@ -508,6 +527,11 @@ func DefaultConfig() Config {
 		AllotSight:         true,
 		SightMost:          2,
 		SightTrade:         1.0 / 3,
+		AllotFertility:     true,
+		FertMost:           2,
+		FertTrade:          1.0 / 3,
+		Fertility:          0.9,
+		FertStep:           0.1,
 		ReuseNights:        true,
 		SeekBed:            true,
 		Budget:             1,

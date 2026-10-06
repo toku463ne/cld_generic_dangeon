@@ -94,10 +94,12 @@ type Memory struct {
 	// Walked holds the tiles the body left within PathRecall ticks, and
 	// when.
 	Walked map[int]int64 `json:",omitempty"`
-	// Asks and Kids: mates asked and children had. With AgeBand, Mate holds
-	// the same by when (stage 5-1), and the mate row reads it.
-	Asks, Kids float64 `json:",omitempty"`
-	Mate       Tally   `json:",omitempty"`
+	// Asks and Mated: mates asked and matings agreed on (a child each
+	// until stage 9-4, when the fertility dice come between). With
+	// AgeBand, Mate holds the same by when (stage 5-1), and the mate row
+	// reads it.
+	Asks, Mated float64 `json:",omitempty"`
+	Mate        Tally   `json:",omitempty"`
 	// Spots are the tiles it saw food on and left, and when (stage 5-2);
 	// Spot counts its walks to one: found it there, K times in N.
 	Spots map[int]int64 `json:",omitempty"`
@@ -331,13 +333,14 @@ func (w *World) pathFrom(t Tally, p float64) float64 {
 	return (t.K + weight) / (t.N + weight) * p
 }
 
-// childRate is a body's estimate of the chance a mate becomes a child.
-// With AgeBand it ages as every row does (stage 5-1).
-func (w *World) childRate(b *Body) float64 {
+// mateRate is a body's estimate of the chance a mate is agreed on; whether
+// a mating agreed on makes a child is its fertility (stage 9-4), which it
+// knows. With AgeBand it ages as every row does (stage 5-1).
+func (w *World) mateRate(b *Body) float64 {
 	if w.cfg.AgeBand > 0 {
 		return w.Fresh(b.Memory.Mate).estimate(w.cfg.PriorChild, w.cfg.ChildWeight)
 	}
-	return Tally{N: b.Memory.Asks, K: b.Memory.Kids}.estimate(w.cfg.PriorChild, w.cfg.ChildWeight)
+	return Tally{N: b.Memory.Asks, K: b.Memory.Mated}.estimate(w.cfg.PriorChild, w.cfg.ChildWeight)
 }
 
 // Belief is what body b's memory makes of the world now (with Learn), as
@@ -353,7 +356,7 @@ func (w *World) belief(b *Body) Belief {
 		ratio = path / here
 	}
 	return Belief{
-		Land: w.land(b), Here: here, Path: path, PathRatio: ratio, Child: w.childRate(b),
+		Land: w.land(b), Here: here, Path: path, PathRatio: ratio, Child: w.mateRate(b),
 		HereN: w.Fresh(b.Memory.region(r)).N, PathN: w.pathTally(b).N, Asks: b.Memory.Asks,
 	}
 }
@@ -676,6 +679,6 @@ func (w *World) ValueWith(b Body, region, path []float64) Valuation {
 	copy(rs.region, region)
 	copy(rs.path, path)
 	alive := func(r RegionID) Survival { return w.rateTable(&rs, r, full, factor) }
-	w.valueInto(&v, w.pred.meal, full, w.pred.windows, alive, w.childRate(&b), &rs, &b)
+	w.valueInto(&v, w.pred.meal, full, w.pred.windows, alive, w.mateRate(&b), &rs, &b)
 	return v
 }

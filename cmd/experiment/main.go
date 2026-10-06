@@ -112,8 +112,17 @@ type result struct {
 	// at SightMost (stage 9-3), sampled with the adults; zero without
 	// AllotSight.
 	sightLow, sightHigh float64
-	regions             []float64 // regions with a body in them, at tick 0 and each checkpoint
-	valley              float64   // fewest bodies at any tick after tick 0
+	// fertLow and fertHigh are the same for fertility level 0 and
+	// FertMost (stage 9-4); matings the matings agreed on; fertMatings
+	// and fertBirths the parents in them and in the births by level, and
+	// fertSlope the births per mating at the top level less the bottom
+	// (NaN where either level saw no mating).
+	fertLow, fertHigh       float64
+	matings                 float64
+	fertMatings, fertBirths []int64
+	fertSlope               float64
+	regions                 []float64 // regions with a body in them, at tick 0 and each checkpoint
+	valley                  float64   // fewest bodies at any tick after tick 0
 	// displace is the mean straight-line distance, in tiles, a body gets
 	// from where it was 1000 ticks before (over bodies alive at both ends,
 	// every 1000 ticks after tick 5000); edge the mean share of the living
@@ -283,6 +292,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	var was map[int64][2]float64
 	var dSum, dN, eSum, eN, aSum, aN, mSum, mN, fSum float64
 	var sLow, sHigh, sN float64
+	var fLow, fHigh, fN float64
 	for _, b := range w.Bodies() {
 		known[b.ID] = b
 	}
@@ -361,6 +371,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 			on := 0.0
 			var bySex [3]float64
 			low, high := 0.0, 0.0
+			fertLow, fertHigh := 0.0, 0.0
 			for _, b := range bs {
 				if w.Tick() >= b.Mature {
 					bySex[b.Sex]++
@@ -369,6 +380,12 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 						low++
 					case cfg.SightMost:
 						high++
+					}
+					switch w.BodyFertility(b) {
+					case 0:
+						fertLow++
+					case cfg.FertMost:
+						fertHigh++
 					}
 				}
 			}
@@ -380,6 +397,11 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 					sLow += low / adults
 					sHigh += high / adults
 					sN++
+				}
+				if cfg.AllotFertility && adults > 0 {
+					fLow += fertLow / adults
+					fHigh += fertHigh / adults
+					fN++
 				}
 				if f, m := bySex[engine.Female], bySex[engine.Male]; f+m > 0 {
 					mSum += math.Min(f, m) / (f + m)
@@ -435,6 +457,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.back = backs / math.Max(traced, 1)
 	r.adults = aSum / math.Max(aN, 1)
 	r.sightLow, r.sightHigh = sLow/math.Max(sN, 1), sHigh/math.Max(sN, 1)
+	r.fertLow, r.fertHigh = fLow/math.Max(fN, 1), fHigh/math.Max(fN, 1)
 	r.minority, r.female = math.NaN(), math.NaN()
 	if mN > 0 {
 		r.minority, r.female = mSum/mN, fSum/mN
@@ -480,6 +503,12 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		r.decided = decisions / total
 	}
 	r.births = float64(st.Births)
+	r.matings = float64(st.Matings)
+	r.fertMatings, r.fertBirths = append([]int64(nil), st.FertMatings...), append([]int64(nil), st.FertBirths...)
+	r.fertSlope = math.NaN()
+	if top := cfg.FertMost; cfg.AllotFertility && top < len(r.fertMatings) && r.fertMatings[0] > 0 && r.fertMatings[top] > 0 {
+		r.fertSlope = fertRate(r, top) - fertRate(r, 0)
+	}
 	r.provisioned = float64(w.FoodLedger().Provisioned)
 	r.requests, r.requestBirths = float64(st.Requests), float64(st.RequestBirths)
 	for i := range r.rows {
@@ -609,6 +638,12 @@ func fmtMeanSE(xs []float64, prec int) string {
 	return fmt.Sprintf("%.*f ± %.*f", prec, m, prec, se)
 }
 
+// fertRate is the births per mating agreed on at fertility level k in
+// result r, which must have seen a mating at it.
+func fertRate(r result, k int) float64 {
+	return float64(r.fertBirths[k]) / float64(r.fertMatings[k])
+}
+
 // collectWhere is collect over the results for which keep is true.
 func collectWhere(rs []result, keep func(result) bool, f func(result) float64) []float64 {
 	var xs []float64
@@ -733,7 +768,7 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	p("### 4. 出来事の回数（%s）\n\n", base)
 	p("| 出来事 | 回数 |\n| --- | --- |\n")
 	births := fmtMeanSE(collect(rs, func(r result) float64 { return r.births }), 2)
-	p("| 交配 | %s |\n| 出生 | %s |\n", births, births)
+	p("| 交配 | %s |\n| 出生 | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.matings }), 2), births)
 	for _, e := range []string{"種族内の戦い", "種族間の戦い", "コインを拾った", "売買"} {
 		p("| %s | 0 |\n", e)
 	}
@@ -777,6 +812,24 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 
 	if baseCfg, _ := variant.Config(base, o.seed0); baseCfg.Allot {
 		writeAllot(p, o, rs, every, rows)
+	}
+	if baseCfg, _ := variant.Config(base, o.seed0); baseCfg.AllotFertility {
+		p("### 補助の表: 繁殖能力の段ごとの交配と出生（%s）\n\n", base)
+		p("成立した交配と出生に親として入った身体を段ごとに数えたもの（1回の交配で両親それぞれ 1）。出生率はシードごとの出生 ÷ 交配。\n\n")
+		p("| 段 | 交配（1シードあたり） | 出生（1シードあたり） | 交配1回あたりの出生 |\n| --- | --- | --- | --- |\n")
+		for k := 0; k <= baseCfg.FertMost; k++ {
+			at := func(xs []int64) float64 {
+				if k < len(xs) {
+					return float64(xs[k])
+				}
+				return 0
+			}
+			p("| %d | %s | %s | %s |\n", k,
+				fmtMeanSE(collect(rs, func(r result) float64 { return at(r.fertMatings) }), 2),
+				fmtMeanSE(collect(rs, func(r result) float64 { return at(r.fertBirths) }), 2),
+				fmtMeanSE(collectWhere(rs, func(r result) bool { return k < len(r.fertMatings) && r.fertMatings[k] > 0 }, func(r result) float64 { return fertRate(r, k) }), 4))
+		}
+		p("\n")
 	}
 
 	p("### 補助の表: 占有地域数と個体数の谷（%s）\n\n", base)
@@ -926,6 +979,10 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"成人の割合", 4, func(r result) float64 { return r.adults }},
 		{"視野0の成人の割合", 4, func(r result) float64 { return r.sightLow }},
 		{"視野が最大の成人の割合", 4, func(r result) float64 { return r.sightHigh }},
+		{"交配（成立）", 2, func(r result) float64 { return r.matings }},
+		{"繁殖能力0の成人の割合", 4, func(r result) float64 { return r.fertLow }},
+		{"繁殖能力が最大の成人の割合", 4, func(r result) float64 { return r.fertHigh }},
+		{"繁殖能力の最高段と最低段の出生率の差", 4, func(r result) float64 { return r.fertSlope }},
 		{"休んでいる母に配られた食料", 2, func(r result) float64 { return r.provisioned }},
 		{"成人のうち女の割合", 4, func(r result) float64 { return r.female }},
 		{"交配要求で成り立った出生", 2, func(r result) float64 { return r.requestBirths }},
@@ -1137,7 +1194,7 @@ func memRows(w *engine.World, m engine.Map) []memRow {
 		rows = append(rows, row)
 	}
 	path := memRow{name: "自分が通ったタイルの食料 / タイル（証拠はタイルに直した数）", key: "path", truth: math.NaN()}
-	mate := memRow{name: "交配の申し出が子になる割合", key: "mate", truth: math.NaN()}
+	mate := memRow{name: "交配の申し出が成立する割合", key: "mate", truth: math.NaN()}
 	for _, b := range bs {
 		bl := w.Belief(b)
 		if pt := w.PathTally(b); pt.N > 0 {

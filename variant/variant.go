@@ -34,6 +34,15 @@ const (
 	Sight2 = "sight2"
 )
 
+// Unfertile is stage 9-3b: fertility is not in the budget, and every
+// mating agreed on makes a child.
+const Unfertile = "unfertile"
+
+// Evenfert is stage 9-4 with no selection: every body's fertility is the
+// neutral chance (FertStep 0) and costs nothing (FertTrade 0), so the
+// dice and the mating paid for are in, and nothing to select on.
+const Evenfert = "evenfert"
+
 // Unbedded is stage 9-3b less its second rule: a builder weighs building
 // against sleeping as it stands only, not against a known bed.
 const Unbedded = "unbedded"
@@ -249,7 +258,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func unbedded(c *engine.Config)     { c.SeekBed = false }
+func unfertile(c *engine.Config)    { c.AllotFertility = false }
+func unbedded(c *engine.Config)     { unfertile(c); c.SeekBed = false }
 func hopeful(c *engine.Config)      { unbedded(c); c.ReuseNights = false }
 func unsighted(c *engine.Config)    { hopeful(c); c.AllotSight = false }
 func unkept(c *engine.Config)       { unsighted(c); c.ShelterFoodLife = 0 }
@@ -310,6 +320,8 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Unfertile:    unfertile,
+	Evenfert:     func(c *engine.Config) { c.FertStep, c.FertTrade = 0, 0 },
 	Unbedded:     unbedded,
 	Hopeful:      hopeful,
 	Unsighted:    unsighted,

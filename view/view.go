@@ -634,7 +634,7 @@ func (v *View) FollowText() string {
 		return fmt.Sprintf("body #%d is dead", v.follow)
 	}
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "body #%d%s  energy %.1f  age %d  sight %d  heading %s", b.ID, sexName(b, v.W.Tick()), b.Energy, v.W.Tick()-b.Born, v.W.BodySight(b), dirName(b.Heading))
+	fmt.Fprintf(&sb, "body #%d%s  energy %.1f  age %d  sight %d  fert %d  heading %s", b.ID, sexName(b, v.W.Tick()), b.Energy, v.W.Tick()-b.Born, v.W.BodySight(b), v.W.BodyFertility(b), dirName(b.Heading))
 	if v.W.Config().Sleep {
 		state := "awake"
 		if b.Asleep {

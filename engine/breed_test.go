@@ -12,6 +12,9 @@ func pairWorld(t *testing.T, a, b Body) *World {
 	cfg := testConfig(1)
 	cfg.Bodies = 0
 	cfg.FemaleBears = false // each pays half (3-1); TestMotherBears turns it on
+	// A mating agreed on is a birth, whatever the levels drawn (stage
+	// 9-4); TestFertilityDice lowers the chance.
+	cfg.Fertility, cfg.FertStep = 1, 0
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -447,5 +450,98 @@ func TestGenerations(t *testing.T) {
 	}
 	if n := len(w2.Bodies()); len(w2.stats.GenBirths) != 1 || w2.stats.GenBirths[0] != int64(n) {
 		t.Fatalf("first bodies counted: %v, want [%d]", w2.stats.GenBirths, n)
+	}
+}
+
+// With AllotFertility a mating agreed on makes a child with the chance the
+// two parents' fertility multiplies to (stage 9-4). A mating with no child
+// costs each the mating alone (MateEnergy), leaves the mother unrested and
+// their requests open, and the mate row learns of it as of any mating
+// agreed on; a birth pays the whole share. The chance of a level is
+// Fertility at the neutral level, FertStep a level off it, held to 0..1.
+func TestFertilityDice(t *testing.T) {
+	w := pairWorld(t, Body{ID: 0, X: 2.5, Y: 2.5, Energy: 80}, Body{ID: 1, X: 3.5, Y: 2.5, Energy: 60})
+	w.cfg.FemaleBears, w.cfg.Requests, w.cfg.RequestTicks = true, true, 100
+	she, he := &w.bodies[0], &w.bodies[1]
+	if !w.cfg.AllotFertility {
+		t.Fatal("AllotFertility is off by default")
+	}
+	// The chance by level.
+	w.cfg.Fertility, w.cfg.FertStep = 0.95, 0.1
+	if got := []float64{w.fertChance(0), w.fertChance(1), w.fertChance(2)}; math.Abs(got[0]-0.85) > 1e-12 || got[1] != 0.95 || got[2] != 1 {
+		t.Fatalf("chances by level %v, want 0.85 0.95 1 (held to 1)", got)
+	}
+	// With no chance at all, a mating agreed on makes no child.
+	w.cfg.Fertility = 0
+	she.Intent, she.Requested = Action{Kind: ActMate, Mate: 1}, w.tick+100
+	draws := w.Draws()
+	w.act(1, he, Action{Kind: ActMate, Mate: 0})
+	if len(w.born) != 0 || w.stats.Births != 0 {
+		t.Fatalf("born %d with no fertility", len(w.born))
+	}
+	if w.Draws() != draws+1 {
+		t.Fatalf("the dice drew %d times, want 1", w.Draws()-draws)
+	}
+	if she.Energy != 80-w.cfg.MateEnergy || he.Energy != 60-w.cfg.MateEnergy {
+		t.Fatalf("paid %v and %v, want the mating alone (%v each)", 80-she.Energy, 60-he.Energy, w.cfg.MateEnergy)
+	}
+	if w.resting(she) || she.Requested != w.tick+100 {
+		t.Fatalf("after no child: resting %v, request %d", w.resting(she), she.Requested)
+	}
+	if she.Intent.Kind != ActWait || he.Intent.Kind != ActWait {
+		t.Fatalf("intents after the mating: %v %v", she.Intent, he.Intent)
+	}
+	if w.stats.Matings != 1 || she.Memory.Mated != 1 || he.Memory.Mated != 1 || w.Fresh(she.Memory.Mate).K != 1 {
+		t.Fatalf("matings %d, mated %v/%v, row K %v: the mating agreed on is not learned", w.stats.Matings, she.Memory.Mated, he.Memory.Mated, w.Fresh(she.Memory.Mate).K)
+	}
+	if len(w.stats.FertMatings) == 0 || len(w.stats.FertBirths) != 0 {
+		t.Fatalf("counts by level: matings %v births %v", w.stats.FertMatings, w.stats.FertBirths)
+	}
+	// With the chance one, no dice are thrown and the birth is paid whole.
+	w.cfg.Fertility = 1
+	she.Energy, he.Energy = 80, 60
+	she.Intent = Action{Kind: ActMate, Mate: 1}
+	draws = w.Draws()
+	w.act(1, he, Action{Kind: ActMate, Mate: 0})
+	if len(w.born) != 1 || w.stats.Births != 1 || w.stats.Matings != 2 {
+		t.Fatalf("born %d, matings %d, want a birth of the second mating", len(w.born), w.stats.Matings)
+	}
+	if she.Energy != 80-w.birthShare(she) || he.Energy != 60-w.birthShare(he) || !w.resting(she) || she.Requested != 0 {
+		t.Fatalf("after the birth: paid %v/%v, resting %v, request %d", 80-she.Energy, 60-he.Energy, w.resting(she), she.Requested)
+	}
+	k := w.fertOf(she)
+	if k >= len(w.stats.FertBirths) || w.stats.FertBirths[k] == 0 || w.stats.FertMatings[k] < 2 {
+		t.Fatalf("counts by level: matings %v births %v", w.stats.FertMatings, w.stats.FertBirths)
+	}
+	// A body's own fertility and the neutral read in the valuation: the
+	// chance of a child from a mate is the row's chance of agreement
+	// times its own chance times the neutral.
+	w.cfg.Fertility, w.cfg.FertStep = 0.9, 0.1
+	she.Rested, she.Energy = 0, 80
+	for _, c := range []struct {
+		fert int
+		want float64
+	}{{1, 0.8 * 0.9}, {2, 0.9 * 0.9}, {3, 1.0 * 0.9}} {
+		she.Fert = c.fert
+		w.decide(she)
+		v := &w.valuation
+		found := false
+		for j, o := range v.Options {
+			if o.Kind == ActMate && o.Mate == 1 {
+				found = true
+				if want := w.mateRate(she) * c.want; math.Abs(v.Child[j]-want) > 1e-12 {
+					t.Fatalf("fertility level %d: chance of a child %v, want %v", c.fert-1, v.Child[j], want)
+				}
+			}
+		}
+		if !found {
+			t.Fatalf("fertility level %d: no mate among %+v", c.fert-1, v.Options)
+		}
+	}
+	// Without AllotFertility every mating agreed on is a birth, whatever
+	// the level.
+	w.cfg.AllotFertility = false
+	if w.fertility(she) != 1 || w.fertChance(0) != 1 {
+		t.Fatal("fertility reads below one with AllotFertility off")
 	}
 }

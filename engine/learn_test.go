@@ -15,7 +15,7 @@ func TestNewbornReadsPriors(t *testing.T) {
 	if got := w.pathRate(b, 0); got != w.cfg.PriorFood {
 		t.Fatalf("path %v, want the prior %v", got, w.cfg.PriorFood)
 	}
-	if got := w.childRate(b); got != w.cfg.PriorChild {
+	if got := w.mateRate(b); got != w.cfg.PriorChild {
 		t.Fatalf("child %v, want the prior %v", got, w.cfg.PriorChild)
 	}
 }
@@ -99,8 +99,8 @@ func TestPathReadingNeutralWithoutWalkedTiles(t *testing.T) {
 	var rs rates
 	w.ratesOf(&b, &rs)
 	var with, without Valuation
-	w.valueInto(&with, meal, full, w.pred.windows, alive, w.childRate(&b), &rs, &b)
-	w.valueInto(&without, meal, full, w.pred.windows, alive, w.childRate(&b), nil, &b)
+	w.valueInto(&with, meal, full, w.pred.windows, alive, w.mateRate(&b), &rs, &b)
+	w.valueInto(&without, meal, full, w.pred.windows, alive, w.mateRate(&b), nil, &b)
 	for j := range with.Options {
 		if with.Risk[0][j] != without.Risk[0][j] {
 			t.Fatalf("option %v: %v with the path row, %v without", with.Options[j], with.Risk[0][j], without.Risk[0][j])
@@ -166,8 +166,8 @@ func TestMateRowCounts(t *testing.T) {
 		if b.Memory.Asks < asks[b.ID] {
 			t.Fatalf("body %d asked %v times by the trace, remembers %v", b.ID, asks[b.ID], b.Memory.Asks)
 		}
-		if b.Memory.Kids > b.Memory.Asks+1 {
-			t.Fatalf("body %d: %v children from %v asks", b.ID, b.Memory.Kids, b.Memory.Asks)
+		if b.Memory.Mated > b.Memory.Asks+1 {
+			t.Fatalf("body %d: %v children from %v asks", b.ID, b.Memory.Mated, b.Memory.Asks)
 		}
 	}
 	if !traced {

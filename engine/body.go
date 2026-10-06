@@ -51,6 +51,9 @@ type Body struct {
 	// (stage 9-3); zero stands for the config's Sight, as a zero build
 	// stands for the config's values.
 	Sight int `json:",omitempty"`
+	// Fert is its fertility level plus one, drawn at birth with
+	// AllotFertility (stage 9-4); zero stands for the neutral level.
+	Fert int `json:",omitempty"`
 	// LastSlept is the tile its last sleep began on, plus one; zero for
 	// none yet (ReuseNights, stage 9-3b).
 	LastSlept int `json:",omitempty"`
@@ -194,6 +197,11 @@ type Stats struct {
 	// Requests counts the requests to mate sent (Requests), and
 	// RequestBirths the births a request brought about.
 	Requests, RequestBirths int64
+	// Matings counts the matings agreed on (stage 9-4), each a birth
+	// unless the fertility dice say no; FertMatings and FertBirths count,
+	// by fertility level, the parents in the matings and in the births.
+	Matings                 int64   `json:",omitempty"`
+	FertMatings, FertBirths []int64 `json:",omitempty"`
 	// Provisioned counts, per region, the food that went straight to a
 	// resting mother (Provision, food.go).
 	Provisioned []int64 `json:",omitempty"`

@@ -69,6 +69,7 @@ func TestOwnBuild(t *testing.T) {
 		t.Fatalf("energy after eating %v, want capped at 60", b.Energy)
 	}
 	before := b.Energy
+	w.cfg.Breed = false // the tick measures the burn alone, not a mating
 	w.Step()
 	for _, o := range w.Bodies() {
 		if o.ID == id && math.Abs(before-o.Energy-0.2) > 1e-9 {
@@ -280,7 +281,7 @@ func TestAllotSight(t *testing.T) {
 	// A tile off the neutral scales the pair.
 	var plain, dear, cheap Body
 	w.cfg.AllotLevels = 1 // share fixed at one half: only sight differs
-	w.cfg.AllotInherit = false
+	w.cfg.AllotInherit, w.cfg.AllotFertility = false, false
 	draw := func(dst *Body, sight int) {
 		for i := 0; i < 200; i++ {
 			var b Body
@@ -330,6 +331,7 @@ func TestUnsightedIsStage82c(t *testing.T) {
 	const want = uint64(0x4c3cad7a3ba8bfe9)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
@@ -338,5 +340,74 @@ func TestUnsightedIsStage82c(t *testing.T) {
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
 		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// With AllotFertility a body draws its fertility level, 0 to FertMost, at
+// birth: the first bodies uniformly, a child the drawn parent's. Each
+// level off the neutral (FertMost/2) scales what the speed/energy pair
+// splits by FertTrade; a zero level stands for the neutral (stage 9-4).
+func TestAllotFertility(t *testing.T) {
+	w := newTestWorld(t, 7)
+	seen := map[int]bool{}
+	for _, b := range w.Bodies() {
+		if b.Fert < 1 || b.Fert > w.cfg.FertMost+1 {
+			t.Fatalf("a first body drew fertility %d", b.Fert)
+		}
+		seen[b.Fert-1] = true
+	}
+	if len(seen) < 2 {
+		t.Fatalf("first bodies drew only fertility levels %v", seen)
+	}
+	var plain, dear, cheap Body
+	w.cfg.AllotLevels = 1 // share fixed at one half
+	w.cfg.AllotInherit, w.cfg.AllotSight = false, false
+	draw := func(dst *Body, fert int) {
+		for i := 0; i < 200; i++ {
+			var b Body
+			w.allot(&b)
+			if b.Fert == fert+1 {
+				*dst = b
+				return
+			}
+		}
+		t.Fatalf("no body drew fertility %d in 200 draws", fert)
+	}
+	neutral := w.cfg.FertMost / 2
+	draw(&plain, neutral)
+	draw(&dear, w.cfg.FertMost)
+	draw(&cheap, 0)
+	if !(dear.Build.Speed < plain.Build.Speed && plain.Build.Speed < cheap.Build.Speed) {
+		t.Fatalf("speeds for fertility %d/%d/%d: %v %v %v", w.cfg.FertMost, neutral, 0, dear.Build.Speed, plain.Build.Speed, cheap.Build.Speed)
+	}
+	if !(dear.Build.EnergyMax < plain.Build.EnergyMax && plain.Build.EnergyMax < cheap.Build.EnergyMax) {
+		t.Fatal("most energy does not fall as fertility rises")
+	}
+	if f := plain.Build.Speed; math.Abs(f-w.cfg.Speed) > 1e-12 {
+		t.Fatalf("neutral fertility at an even split buys speed %v, want the config's %v", f, w.cfg.Speed)
+	}
+	if !(w.fertility(&dear) > w.fertility(&plain) && w.fertility(&plain) > w.fertility(&cheap)) {
+		t.Fatalf("chances %v %v %v do not rise with the level", w.fertility(&cheap), w.fertility(&plain), w.fertility(&dear))
+	}
+	// A child takes the drawn parent's level (mutation off), and with
+	// mutation moves at most one, inward at the ends.
+	w.cfg.AllotInherit, w.cfg.AllotMutation = true, 0
+	var child Body
+	w.allot(&child, &dear, &dear)
+	if child.Fert != dear.Fert {
+		t.Fatalf("child fertility %d, parent %d", child.Fert, dear.Fert)
+	}
+	w.cfg.AllotMutation = 1
+	for i := 0; i < 50; i++ {
+		var c Body
+		w.allot(&c, &dear, &dear)
+		if c.Fert != dear.Fert-1 {
+			t.Fatalf("mutation from the top level gave %d, want %d", c.Fert-1, dear.Fert-2)
+		}
+	}
+	// The zero value stands for the neutral level.
+	none := &Body{ID: 3}
+	if w.fertOf(none) != neutral || w.fertility(none) != w.cfg.Fertility {
+		t.Fatalf("zero fertility reads as level %d chance %v, want %d %v", w.fertOf(none), w.fertility(none), neutral, w.cfg.Fertility)
 	}
 }

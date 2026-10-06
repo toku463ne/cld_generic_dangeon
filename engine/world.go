@@ -92,6 +92,9 @@ func NewWorld(cfg Config, m Map) (*World, error) {
 	if cfg.AllotSight && (cfg.SightMost < 1 || cfg.Sight < 0 || cfg.Sight > cfg.SightMost) {
 		return nil, fmt.Errorf("AllotSight needs 0 <= Sight <= SightMost and SightMost >= 1, got Sight %d SightMost %d", cfg.Sight, cfg.SightMost)
 	}
+	if cfg.AllotFertility && (cfg.FertMost < 1 || cfg.Fertility < 0 || cfg.Fertility > 1) {
+		return nil, fmt.Errorf("AllotFertility needs FertMost >= 1 and 0 <= Fertility <= 1, got FertMost %d Fertility %v", cfg.FertMost, cfg.Fertility)
+	}
 	if cfg.DayTicks > 0 && (cfg.NightTicks < 0 || cfg.NightTicks > cfg.DayTicks || cfg.NightSight > cfg.Sight || cfg.TwilightTicks < 0 || cfg.TwilightTicks > cfg.NightTicks || cfg.TwilightTicks > cfg.DayTicks-cfg.NightTicks) {
 		return nil, fmt.Errorf("a night (NightTicks) must fit in a day (DayTicks), its twilights (TwilightTicks) in both, and see no further than the day (Sight)")
 	}
@@ -250,6 +253,31 @@ func (w *World) sightOf(b *Body) int {
 
 // BodySight is sightOf, for counts and clients.
 func (w *World) BodySight(b Body) int { return w.sightOf(&b) }
+
+// fertOf is body b's fertility level (AllotFertility, stage 9-4): its own
+// drawn level, or the neutral one.
+func (w *World) fertOf(b *Body) int {
+	if b.Fert > 0 {
+		return b.Fert - 1
+	}
+	return w.cfg.FertMost / 2
+}
+
+// fertChance is the chance a level of fertility gives a mating: Fertility
+// at the neutral level, FertStep a level off it, held to 0..1. One without
+// AllotFertility, whatever the level.
+func (w *World) fertChance(level int) float64 {
+	if !w.cfg.AllotFertility {
+		return 1
+	}
+	return math.Min(math.Max(w.cfg.Fertility+w.cfg.FertStep*float64(level-w.cfg.FertMost/2), 0), 1)
+}
+
+// fertility is the chance body b's own fertility gives a mating of its.
+func (w *World) fertility(b *Body) float64 { return w.fertChance(w.fertOf(b)) }
+
+// BodyFertility is fertOf, for counts and clients.
+func (w *World) BodyFertility(b Body) int { return w.fertOf(&b) }
 
 // maxSight is the largest sight any body can have, for sizing bounds.
 func (w *World) maxSight() int {
@@ -413,7 +441,7 @@ func (w *World) Fingerprint() uint64 {
 				}
 			}
 			putF(mem.Asks)
-			putF(mem.Kids)
+			putF(mem.Mated)
 			if w.cfg.AgeBand > 0 {
 				tally(mem.Mate)
 			}

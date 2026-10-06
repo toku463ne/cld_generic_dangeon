@@ -60,6 +60,7 @@ func TestSleepblindIsStage73d(t *testing.T) {
 	const want = uint64(0x897e8d0ad6f500c1)
 	cfg := testConfig(1)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ShelterFoodLife = 0

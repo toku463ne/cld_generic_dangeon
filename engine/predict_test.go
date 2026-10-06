@@ -105,6 +105,7 @@ func TestValueChangesNothing(t *testing.T) {
 func TestEatingAgainstTheWindow(t *testing.T) {
 	cfg := testConfig(2)
 	cfg.AllotSight = false
+	cfg.AllotFertility = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Sight, cfg.DayTicks = -1, 0
 	w, err := NewWorld(cfg, testMap())
