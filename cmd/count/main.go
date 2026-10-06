@@ -129,6 +129,11 @@
 //	       rest: what share of food decays at all, and where it lies
 //	       when it does.
 //
+//	jitter (after stage 9-4, from the client) bodies quivering on the
+//	       spot: awake, moving on most of the last 60 ticks yet staying
+//	       within 2 tiles. What made them decide, what they took, the
+//	       plan the choice was read from, and one body's decisions.
+//
 //	buildtie (stage 8) how often building, valued at nothing yet, would
 //	       tie the best option and be drawn among the ties, the builds a
 //	       life adds up to, and the sleeps on the places so built.
@@ -188,7 +193,7 @@ import (
 )
 
 func main() {
-	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage | cycle | explore | shuttle | change | breed | mate | turnover | invade | collide | generations | learn | room | culture | erase | drift | walked | regions | seasons | sex | stages | payers | provision | allee | mating | request | oldbirths | ties | carryroom | carry | placeroom | spots | materoom | lock | foodage | storeroom | shelterroom | sleeptiming | climate | shelterknow | tieburn | daynight | findrate | nightroom | buildroom | buildtie | keeproom")
+	what := flag.String("what", "reach", "count to run: reach | underfoot | split | meet | sight | forage | cycle | explore | shuttle | change | breed | mate | turnover | invade | collide | generations | learn | room | culture | erase | drift | walked | regions | seasons | sex | stages | payers | provision | allee | mating | request | oldbirths | ties | carryroom | carry | placeroom | spots | materoom | lock | foodage | storeroom | shelterroom | sleeptiming | climate | shelterknow | tieburn | daynight | findrate | nightroom | buildroom | buildtie | keeproom | jitter")
 	mapName := flag.String("map", "", "map (required)")
 	width := flag.Int("w", 0, "map width in tiles (required)")
 	height := flag.Int("h", 0, "map height in tiles (required)")
@@ -199,7 +204,7 @@ func main() {
 	vname := flag.String("variant", variant.Base, "erase, drift, walked, regions, seasons, sex, stages, payers, provision, allee, mating, request, oldbirths, ties, carryroom, carry, placeroom, spots, materoom, lock, foodage, storeroom, shelterroom, sleeptiming, climate, shelterknow, tieburn, daynight,  findrate, nightroom, buildroom, buildtie and keeproom: the variant to run")
 	flag.Parse()
 
-	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" && *what != "cycle" && *what != "explore" && *what != "shuttle" && *what != "change" && *what != "breed" && *what != "mate" && *what != "turnover" && *what != "invade" && *what != "collide" && *what != "generations" && *what != "learn" && *what != "room" && *what != "culture" && *what != "erase" && *what != "drift" && *what != "walked" && *what != "regions" && *what != "seasons" && *what != "sex" && *what != "stages" && *what != "payers" && *what != "provision" && *what != "allee" && *what != "mating" && *what != "request" && *what != "oldbirths" && *what != "ties" && *what != "carryroom" && *what != "carry" && *what != "placeroom" && *what != "spots" && *what != "materoom" && *what != "lock" && *what != "foodage" && *what != "storeroom" && *what != "shelterroom" && *what != "sleeptiming" && *what != "climate" && *what != "shelterknow" && *what != "tieburn" && *what != "daynight" && *what != "findrate" && *what != "nightroom" && *what != "buildroom" && *what != "buildtie" && *what != "keeproom" {
+	if *what != "reach" && *what != "underfoot" && *what != "split" && *what != "meet" && *what != "sight" && *what != "forage" && *what != "cycle" && *what != "explore" && *what != "shuttle" && *what != "change" && *what != "breed" && *what != "mate" && *what != "turnover" && *what != "invade" && *what != "collide" && *what != "generations" && *what != "learn" && *what != "room" && *what != "culture" && *what != "erase" && *what != "drift" && *what != "walked" && *what != "regions" && *what != "seasons" && *what != "sex" && *what != "stages" && *what != "payers" && *what != "provision" && *what != "allee" && *what != "mating" && *what != "request" && *what != "oldbirths" && *what != "ties" && *what != "carryroom" && *what != "carry" && *what != "placeroom" && *what != "spots" && *what != "materoom" && *what != "lock" && *what != "foodage" && *what != "storeroom" && *what != "shelterroom" && *what != "sleeptiming" && *what != "climate" && *what != "shelterknow" && *what != "tieburn" && *what != "daynight" && *what != "findrate" && *what != "nightroom" && *what != "buildroom" && *what != "buildtie" && *what != "keeproom" && *what != "jitter" {
 		fail(fmt.Errorf("unknown count %q", *what))
 	}
 	if *seeds <= 0 || *width <= 0 || *height <= 0 || *mapName == "" {
@@ -209,7 +214,7 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" || *what == "cycle" || *what == "explore" || *what == "shuttle" || *what == "change" || *what == "breed" || *what == "mate" || *what == "turnover" || *what == "invade" || *what == "collide" || *what == "generations" || *what == "learn" || *what == "room" || *what == "culture" || *what == "erase" || *what == "drift" || *what == "walked" || *what == "regions" || *what == "seasons" || *what == "sex" || *what == "stages" || *what == "payers" || *what == "provision" || *what == "allee" || *what == "mating" || *what == "request" || *what == "oldbirths" || *what == "ties" || *what == "carryroom" || *what == "carry" || *what == "placeroom" || *what == "spots" || *what == "materoom" || *what == "lock" || *what == "foodage" || *what == "storeroom" || *what == "shelterroom" || *what == "sleeptiming" || *what == "climate" || *what == "shelterknow" || *what == "tieburn" || *what == "daynight" || *what == "findrate" || *what == "nightroom" || *what == "buildroom" || *what == "buildtie" || *what == "keeproom" {
+	if *what == "underfoot" || *what == "split" || *what == "meet" || *what == "sight" || *what == "forage" || *what == "cycle" || *what == "explore" || *what == "shuttle" || *what == "change" || *what == "breed" || *what == "mate" || *what == "turnover" || *what == "invade" || *what == "collide" || *what == "generations" || *what == "learn" || *what == "room" || *what == "culture" || *what == "erase" || *what == "drift" || *what == "walked" || *what == "regions" || *what == "seasons" || *what == "sex" || *what == "stages" || *what == "payers" || *what == "provision" || *what == "allee" || *what == "mating" || *what == "request" || *what == "oldbirths" || *what == "ties" || *what == "carryroom" || *what == "carry" || *what == "placeroom" || *what == "spots" || *what == "materoom" || *what == "lock" || *what == "foodage" || *what == "storeroom" || *what == "shelterroom" || *what == "sleeptiming" || *what == "climate" || *what == "shelterknow" || *what == "tieburn" || *what == "daynight" || *what == "findrate" || *what == "nightroom" || *what == "buildroom" || *what == "buildtie" || *what == "keeproom" || *what == "jitter" {
 		if *ticks <= 0 {
 			fail(fmt.Errorf("-ticks is required for %s", *what))
 		}
@@ -219,6 +224,10 @@ func main() {
 		}
 		if *what == "ties" {
 			ties(m, *mapName, *seeds, *seed0, *ticks, *vname)
+			return
+		}
+		if *what == "jitter" {
+			jitter(m, *mapName, *seeds, *seed0, *ticks, *vname)
 			return
 		}
 		if *what == "carryroom" {
