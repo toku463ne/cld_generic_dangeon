@@ -227,12 +227,13 @@ func run(out, log io.Writer, o options, command string) error {
 		writeReport(out, o, m, command, results)
 		return nil
 	}
-	// Brief: the conditions and the paired differences only.
+	// Brief: the conditions (with the replay commands - MEASURE.md "UI
+	// での再生" wants them in every report) and the paired differences only.
 	var full strings.Builder
 	writeReport(&full, o, m, command, results)
 	rep := full.String()
-	if i := strings.Index(rep, "| 代表シード"); i > 0 {
-		fmt.Fprint(out, rep[:i]+"\n")
+	if i := strings.Index(rep, "### 3. "); i > 0 {
+		fmt.Fprint(out, rep[:i])
 	}
 	if i := strings.Index(rep, "### 9. 対の差"); i >= 0 {
 		fmt.Fprint(out, rep[i:])

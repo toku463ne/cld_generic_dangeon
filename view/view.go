@@ -439,6 +439,16 @@ func (v *View) Render(dst *image.RGBA) {
 				strokeCircle(dst, px(b.X), px(b.Y), rad+1, sightHighColor)
 			}
 		}
+		if cfg := v.W.Config(); cfg.AllotFertility {
+			// Fertility (stage 9-4): a bar under the body, dark at level
+			// 0 and white at FertMost; the neutral level is bare.
+			switch v.W.BodyFertility(b) {
+			case 0:
+				line(dst, px(b.X)-rad, px(b.Y)+rad+2, px(b.X)+rad, px(b.Y)+rad+2, sightLowColor)
+			case cfg.FertMost:
+				line(dst, px(b.X)-rad, px(b.Y)+rad+2, px(b.X)+rad, px(b.Y)+rad+2, sightHighColor)
+			}
+		}
 		if b.Asleep {
 			// A sleeper is a ring: its hue, hollow.
 			strokeCircle(dst, px(b.X), px(b.Y), rad, bodyColor(b, now, b.Energy/full))
