@@ -48,6 +48,13 @@ func TestFollowsIntentBetweenDecisions(t *testing.T) {
 			if !ok {
 				continue // born this tick
 			}
+			if b.Memory.Mated != p.Memory.Mated {
+				// A mating agreed on this tick sets both to wait, child or
+				// none (9-4); the parent check above sees only the births.
+				// Found when the tables' cap went on a grid (2026-10-07)
+				// and changed seed 5's world: it had held since 9-4 by luck.
+				continue
+			}
 			if b.Intent != p.Intent || b.Goal != p.Goal || b.Decided != p.Decided {
 				t.Fatalf("tick %d body %d: intent changed without a decision", w.Tick(), b.ID)
 			}

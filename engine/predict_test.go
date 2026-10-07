@@ -107,6 +107,7 @@ func TestEatingAgainstTheWindow(t *testing.T) {
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
 	cfg.AllotBudget = false
+	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Sight, cfg.DayTicks = -1, 0
 	w, err := NewWorld(cfg, testMap())
@@ -534,6 +535,48 @@ func TestDrawInsteadOfBounce(t *testing.T) {
 		// East is out; the draw is over wait and the seven other moves.
 		if len(seen) < 5 {
 			t.Fatalf("%s: drew only %v", mode, seen)
+		}
+	}
+}
+
+// A survival table's cap is the body's most rounded up to the grid of
+// FullStep, so bodies of nearly the same most share one table and no body
+// holds more than its table's cap; with FullStep 0 every most has its own.
+func TestTableFullGrid(t *testing.T) {
+	w := newTestWorld(t, 3)
+	step := w.units(w.cfg.FullStep)
+	if step <= 1 {
+		t.Fatalf("FullStep %v is no grid", w.cfg.FullStep)
+	}
+	for _, full := range []int{1, step - 1, step, step + 1, 10*step - 3, 10 * step} {
+		got := w.tableFull(full)
+		if got < full || got%step != 0 || got-full >= step {
+			t.Fatalf("tableFull(%d) = %d with step %d", full, got, step)
+		}
+	}
+	// Two bodies whose most differ by less than a step read one table.
+	before := len(w.pred.learned)
+	a, b := w.learnedTable(0.3, 10*step-7), w.learnedTable(0.3, 10*step-1)
+	if len(w.pred.learned) != before+1 || a.rows != b.rows {
+		t.Fatalf("mosts %d and %d built %d tables, want one shared", 10*step-7, 10*step-1, len(w.pred.learned)-before)
+	}
+	if a.rows.t.Full != 10*step {
+		t.Fatalf("shared table's cap %d, want %d", a.rows.t.Full, 10*step)
+	}
+	// Exact tables without the grid.
+	w.cfg.FullStep = 0
+	before = len(w.pred.learned)
+	c, d := w.learnedTable(0.3, 10*step-7), w.learnedTable(0.3, 10*step-1)
+	if len(w.pred.learned) != before+2 || c.rows == d.rows || c.rows.t.Full != 10*step-7 {
+		t.Fatal("with FullStep 0 bodies of different most do not get their own exact tables")
+	}
+	// Every living body's most fits under the cap of the table it reads.
+	w.cfg.FullStep = 5
+	run(w, 300)
+	for _, b := range w.Bodies() {
+		full := w.units(w.maxOf(&b))
+		if cap := w.tableFull(full); cap < full {
+			t.Fatalf("body %d most %d above its table's cap %d", b.ID, full, cap)
 		}
 	}
 }

@@ -34,6 +34,11 @@ const (
 	Sight2 = "sight2"
 )
 
+// Exact builds a survival table for every exact most (FullStep 0): the
+// worlds before the tables' cap went on a grid (2026-10-07), as stage
+// 9-5b was measured.
+const Exact = "exact"
+
 // Unsized is stage 9-5a: the size of the budget is not in the genome, so
 // every body has the config's budget and burn.
 const Unsized = "unsized"
@@ -335,6 +340,7 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Exact:        func(c *engine.Config) { c.FullStep = 0 },
 	Unsized:      unsized,
 	Unpriced:     func(c *engine.Config) { c.BudgetBurn = false },
 	Unmixed:      unmixed,

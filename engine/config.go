@@ -456,6 +456,13 @@ type Config struct {
 	// are built for: an estimate is rounded to a power of it, so that
 	// bodies share tables.
 	BeliefStep float64
+	// FullStep is the energy a survival table's most (Full) is rounded up
+	// to a multiple of, so that bodies whose most differ by less share a
+	// table, as BeliefStep makes them share one across chances. The body
+	// reads its own most everywhere else; only the table's cap is coarser,
+	// by less than a step. Zero builds a table for every exact most (the
+	// worlds before 2026-10-07).
+	FullStep float64
 	// Budget is the size of every body's budget. The budget ledger
 	// (BudgetLedger) accounts for it.
 	Budget float64
@@ -570,6 +577,7 @@ func DefaultConfig() Config {
 		PriorChild:         1,
 		ChildWeight:        2,
 		BeliefStep:         1.1,
+		FullStep:           5,
 		Tell:               true,
 		StableRows:         true,
 		AgePath:            true,

@@ -129,6 +129,18 @@ func (w *World) units(e float64) int {
 	return int(math.Ceil(e/w.cfg.Grain - 1e-9))
 }
 
+// tableFull is the most, in grains, a survival table is built for a body
+// of the given most: rounded up to the grid of FullStep, so that bodies
+// of nearly the same most share a table. Up, so that no body holds more
+// than its table's cap.
+func (w *World) tableFull(full int) int {
+	step := w.units(w.cfg.FullStep)
+	if step <= 1 {
+		return full
+	}
+	return (full + step - 1) / step * step
+}
+
 // grains is how many grains a body of the given burn spends in k ticks, to
 // the nearest, at least one for any tick: how a walk or a window in ticks
 // reads in the tables.
@@ -828,6 +840,7 @@ func (w *World) tableFor(r RegionID, full, factor int) *table {
 // tableAt finds or builds region r's table for key k.
 func (w *World) tableAt(r RegionID, k survKey) *table {
 	p := &w.pred
+	k.full = w.tableFull(k.full)
 	t, ok := p.cache[r][k]
 	if !ok {
 		tt := TruthTable{Meal: p.meal, Full: k.full, Reach: w.grains(w.reach(w.maxSight(), w.slowest()), w.cfg.EnergyBurn), Over: w.cfg.Carry * p.meal}

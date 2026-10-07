@@ -547,6 +547,7 @@ func (w *World) levelRate(level int) float64 {
 // as they are read.
 func (w *World) learnedTable(q float64, full int) Survival {
 	level := w.beliefLevel(q)
+	full = w.tableFull(full)
 	k := survKey{food: level, full: full}
 	t, ok := w.pred.learned[k]
 	if !ok {

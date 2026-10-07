@@ -57,6 +57,7 @@ func TestUnforcedIsStage61b(t *testing.T) {
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
 	cfg.AllotBudget = false
+	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ShelterFoodLife = 0

@@ -336,6 +336,7 @@ func TestUnsightedIsStage82c(t *testing.T) {
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
 	cfg.AllotBudget = false
+	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {

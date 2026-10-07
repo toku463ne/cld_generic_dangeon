@@ -510,9 +510,11 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		}
 	}
 	r.meanBudget, r.budgetDrift = math.NaN(), math.NaN()
-	if bN1 > 0 && bN2 > 0 {
+	if bN1+bN2 > 0 {
 		r.meanBudget = (bSum1 + bSum2) / (bN1 + bN2)
-		r.budgetDrift = bSum2/bN2 - bSum1/bN1
+	}
+	if bN1 > 0 && bN2 > 0 {
+		r.budgetDrift = bSum2/bN2 - bSum1/bN1 // a collapsed seed has no second half
 	}
 	r.minority, r.female = math.NaN(), math.NaN()
 	if mN > 0 {
@@ -1073,15 +1075,30 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"成人のうち女の割合", 4, func(r result) float64 { return r.female }},
 		{"交配要求で成り立った出生", 2, func(r result) float64 { return r.requestBirths }},
 	}
+	// A seed with no value for a metric (NaN: a collapsed seed has no second
+	// half to read, a condition without the slot has no level) is left out
+	// of that column, and out of the paired difference when either side
+	// has none.
+	known := func(xs []float64) []float64 {
+		var ks []float64
+		for _, x := range xs {
+			if !math.IsNaN(x) {
+				ks = append(ks, x)
+			}
+		}
+		return ks
+	}
 	for _, v := range o.variants[1:] {
 		for _, mt := range metrics {
 			b := collect(rs, mt.f)
 			x := collect(results[v], mt.f)
-			d := make([]float64, len(b))
+			var d []float64
 			for i := range b {
-				d[i] = x[i] - b[i]
+				if !math.IsNaN(b[i]) && !math.IsNaN(x[i]) {
+					d = append(d, x[i]-b[i])
+				}
 			}
-			p("| %s（%s） | %s | %s | %s |\n", mt.name, v, fmtMeanSE(b, mt.prec), fmtMeanSE(x, mt.prec), fmtMeanSE(d, mt.prec))
+			p("| %s（%s） | %s | %s | %s |\n", mt.name, v, fmtMeanSE(known(b), mt.prec), fmtMeanSE(known(x), mt.prec), fmtMeanSE(d, mt.prec))
 		}
 	}
 }
