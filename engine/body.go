@@ -247,8 +247,9 @@ func (w *World) tileOf(x, y float64) int {
 }
 
 // placeBodies puts the starting bodies on the centres of land tiles drawn at
-// random.
-func (w *World) placeBodies() {
+// random: Config.Bodies of them with drawn genomes, or, given genomes, one
+// with each (NewWorldFrom).
+func (w *World) placeBodies(genomes []Genome) {
 	var land []int
 	for i, t := range w.m.Terrain {
 		if t == TerrainLand {
@@ -258,7 +259,11 @@ func (w *World) placeBodies() {
 	if len(land) == 0 {
 		return
 	}
-	for i := 0; i < w.cfg.Bodies; i++ {
+	n := w.cfg.Bodies
+	if genomes != nil {
+		n = len(genomes)
+	}
+	for i := 0; i < n; i++ {
 		t := land[w.rng.Intn(len(land))]
 		b := Body{
 			ID:      w.nextID,
@@ -273,7 +278,11 @@ func (w *World) placeBodies() {
 			Sex:     w.drawSex(),
 			Partner: -1,
 		}
-		w.allot(&b)
+		if genomes != nil {
+			w.endow(&b, genomes[i])
+		} else {
+			w.allot(&b)
+		}
 		w.drawSkills(&b)
 		b.Energy = w.maxOf(&b)
 		w.noteGeneration(0)

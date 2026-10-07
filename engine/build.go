@@ -298,70 +298,20 @@ func (w *World) SetBuild(id int64, build Build) bool {
 	return false
 }
 
-// allot gives body b its share of its budget for speed and the build the
-// share buys: speed (2 share)^AllotCurve times the config's, the most
-// energy (2 (1 - share))^AllotCurve times the config's. The share is one of
-// AllotLevels evenly spaced values within AllotSpread of one half. A body
-// with no parents draws its level, each as likely; with AllotInherit a
-// child takes the level of one of its parents, drawn, and with chance
-// AllotMutation moves it one level up or down (inward at the ends).
-// Without AllotInherit a child draws too. With AllotSight it then draws
-// its sight the same way - uniform with no parents, a parent's
-// otherwise, moved with AllotMutation - and each tile off the neutral
-// (the config's Sight) costs or refunds SightTrade of what the pair
-// splits; with AllotFertility its fertility level likewise, each level
-// off the neutral FertTrade (stage 9-4). The parent each slot comes from
-// is the one drawn for the share, or with AllotMix drawn again for every
-// slot (stage 9-5a). Its energy is held to its most.
+// allot gives body b its budget and a genome: with no parents one drawn
+// uniformly (drawGenome), with AllotInherit and two parents one
+// inherited from theirs (inherit), and the build that genome buys
+// (endow). Without AllotInherit a child draws too. See genome.go.
 func (w *World) allot(b *Body, parents ...*Body) {
-	b.Budget = w.cfg.Budget
-	w.stats.BudgetIn += b.Budget
-	if !w.cfg.Allot {
-		return
-	}
-	n := w.cfg.AllotLevels
-	k := 0
-	var from *Body
-	switch {
-	case n <= 1:
-	case w.cfg.AllotInherit && len(parents) == 2:
-		from = parents[w.rng.Intn(2)]
-		k = w.mutate(from.Level, n)
-	default:
-		k = w.rng.Intn(n)
-	}
-	s := 0.5
-	if n > 1 {
-		s += w.cfg.AllotSpread * (2*float64(k)/float64(n-1) - 1)
-	}
-	b.Level, b.Share = k, s
-	// The whole-number abilities are drawn after the share, from the same
-	// parent, and each level off the neutral scales what is left for the
-	// pair: sight (stage 9-3), then fertility (stage 9-4).
-	r := 1.0
-	draw := func(most int, of func(*Body) int) int {
-		if !w.cfg.AllotInherit || len(parents) != 2 {
-			return w.rng.Intn(most + 1)
+	var g Genome
+	if w.cfg.Allot {
+		if w.cfg.AllotInherit && len(parents) == 2 {
+			g = w.inherit(w.genomeOf(parents[0]), w.genomeOf(parents[1]))
+		} else {
+			g = w.drawGenome()
 		}
-		if from == nil || w.cfg.AllotMix {
-			from = parents[w.rng.Intn(2)]
-		}
-		return w.mutate(of(from), most+1)
 	}
-	if w.cfg.AllotSight {
-		sight := draw(w.cfg.SightMost, w.sightOf)
-		b.Sight = sight + 1
-		r += w.cfg.SightTrade * float64(w.cfg.Sight-sight)
-	}
-	if w.cfg.AllotFertility {
-		neutral := w.cfg.FertMost / 2
-		fert := draw(w.cfg.FertMost, w.fertOf)
-		b.Fert = fert + 1
-		r += w.cfg.FertTrade * float64(neutral-fert)
-	}
-	r = math.Max(r, 0.05)
-	b.Build = w.buildOf([NumAbilities]float64{AbilitySpeed: s * r, AbilityEnergyMax: (1 - s) * r})
-	b.Energy = math.Min(b.Energy, w.maxOf(b))
+	w.endow(b, g)
 }
 
 // mutate moves level k, of n, one up or down with chance AllotMutation,

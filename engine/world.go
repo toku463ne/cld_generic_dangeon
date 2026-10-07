@@ -78,8 +78,22 @@ type World struct {
 }
 
 // NewWorld builds a world on the given map: the food cap laid out by region
-// share, then the bodies. The map is copied, so the caller may reuse it.
-func NewWorld(cfg Config, m Map) (*World, error) {
+// share, then Config.Bodies bodies with drawn genomes. The map is copied,
+// so the caller may reuse it.
+func NewWorld(cfg Config, m Map) (*World, error) { return newWorld(cfg, m, nil) }
+
+// NewWorldFrom builds a world like NewWorld, but its first bodies are one
+// per genome given, in that order, in place of Config.Bodies drawn ones
+// (genome.go); none given, none placed. This is how a world begins from
+// bodies bred elsewhere.
+func NewWorldFrom(cfg Config, m Map, genomes []Genome) (*World, error) {
+	if genomes == nil {
+		genomes = []Genome{}
+	}
+	return newWorld(cfg, m, genomes)
+}
+
+func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 	if err := m.Validate(); err != nil {
 		return nil, err
 	}
@@ -111,11 +125,16 @@ func NewWorld(cfg Config, m Map) (*World, error) {
 		return nil, fmt.Errorf("Grain must be above zero")
 	}
 	w := &World{cfg: cfg, m: m.Clone()}
+	for _, g := range genomes {
+		if err := w.validGenome(g); err != nil {
+			return nil, err
+		}
+	}
 	w.rng, w.draws = newCountingRand(cfg.Seed)
 	w.initFood()
 	w.initPredict()
 	w.fillFood()
-	w.placeBodies()
+	w.placeBodies(genomes)
 	w.buildGrid()
 	return w, nil
 }
