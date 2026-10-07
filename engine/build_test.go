@@ -84,7 +84,9 @@ func TestOwnBuild(t *testing.T) {
 func TestChildInheritsTheShare(t *testing.T) {
 	births, moved := 0, 0
 	mutation := 0.0
-	for seed := int64(1); seed <= 4; seed++ {
+	// Six seeds: since fertility (9-4) some matings bear no child, four
+	// seeds fall short of the hundred births the mutation rate is read from.
+	for seed := int64(1); seed <= 6; seed++ {
 		w := newTestWorld(t, seed)
 		mutation = w.cfg.AllotMutation
 		level := map[int64]int{}
