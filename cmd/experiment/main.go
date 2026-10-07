@@ -872,12 +872,22 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	}
 	p("\n")
 
-	if baseCfg, _ := variant.Config(base, o.seed0); baseCfg.AllotBudget {
-		p("### 補助の表: 世代ごとの平均予算（%s、10 世代ごと）\n\n", base)
+	// Mean budget by generation, for every condition that has the budget
+	// in the genome (the base usually has not).
+	for _, v := range o.variants {
+		if vCfg, _ := variant.Config(v, o.seed0); !vCfg.AllotBudget {
+			continue
+		}
+		vs := results[v]
+		p("### 補助の表: 世代ごとの平均予算（%s、10 世代ごと）\n\n", v)
 		p("その世代に生まれた身体の予算の平均（1シードあたり。その世代の出生が無いシードは除く）。世代とともに上がり続ければ、予算に価格が足りない。\n\n")
 		p("| 世代 | 平均予算 |\n| --- | --- |\n")
-		for g := 0; g < top; g += 10 {
-			p("| %d | %s |\n", g, fmtMeanSE(collectWhere(rs, func(r result) bool { return g < len(r.genBirths) && r.genBirths[g] > 0 }, func(r result) float64 { return r.genBudget[g] }), 4))
+		vTop := 0
+		for _, r := range vs {
+			vTop = max(vTop, len(r.genBirths))
+		}
+		for g := 0; g < vTop; g += 10 {
+			p("| %d | %s |\n", g, fmtMeanSE(collectWhere(vs, func(r result) bool { return g < len(r.genBirths) && r.genBirths[g] > 0 }, func(r result) float64 { return r.genBudget[g] }), 4))
 		}
 		p("\n")
 	}
