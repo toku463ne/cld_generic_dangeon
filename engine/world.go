@@ -109,6 +109,9 @@ func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 	if cfg.AllotFertility && (cfg.FertMost < 1 || cfg.Fertility < 0 || cfg.Fertility > 1) {
 		return nil, fmt.Errorf("AllotFertility needs FertMost >= 1 and 0 <= Fertility <= 1, got FertMost %d Fertility %v", cfg.FertMost, cfg.Fertility)
 	}
+	if cfg.AllotBudget && (cfg.BudgetLevels < 1 || !(cfg.BudgetStep > 0) || !(cfg.Budget > 0)) {
+		return nil, fmt.Errorf("AllotBudget needs BudgetLevels >= 1 and BudgetStep and Budget above zero, got %d %v %v", cfg.BudgetLevels, cfg.BudgetStep, cfg.Budget)
+	}
 	if cfg.DayTicks > 0 && (cfg.NightTicks < 0 || cfg.NightTicks > cfg.DayTicks || cfg.NightSight > cfg.Sight || cfg.TwilightTicks < 0 || cfg.TwilightTicks > cfg.NightTicks || cfg.TwilightTicks > cfg.DayTicks-cfg.NightTicks) {
 		return nil, fmt.Errorf("a night (NightTicks) must fit in a day (DayTicks), its twilights (TwilightTicks) in both, and see no further than the day (Sight)")
 	}
@@ -298,6 +301,9 @@ func (w *World) fertility(b *Body) float64 { return w.fertChance(w.fertOf(b)) }
 // BodyFertility is fertOf, for counts and clients.
 func (w *World) BodyFertility(b Body) int { return w.fertOf(&b) }
 
+// BodySize is sizeOf, the budget level, for counts and clients.
+func (w *World) BodySize(b Body) int { return w.sizeOf(&b) }
+
 // maxSight is the largest sight any body can have, for sizing bounds.
 func (w *World) maxSight() int {
 	if w.cfg.AllotSight && w.cfg.SightMost > w.cfg.Sight {
@@ -420,6 +426,9 @@ func (w *World) Fingerprint() uint64 {
 		// The drawn sight is state only where a body has one.
 		if b.Sight != 0 {
 			put(uint64(b.Sight))
+		}
+		if b.Size != 0 {
+			put(uint64(b.Size))
 		}
 		// And what it has learned, where bodies learn.
 		if w.cfg.Learn {

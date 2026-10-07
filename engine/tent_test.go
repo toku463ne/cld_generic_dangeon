@@ -79,6 +79,7 @@ func TestAtduskIsStage82a(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.ShelterFoodLife = 0
 	cfg.NightSaving, cfg.DropTents, cfg.Building = false, false, false
@@ -126,6 +127,7 @@ func TestBuriedIsStage82a2(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.ShelterFoodLife = 0
 	cfg.DropTents, cfg.Building = false, false

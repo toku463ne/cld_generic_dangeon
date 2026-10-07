@@ -121,8 +121,19 @@ type result struct {
 	matings                 float64
 	fertMatings, fertBirths []int64
 	fertSlope               float64
-	regions                 []float64 // regions with a body in them, at tick 0 and each checkpoint
-	valley                  float64   // fewest bodies at any tick after tick 0
+	// sizeLow and sizeHigh are the same for budget level 0 and
+	// BudgetLevels-1 (stage 9-5b); meanBudget the adults' mean budget,
+	// budgetDrift the second half's less the first half's; genBudget the
+	// mean budget born into each generation.
+	sizeLow, sizeHigh       float64
+	meanBudget, budgetDrift float64
+	genBudget               []float64
+	// budgetCorr is the correlation between a child's budget and its
+	// parents' mean budget over the children seen (NaN under 3 children or
+	// with no variance on either side).
+	budgetCorr float64
+	regions    []float64 // regions with a body in them, at tick 0 and each checkpoint
+	valley     float64   // fewest bodies at any tick after tick 0
 	// displace is the mean straight-line distance, in tiles, a body gets
 	// from where it was 1000 ticks before (over bodies alive at both ends,
 	// every 1000 ticks after tick 5000); edge the mean share of the living
@@ -294,6 +305,9 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	var dSum, dN, eSum, eN, aSum, aN, mSum, mN, fSum float64
 	var sLow, sHigh, sN float64
 	var fLow, fHigh, fN float64
+	var zLow, zHigh, zN, bSum1, bN1, bSum2, bN2 float64
+	budgets := map[int64]float64{} // every body seen, for its children
+	var cN, cX, cY, cXX, cYY, cXY float64
 	for _, b := range w.Bodies() {
 		known[b.ID] = b
 	}
@@ -336,8 +350,16 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 				alive[b.ID] = true
 				if _, ok := known[b.ID]; !ok {
 					known[b.ID] = b
+					budgets[b.ID] = b.Budget
 					for _, p := range b.Parents {
 						kids[p]++
+					}
+					if pa, ok := budgets[b.Parents[0]]; ok {
+						if pb, ok := budgets[b.Parents[1]]; ok {
+							x, y := (pa+pb)/2, b.Budget
+							cN++
+							cX, cY, cXX, cYY, cXY = cX+x, cY+y, cXX+x*x, cYY+y*y, cXY+x*y
+						}
 					}
 				}
 			}
@@ -373,9 +395,17 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 			var bySex [3]float64
 			low, high := 0.0, 0.0
 			fertLow, fertHigh := 0.0, 0.0
+			sizeLow, sizeHigh, budget := 0.0, 0.0, 0.0
 			for _, b := range bs {
 				if w.Tick() >= b.Mature {
 					bySex[b.Sex]++
+					budget += b.Budget
+					switch w.BodySize(b) {
+					case 0:
+						sizeLow++
+					case cfg.BudgetLevels - 1:
+						sizeHigh++
+					}
 					switch w.BodySight(b) {
 					case 0:
 						low++
@@ -403,6 +433,18 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 					fLow += fertLow / adults
 					fHigh += fertHigh / adults
 					fN++
+				}
+				if cfg.AllotBudget && adults > 0 {
+					zLow += sizeLow / adults
+					zHigh += sizeHigh / adults
+					zN++
+					if t <= ticks/2 {
+						bSum1 += budget / adults
+						bN1++
+					} else {
+						bSum2 += budget / adults
+						bN2++
+					}
 				}
 				if f, m := bySex[engine.Female], bySex[engine.Male]; f+m > 0 {
 					mSum += math.Min(f, m) / (f + m)
@@ -459,6 +501,19 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.adults = aSum / math.Max(aN, 1)
 	r.sightLow, r.sightHigh = sLow/math.Max(sN, 1), sHigh/math.Max(sN, 1)
 	r.fertLow, r.fertHigh = fLow/math.Max(fN, 1), fHigh/math.Max(fN, 1)
+	r.sizeLow, r.sizeHigh = zLow/math.Max(zN, 1), zHigh/math.Max(zN, 1)
+	r.budgetCorr = math.NaN()
+	if cN >= 3 {
+		vx, vy := cXX-cX*cX/cN, cYY-cY*cY/cN
+		if vx > 0 && vy > 0 {
+			r.budgetCorr = (cXY - cX*cY/cN) / math.Sqrt(vx*vy)
+		}
+	}
+	r.meanBudget, r.budgetDrift = math.NaN(), math.NaN()
+	if bN1 > 0 && bN2 > 0 {
+		r.meanBudget = (bSum1 + bSum2) / (bN1 + bN2)
+		r.budgetDrift = bSum2/bN2 - bSum1/bN1
+	}
 	r.minority, r.female = math.NaN(), math.NaN()
 	if mN > 0 {
 		r.minority, r.female = mSum/mN, fSum/mN
@@ -482,6 +537,12 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		r.maxGen = float64(n - 1)
 		r.topGenBirths = float64(st.GenBirths[n-1])
 		r.genBirths = append([]int64(nil), st.GenBirths...)
+		r.genBudget = make([]float64, n)
+		for g := range r.genBudget {
+			if g < len(st.GenBudget) && st.GenBirths[g] > 0 {
+				r.genBudget[g] = st.GenBudget[g] / float64(st.GenBirths[g])
+			}
+		}
 	}
 	r.begun, r.fetched, r.abandoned = float64(st.Begun), float64(st.Fetched), float64(st.Abandoned)
 	r.tentsMade, r.tentNights, r.tentsWorn = float64(st.TentsMade), float64(st.TentNights), float64(st.TentsWorn)
@@ -811,6 +872,15 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	}
 	p("\n")
 
+	if baseCfg, _ := variant.Config(base, o.seed0); baseCfg.AllotBudget {
+		p("### 補助の表: 世代ごとの平均予算（%s、10 世代ごと）\n\n", base)
+		p("その世代に生まれた身体の予算の平均（1シードあたり。その世代の出生が無いシードは除く）。世代とともに上がり続ければ、予算に価格が足りない。\n\n")
+		p("| 世代 | 平均予算 |\n| --- | --- |\n")
+		for g := 0; g < top; g += 10 {
+			p("| %d | %s |\n", g, fmtMeanSE(collectWhere(rs, func(r result) bool { return g < len(r.genBirths) && r.genBirths[g] > 0 }, func(r result) float64 { return r.genBudget[g] }), 4))
+		}
+		p("\n")
+	}
 	if baseCfg, _ := variant.Config(base, o.seed0); baseCfg.Allot {
 		writeAllot(p, o, rs, every, rows)
 	}
@@ -984,6 +1054,11 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"繁殖能力0の成人の割合", 4, func(r result) float64 { return r.fertLow }},
 		{"繁殖能力が最大の成人の割合", 4, func(r result) float64 { return r.fertHigh }},
 		{"繁殖能力の最高段と最低段の出生率の差", 4, func(r result) float64 { return r.fertSlope }},
+		{"予算が最小の段の成人の割合", 4, func(r result) float64 { return r.sizeLow }},
+		{"予算が最大の段の成人の割合", 4, func(r result) float64 { return r.sizeHigh }},
+		{"成人の平均予算", 4, func(r result) float64 { return r.meanBudget }},
+		{"予算のドリフト（後半 − 前半）", 4, func(r result) float64 { return r.budgetDrift }},
+		{"子の予算と親の予算の相関", 4, func(r result) float64 { return r.budgetCorr }},
 		{"休んでいる母に配られた食料", 2, func(r result) float64 { return r.provisioned }},
 		{"成人のうち女の割合", 4, func(r result) float64 { return r.female }},
 		{"交配要求で成り立った出生", 2, func(r result) float64 { return r.requestBirths }},

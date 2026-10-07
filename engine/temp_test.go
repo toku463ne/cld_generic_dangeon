@@ -100,6 +100,7 @@ func TestTemplessIsStage73b(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ShelterFoodLife = 0
@@ -152,6 +153,7 @@ func TestShelterlessIsStage72b(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ShelterFoodLife = 0

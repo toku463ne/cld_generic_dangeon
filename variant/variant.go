@@ -34,6 +34,15 @@ const (
 	Sight2 = "sight2"
 )
 
+// Unsized is stage 9-5a: the size of the budget is not in the genome, so
+// every body has the config's budget and burn.
+const Unsized = "unsized"
+
+// Unpriced is stage 9-5b without its price: the size of the budget is
+// inherited and a bigger body is simply more body, burning no more than
+// a small one. The control that shows what the price holds back.
+const Unpriced = "unpriced"
+
 // Unmixed is stage 9-4: a child takes every slot of its budget from the
 // one parent drawn.
 const Unmixed = "unmixed"
@@ -262,7 +271,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func unmixed(c *engine.Config)      { c.AllotMix = false }
+func unsized(c *engine.Config)      { c.AllotBudget = false }
+func unmixed(c *engine.Config)      { unsized(c); c.AllotMix = false }
 func unfertile(c *engine.Config)    { unmixed(c); c.AllotFertility = false }
 func unbedded(c *engine.Config)     { unfertile(c); c.SeekBed = false }
 func hopeful(c *engine.Config)      { unbedded(c); c.ReuseNights = false }
@@ -325,6 +335,8 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
+	Unsized:      unsized,
+	Unpriced:     func(c *engine.Config) { c.BudgetBurn = false },
 	Unmixed:      unmixed,
 	Unfertile:    unfertile,
 	Evenfert:     func(c *engine.Config) { c.FertStep, c.FertTrade = 0, 0 },

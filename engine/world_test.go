@@ -86,8 +86,24 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0xb7f7a7323c817ef3)
+	const want = uint64(0xcec5d53d0cd22b31)
 	w, err := NewWorld(testConfig(1), tempMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// With the size of the budget out of the genome, the world is stage 9-5a:
+// its fingerprint is what TestFingerprint pinned before stage 9-5b.
+func TestUnsizedIsStage95a(t *testing.T) {
+	const want = uint64(0xb7f7a7323c817ef3)
+	cfg := testConfig(1)
+	cfg.AllotBudget = false
+	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,6 +118,7 @@ func TestFingerprint(t *testing.T) {
 func TestUnmixedIsStage94(t *testing.T) {
 	const want = uint64(0xacf99f0e85055c7)
 	cfg := testConfig(1)
+	cfg.AllotBudget = false
 	cfg.AllotMix = false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
@@ -118,6 +135,7 @@ func TestUnmixedIsStage94(t *testing.T) {
 func TestUnfertileIsStage93b(t *testing.T) {
 	const want = uint64(0x8ec1735068644be4)
 	cfg := testConfig(1)
+	cfg.AllotBudget = false
 	cfg.AllotMix, cfg.AllotFertility = false, false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
@@ -136,6 +154,7 @@ func TestSleeplessIsStage73a(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -158,6 +177,7 @@ func TestSightblindIsStage71b(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -258,6 +278,7 @@ func TestDaylongIsStage44(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -280,6 +301,7 @@ func TestUnrecalledIsStage51(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -307,6 +329,7 @@ func TestHalflifeIsStage41(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -335,6 +358,7 @@ func TestUnheldIsStage40(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -364,6 +388,7 @@ func TestRestblindIsStage38(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -394,6 +419,7 @@ func TestUnaskedIsStage37(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -425,6 +451,7 @@ func TestUnagedIsStage36(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -458,6 +485,7 @@ func TestSlowgrowIsStage35b(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -491,6 +519,7 @@ func TestAgelessIsStage34(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -525,6 +554,7 @@ func TestBusyIsStage33d(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -559,6 +589,7 @@ func TestDoubledIsStage33c(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -594,6 +625,7 @@ func TestLeanIsStage33b(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -629,6 +661,7 @@ func TestPerunitIsStage33(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -664,6 +697,7 @@ func TestUnfedIsStage32(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -699,6 +733,7 @@ func TestEvenIsStage31(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -734,6 +769,7 @@ func TestSexlessIsStage24(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -768,6 +804,7 @@ func TestAgedIsStage23(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -803,6 +840,7 @@ func TestKinIsStage22(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -838,6 +876,7 @@ func TestNearIsThird21(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -873,6 +912,7 @@ func TestMixedIsSecond21(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -908,6 +948,7 @@ func TestUndecayedIsFirst21(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -943,6 +984,7 @@ func TestUntoldIsStage20(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -978,6 +1020,7 @@ func TestTruthIsBeforeStage16(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.Sleep = false     // before stage 7-3b
@@ -1011,6 +1054,7 @@ func TestBounceIsStage15(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -1046,6 +1090,7 @@ func TestDrawnIsCollisions(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.Sleep = false     // before stage 7-3b
@@ -1080,6 +1125,7 @@ func TestOverlapIsStage14(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -1116,6 +1162,7 @@ func TestFixedIsStage13(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -1152,6 +1199,7 @@ func TestNoBreedIsStage12e(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -1188,6 +1236,7 @@ func TestEverytickIsStage12r(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -1224,6 +1273,7 @@ func TestStraightbackIsStage12q(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -1260,6 +1310,7 @@ func TestNoHeadingIsStage12p(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -1296,6 +1347,7 @@ func TestNoSightIsFirstStage12(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0
@@ -1332,6 +1384,7 @@ func TestNoWindowIsStage11(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
 	cfg.ForceAt = 0

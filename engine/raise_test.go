@@ -9,6 +9,7 @@ func TestUnbuiltIsStage65a(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.ShelterFoodLife = 0
 	cfg.Building, cfg.Tents = false, false
@@ -29,6 +30,7 @@ func TestUnsettledIsStage82a3(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.ShelterFoodLife = 0
 	cfg.Building = false
@@ -238,6 +240,7 @@ func TestSeekBed(t *testing.T) {
 func TestHopefulIsStage93(t *testing.T) {
 	const want = uint64(0x8ec1735068644be4)
 	cfg := testConfig(1)
+	cfg.AllotBudget = false
 	cfg.AllotMix, cfg.AllotFertility = false, false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	w, err := NewWorld(cfg, tempMap())

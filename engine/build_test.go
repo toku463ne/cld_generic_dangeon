@@ -69,7 +69,8 @@ func TestOwnBuild(t *testing.T) {
 		t.Fatalf("energy after eating %v, want capped at 60", b.Energy)
 	}
 	before := b.Energy
-	w.cfg.Breed = false // the tick measures the burn alone, not a mating
+	w.cfg.Breed = false      // the tick measures the burn alone, not a mating
+	w.cfg.BudgetBurn = false // and the build's burn, not the budget's price (9-5b)
 	w.Step()
 	for _, o := range w.Bodies() {
 		if o.ID == id && math.Abs(before-o.Energy-0.2) > 1e-9 {
@@ -283,7 +284,7 @@ func TestAllotSight(t *testing.T) {
 	// A tile off the neutral scales the pair.
 	var plain, dear, cheap Body
 	w.cfg.AllotLevels = 1 // share fixed at one half: only sight differs
-	w.cfg.AllotInherit, w.cfg.AllotFertility = false, false
+	w.cfg.AllotInherit, w.cfg.AllotFertility, w.cfg.AllotBudget = false, false, false
 	draw := func(dst *Body, sight int) {
 		for i := 0; i < 200; i++ {
 			var b Body
@@ -334,6 +335,7 @@ func TestUnsightedIsStage82c(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
@@ -363,7 +365,7 @@ func TestAllotFertility(t *testing.T) {
 	}
 	var plain, dear, cheap Body
 	w.cfg.AllotLevels = 1 // share fixed at one half
-	w.cfg.AllotInherit, w.cfg.AllotSight = false, false
+	w.cfg.AllotInherit, w.cfg.AllotSight, w.cfg.AllotBudget = false, false, false
 	draw := func(dst *Body, fert int) {
 		for i := 0; i < 200; i++ {
 			var b Body

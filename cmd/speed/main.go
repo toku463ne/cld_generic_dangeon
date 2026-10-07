@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"runtime/pprof"
 	"strings"
 	"time"
 
@@ -31,6 +32,7 @@ func main() {
 	grow := flag.Int("grow", 20000, "ticks run before timing")
 	ticks := flag.Int("ticks", 10000, "ticks timed")
 	cold := flag.Int("cold", 1000, "ticks timed after saving and loading the grown world")
+	cpuprofile := flag.String("cpuprofile", "", "write a CPU profile of the timed ticks to this file (go tool pprof -top)")
 	flag.Parse()
 
 	m, err := worldmap.Build(*mapName, *width, *height)
@@ -56,6 +58,15 @@ func main() {
 		fail(err)
 	}
 	bodies, samples := 0.0, 0.0
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			fail(err)
+		}
+		if err := pprof.StartCPUProfile(f); err != nil {
+			fail(err)
+		}
+	}
 	start := time.Now()
 	for i := 0; i < *ticks; i++ {
 		w.Step()
@@ -65,6 +76,9 @@ func main() {
 		}
 	}
 	warm := time.Since(start)
+	if *cpuprofile != "" {
+		pprof.StopCPUProfile()
+	}
 	var mem runtime.MemStats
 	runtime.GC()
 	runtime.ReadMemStats(&mem)

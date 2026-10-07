@@ -1,6 +1,9 @@
 package engine
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 // Genomes.
 //
@@ -19,18 +22,38 @@ import "fmt"
 // share of the budget for speed (0 to AllotLevels-1), Sight the tiles it
 // sees (0 to SightMost; the config's Sight without AllotSight), Fert its
 // fertility level (0 to FertMost; the neutral level without
-// AllotFertility).
+// AllotFertility), Size its budget level (0 to BudgetLevels-1; the
+// neutral level without AllotBudget).
 type Genome struct {
 	Level int
 	Sight int
 	Fert  int
+	Size  int
 }
 
 // GenomeOf is the genome body b was born with.
 func (w *World) GenomeOf(b Body) Genome { return w.genomeOf(&b) }
 
 func (w *World) genomeOf(b *Body) Genome {
-	return Genome{Level: b.Level, Sight: w.sightOf(b), Fert: w.fertOf(b)}
+	return Genome{Level: b.Level, Sight: w.sightOf(b), Fert: w.fertOf(b), Size: w.sizeOf(b)}
+}
+
+// sizeNeutral is the budget level that buys Config.Budget.
+func (w *World) sizeNeutral() int { return (w.cfg.BudgetLevels - 1) / 2 }
+
+// sizeOf is the budget level body b was born with; zero in the field
+// stands for the neutral level.
+func (w *World) sizeOf(b *Body) int {
+	if b.Size > 0 {
+		return b.Size - 1
+	}
+	return w.sizeNeutral()
+}
+
+// budgetOf is the budget that level size buys: Config.Budget scaled by
+// BudgetStep for every level off the neutral.
+func (w *World) budgetOf(size int) float64 {
+	return w.cfg.Budget * math.Pow(w.cfg.BudgetStep, float64(size-w.sizeNeutral()))
 }
 
 // validGenome reports whether g lies within the levels the config has, in
@@ -45,11 +68,14 @@ func (w *World) validGenome(g Genome) error {
 	if w.cfg.AllotFertility && (g.Fert < 0 || g.Fert > w.cfg.FertMost) {
 		return fmt.Errorf("genome fertility %d is not within 0..%d", g.Fert, w.cfg.FertMost)
 	}
+	if w.cfg.AllotBudget && (g.Size < 0 || g.Size >= w.cfg.BudgetLevels) {
+		return fmt.Errorf("genome size %d is not within 0..%d", g.Size, w.cfg.BudgetLevels-1)
+	}
 	return nil
 }
 
 // drawGenome is the genome of a body with no parents: every slot drawn
-// uniformly, the share's level first, then sight, then fertility.
+// uniformly, the share's level first, then sight, fertility and size.
 func (w *World) drawGenome() Genome {
 	var g Genome
 	if w.cfg.AllotLevels > 1 {
@@ -64,6 +90,10 @@ func (w *World) drawGenome() Genome {
 		g.Fert = w.rng.Intn(w.cfg.FertMost + 1)
 	} else {
 		g.Fert = w.cfg.FertMost / 2
+	}
+	g.Size = w.sizeNeutral()
+	if w.cfg.AllotBudget {
+		g.Size = w.rng.Intn(w.cfg.BudgetLevels)
 	}
 	return g
 }
@@ -81,7 +111,7 @@ func (w *World) inherit(a, b Genome) Genome {
 			from = &parents[w.rng.Intn(2)]
 		}
 	}
-	g := Genome{Sight: w.cfg.Sight, Fert: w.cfg.FertMost / 2}
+	g := Genome{Sight: w.cfg.Sight, Fert: w.cfg.FertMost / 2, Size: w.sizeNeutral()}
 	if n := w.cfg.AllotLevels; n > 1 {
 		pick()
 		g.Level = w.mutate(from.Level, n)
@@ -94,17 +124,26 @@ func (w *World) inherit(a, b Genome) Genome {
 		pick()
 		g.Fert = w.mutate(from.Fert, w.cfg.FertMost+1)
 	}
+	if w.cfg.AllotBudget {
+		pick()
+		g.Size = w.mutate(from.Size, w.cfg.BudgetLevels)
+	}
 	return g
 }
 
-// endow gives body b its budget and what genome g buys of it: the share
-// for speed its level stands for, its sight and fertility level, and the
-// build (speed and most energy) the pair is left with after each tile of
-// sight off the neutral costs or refunds SightTrade and each fertility
-// level off the neutral FertTrade. Its energy is held to its most.
-// Without Allot the body is the config's and g is not read.
+// endow gives body b its budget and what genome g buys of it: the budget
+// its size stands for (AllotBudget, stage 9-5b), the share for speed its
+// level stands for, its sight and fertility level, and the build (speed
+// and most energy) the pair is left with after each tile of sight off the
+// neutral costs or refunds SightTrade and each fertility level off the
+// neutral FertTrade, all of it scaled by the budget. Its energy is held to
+// its most. Without Allot the body is the config's and g is not read.
 func (w *World) endow(b *Body, g Genome) {
 	b.Budget = w.cfg.Budget
+	if w.cfg.Allot && w.cfg.AllotBudget {
+		b.Size = g.Size + 1
+		b.Budget = w.budgetOf(g.Size)
+	}
 	w.stats.BudgetIn += b.Budget
 	if !w.cfg.Allot {
 		return
@@ -124,7 +163,7 @@ func (w *World) endow(b *Body, g Genome) {
 		b.Fert = g.Fert + 1
 		r += w.cfg.FertTrade * float64(w.cfg.FertMost/2-g.Fert)
 	}
-	r = max(r, 0.05)
+	r = max(r, 0.05) * b.Budget / w.cfg.Budget
 	b.Build = w.buildOf([NumAbilities]float64{AbilitySpeed: s * r, AbilityEnergyMax: (1 - s) * r})
 	b.Energy = min(b.Energy, w.maxOf(b))
 }

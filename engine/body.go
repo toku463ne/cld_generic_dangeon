@@ -54,6 +54,10 @@ type Body struct {
 	// Fert is its fertility level plus one, drawn at birth with
 	// AllotFertility (stage 9-4); zero stands for the neutral level.
 	Fert int `json:",omitempty"`
+	// Size is its budget level plus one, drawn at birth with AllotBudget
+	// (stage 9-5b); zero stands for the neutral level. Budget (below) is
+	// what the level buys.
+	Size int `json:",omitempty"`
 	// LastSlept is the tile its last sleep began on, plus one; zero for
 	// none yet (ReuseNights, stage 9-3b).
 	LastSlept int `json:",omitempty"`
@@ -187,6 +191,10 @@ type Stats struct {
 	// the first bodies at 0, a child at the greater parent's generation
 	// plus one (stage 9-1).
 	GenBirths []int64 `json:",omitempty"`
+	// GenBudget sums, by generation, the budgets of the bodies that came
+	// into the world (stage 9-5b): over GenBirths it is the mean budget
+	// born into a generation.
+	GenBudget []float64 `json:",omitempty"`
 	// BudgetIn and BudgetOut are the budgets brought in by the born and
 	// taken out by the dead (BudgetLedger).
 	BudgetIn, BudgetOut float64
@@ -285,7 +293,7 @@ func (w *World) placeBodies(genomes []Genome) {
 		}
 		w.drawSkills(&b)
 		b.Energy = w.maxOf(&b)
-		w.noteGeneration(0)
+		w.noteGeneration(0, b.Budget)
 		w.bodies = append(w.bodies, b)
 		w.nextID++
 	}

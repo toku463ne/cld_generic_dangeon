@@ -87,9 +87,14 @@ func TestSteppingTeaches(t *testing.T) {
 }
 
 // With nothing of its path ahead of any move, a learning body values its
-// options exactly as it would with no path row.
+// options exactly as it would with no path row. The forced sleep ahead
+// (SleepAhead, stage 7-3e) is read only with the rates, so it is off here:
+// with it the two valuations differ for about half of all bodies, and the
+// test had held since 7-3e only because seed 5's first body was not one
+// of them (found when stage 9-5b changed that body's build).
 func TestPathReadingNeutralWithoutWalkedTiles(t *testing.T) {
 	w := newTestWorld(t, 5)
+	w.cfg.SleepAhead = false
 	b := w.bodies[0]
 	b.Memory = Memory{}
 	burn, speed := w.burnOf(&b), w.speedOf(&b)

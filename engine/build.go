@@ -102,6 +102,9 @@ func (w *World) ownBurn(b *Body, ahead bool) float64 {
 	if b.Build.EnergyBurn > 0 {
 		burn = b.Build.EnergyBurn
 	}
+	if w.cfg.AllotBudget && w.cfg.BudgetBurn && b.Budget > 0 {
+		burn *= b.Budget / w.cfg.Budget // a bigger body eats more (stage 9-5b)
+	}
 	if w.resting(b) && !(ahead && w.cfg.RestAhead) {
 		burn *= w.cfg.RestBurn // a resting mother keeps still (stage 3-4)
 	}

@@ -357,6 +357,21 @@ type Config struct {
 	FertTrade      float64
 	Fertility      float64
 	FertStep       float64
+	// AllotBudget puts the size of the budget into the genome (stage
+	// 9-5b; VISION "予算の大きさは親の予算の影響を受ける"): a body draws a
+	// budget level, 0 to BudgetLevels-1, the middle level neutral, drawn,
+	// inherited and moved like the other slots; its budget is Budget
+	// times BudgetStep to the power of the levels off the neutral, and
+	// every share of it buys that much more. The levels are few and
+	// whole so that bodies keep sharing survival tables. BudgetBurn is
+	// the price: a body burns its budget's share of the config's burn
+	// per tick, linearly - a bigger body eats more. Without it a budget
+	// is a gift and selection drives it up without end, as the
+	// predecessor measured.
+	AllotBudget  bool
+	BudgetLevels int
+	BudgetStep   float64
+	BudgetBurn   bool
 	// ReuseNights has every body learn, each sleep it begins after its
 	// first, whether it began within a built place's reach (BuildSide/2)
 	// of where its last sleep began (Memory.Reuse; stage 9-3b): whether
@@ -538,6 +553,10 @@ func DefaultConfig() Config {
 		FertTrade:          1.0 / 3,
 		Fertility:          0.9,
 		FertStep:           0.1,
+		AllotBudget:        true,
+		BudgetLevels:       5,
+		BudgetStep:         1.25,
+		BudgetBurn:         true,
 		ReuseNights:        true,
 		SeekBed:            true,
 		Budget:             1,

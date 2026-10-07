@@ -416,6 +416,7 @@ func TestUnkeptIsStage82b3(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
+	cfg.AllotBudget = false
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.ShelterFoodLife = 0
 	w, err := NewWorld(cfg, tempMap())
