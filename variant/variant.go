@@ -34,6 +34,15 @@ const (
 	Sight2 = "sight2"
 )
 
+// Steady and Fickle are the sweep before stage 9-6b (the conservative
+// trait): every body's own evidence of a place outweighs the prior one
+// and a half times sooner, or later (the weights toward the parents
+// divided by 1.5, or multiplied).
+const (
+	Steady = "steady"
+	Fickle = "fickle"
+)
+
 // Unventured is stage 9-5b: the exploratory trait is not in the genome,
 // and every body expects of a region it has little evidence of what the
 // land has shown it.
@@ -356,6 +365,8 @@ var rewrites = map[string]func(*engine.Config){
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
 	Exact:        func(c *engine.Config) { unventured(c); c.FullStep = 0 },
 	Unventured:   unventured,
+	Steady:       func(c *engine.Config) { c.Steady = 1.5 },
+	Fickle:       func(c *engine.Config) { c.Steady = 1 / 1.5 },
 	Bold:         func(c *engine.Config) { unventured(c); c.Venture = 1.5 },
 	Timid:        func(c *engine.Config) { unventured(c); c.Venture = 1 / 1.5 },
 	Unsized:      unsized,

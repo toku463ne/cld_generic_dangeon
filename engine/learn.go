@@ -292,7 +292,7 @@ func (w *World) regionPrior(b *Body, land float64) float64 {
 
 // regionRate is a body's estimate for region r.
 func (w *World) regionRate(b *Body, r RegionID) float64 {
-	return w.Fresh(b.Memory.region(r)).estimate(w.regionPrior(b, w.land(b)), w.cfg.RegionWeight)
+	return w.Fresh(b.Memory.region(r)).estimate(w.regionPrior(b, w.land(b)), w.regionWeight(b))
 }
 
 // RegionEvidence is how many tiles of region r body b has seen, as they
@@ -304,7 +304,7 @@ func (w *World) RegionEvidence(b Body, r RegionID) float64 {
 
 // pathRate is a body's estimate for a tile it walked lately, in region r.
 func (w *World) pathRate(b *Body, r RegionID) float64 {
-	return w.pathFrom(w.pathTally(b), w.regionRate(b, r))
+	return w.pathFrom(w.pathTally(b), w.regionRate(b, r), w.pathWeight(b))
 }
 
 // pathTally is body b's path row as it weighs now. With StableRows and
@@ -335,16 +335,16 @@ func (w *World) agePath(t *Tally) {
 }
 
 // pathFrom is the path's estimate from its tally, for a region estimated
-// at p. With StableRows the tally counts food seen on tiles walked lately
-// (K) against what the region was believed to hold there (N), so the
-// estimate is that ratio - one, a tile like any other, with no evidence,
-// worth PathWeight tiles - times p. Without, the tally counts food in
-// tiles seen, pulled toward p.
-func (w *World) pathFrom(t Tally, p float64) float64 {
+// at p and a pull of pathWeight tiles toward it. With StableRows the tally
+// counts food seen on tiles walked lately (K) against what the region was
+// believed to hold there (N), so the estimate is that ratio - one, a tile
+// like any other, with no evidence, worth pathWeight tiles - times p.
+// Without, the tally counts food in tiles seen, pulled toward p.
+func (w *World) pathFrom(t Tally, p, pathWeight float64) float64 {
 	if !w.cfg.StableRows {
-		return t.estimate(p, w.cfg.PathWeight)
+		return t.estimate(p, pathWeight)
 	}
-	weight := w.cfg.PathWeight * p
+	weight := pathWeight * p
 	if t.N+weight <= 0 {
 		return p
 	}
@@ -409,14 +409,15 @@ func (w *World) ratesOf(b *Body, rs *rates) {
 	n := len(w.m.RegionFood)
 	land := w.regionPrior(b, w.land(b))
 	path := w.pathTally(b)
+	rw, pw := w.regionWeight(b), w.pathWeight(b)
 	rs.region, rs.path = rs.region[:0], rs.path[:0]
 	rs.tables, rs.built = rs.tables[:0], rs.built[:0]
 	rs.lump, rs.awake, rs.slept = w.sleepFore(b)
 	for r := 0; r < n; r++ {
-		p := w.Fresh(b.Memory.region(RegionID(r))).estimate(land, w.cfg.RegionWeight)
+		p := w.Fresh(b.Memory.region(RegionID(r))).estimate(land, rw)
 		g := w.sightGainFor(w.sightOf(b), w.Brightness())
 		rs.region = append(rs.region, math.Min(p*g, 1))
-		rs.path = append(rs.path, math.Min(w.pathFrom(path, p)*g, 1))
+		rs.path = append(rs.path, math.Min(w.pathFrom(path, p, pw)*g, 1))
 		rs.tables = append(rs.tables, Survival{})
 		rs.built = append(rs.built, false)
 	}

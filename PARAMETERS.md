@@ -207,6 +207,7 @@
 | 生まれつきの見込みの重み（タイル） | `PriorWeight` | 50 | 仮 |
 | 地域 → 陸 の重み（タイル） | `RegionWeight` | 50 | 仮 |
 | 知らない地域の見込み（陸 × この倍率） | `Venture` | 1 | 9-6 の感度（条件 `bold` 1.5・`timid` 1/1.5、`unventured` の世界で）。地域の行の親を陸 × `Venture`（上限 1）にする。1 で 9-5b までの世界と同一。証拠が `RegionWeight` を超えれば消える |
+| 知っている場所の行の信じ方（親への重みをこれで割る） | `Steady` | 1 | 9-6b の感度（条件 `steady` 1.5・`fickle` 1/1.5）。`RegionWeight`・`PathWeight` を `Steady` で割る。1 で 9-6a の世界と同一。知らない地域の読みは動かない |
 | 開拓の段を遺伝子にする・段の上限・1 段の倍率 | `AllotVenture`・`VentureMost`・`VentureStep` | true・2・1.5 | 9-6a（`VISION.md`「性格の遺伝子は予測の事前分布を動かす」「傾向の遺伝子は予算の枠外」）。段 k の見込みは 陸 × `Venture` × `VentureStep`^(k − 中立)。予算の枠外で代金なし。false で 9-5b の世界（条件 `unventured`） |
 | 通ったタイル → 地域 の重み（タイル） | `PathWeight` | 20 | 仮。一生で通ったタイルに入るのは約 45 回（[1-6-room](docs/experiments/20260926-1-6-room.md)） |
 | 通ったタイルを覚えている tick 数 | `PathRecall` | 200 | 仮。数え上げと同じ |

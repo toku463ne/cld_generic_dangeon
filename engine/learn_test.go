@@ -277,3 +277,36 @@ func TestVentureReadsUnknownRegionsRicher(t *testing.T) {
 		t.Fatal("a Venture of zero was accepted")
 	}
 }
+
+// With Steady a body's own evidence of a place outweighs the prior sooner:
+// the weights toward the parents are divided by it. At one nothing changes;
+// the prior itself (what a region with no evidence reads as) does not move.
+func TestSteadyTrustsKnownRows(t *testing.T) {
+	rate := func(steady float64) (unknown, known float64) {
+		cfg := testConfig(1)
+		cfg.Bodies, cfg.FoodCap = 0, 0
+		cfg.Steady = steady
+		w, err := NewWorld(cfg, testMap())
+		if err != nil {
+			t.Fatal(err)
+		}
+		b := &Body{X: 2.5, Y: 2.5}
+		// A little evidence of region 0: 20 tiles, all with food.
+		b.Memory.Regions = []Tally{{N: 20, K: 20, Chunks: []Chunk{{T: w.tick, N: 20, K: 20}}}}
+		return w.regionRate(b, 1), w.regionRate(b, 0)
+	}
+	u1, k1 := rate(1)
+	u2, k2 := rate(1.5)
+	u3, k3 := rate(1 / 1.5)
+	if u1 != u2 || u1 != u3 {
+		t.Fatalf("an unknown region reads %v / %v / %v: Steady moved the prior", u1, u2, u3)
+	}
+	if !(k2 > k1 && k1 > k3) {
+		t.Fatalf("a known rich region reads %v (steady) / %v / %v (fickle), want the steady body to believe its evidence most", k2, k1, k3)
+	}
+	cfg := testConfig(1)
+	cfg.Steady = 0
+	if _, err := NewWorld(cfg, testMap()); err == nil {
+		t.Fatal("a Steady of zero was accepted")
+	}
+}

@@ -112,6 +112,9 @@ func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 	if cfg.Learn && !(cfg.Venture > 0) {
 		return nil, fmt.Errorf("Venture must be above zero, got %v", cfg.Venture)
 	}
+	if cfg.Learn && !(cfg.Steady > 0) {
+		return nil, fmt.Errorf("Steady must be above zero, got %v", cfg.Steady)
+	}
 	if cfg.AllotVenture && (cfg.VentureMost < 1 || !(cfg.VentureStep > 0)) {
 		return nil, fmt.Errorf("AllotVenture needs VentureMost >= 1 and VentureStep above zero, got %d %v", cfg.VentureMost, cfg.VentureStep)
 	}
@@ -331,6 +334,15 @@ func (w *World) ventureOf(b *Body) float64 {
 	}
 	return v
 }
+
+// steadyOf is how much more body b believes the rows of places it knows
+// than their parents (Steady).
+func (w *World) steadyOf(b *Body) float64 { return w.cfg.Steady }
+
+// regionWeight and pathWeight are the weights pulling body b's region rows
+// toward the land and its path row toward its region, as it believes them.
+func (w *World) regionWeight(b *Body) float64 { return w.cfg.RegionWeight / w.steadyOf(b) }
+func (w *World) pathWeight(b *Body) float64   { return w.cfg.PathWeight / w.steadyOf(b) }
 
 // BodyBold is boldOf, for counts and clients.
 func (w *World) BodyBold(b Body) int { return w.boldOf(&b) }

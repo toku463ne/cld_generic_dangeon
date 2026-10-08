@@ -128,12 +128,12 @@ func TestStableRows(t *testing.T) {
 	for _, p := range []float64{0.005, 0.02} {
 		weight := w.cfg.PathWeight * p
 		want := (1 + weight) / (2 + weight) * p
-		if got := w.pathFrom(b.Memory.Path, p); math.Abs(got-want) > 1e-12 {
+		if got := w.pathFrom(b.Memory.Path, p, w.cfg.PathWeight); math.Abs(got-want) > 1e-12 {
 			t.Fatalf("region at %v: path %v, want %v", p, got, want)
 		}
 	}
 	// No evidence: a walked tile reads as any tile of its region.
-	if got := w.pathFrom(Tally{}, 0.01); got != 0.01 {
+	if got := w.pathFrom(Tally{}, 0.01, w.cfg.PathWeight); got != 0.01 {
 		t.Fatalf("no evidence: %v", got)
 	}
 }

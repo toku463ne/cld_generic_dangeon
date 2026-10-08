@@ -417,6 +417,13 @@ type Config struct {
 	AllotVenture bool
 	VentureMost  int
 	VentureStep  float64
+	// Steady is how much more a body believes the rows of places it knows
+	// than their parents: the weights pulling a region's row toward the
+	// land's (RegionWeight) and the path's toward its region's
+	// (PathWeight) are divided by it. One reads as before; above one a
+	// body's own evidence of a place outweighs the prior sooner, below
+	// one later. The sweep before stage 9-6b (the conservative trait).
+	Steady float64
 	// PathRecall is how many ticks a body remembers a tile it left, and
 	// PathAhead how many tiles along a heading it reads for them.
 	PathRecall, PathAhead int
@@ -594,6 +601,7 @@ func DefaultConfig() Config {
 		AllotVenture:       true,
 		VentureMost:        2,
 		VentureStep:        1.5,
+		Steady:             1,
 		PathWeight:         20,
 		PathRecall:         200,
 		PathAhead:          8,
