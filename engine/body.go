@@ -448,6 +448,15 @@ func (w *World) Stats() Stats {
 	s := w.stats
 	s.RegionRows = append([]RowCount(nil), s.RegionRows...)
 	s.Provisioned = append([]int64(nil), s.Provisioned...)
+	// Every slice is copied: a copy taken at one tick and read against
+	// the world's later must not share its counts (the experiment reads
+	// the untrodden-tile rate by level as the difference since tick 5000).
+	s.GenBirths = append([]int64(nil), s.GenBirths...)
+	s.GenBudget = append([]float64(nil), s.GenBudget...)
+	s.FertMatings = append([]int64(nil), s.FertMatings...)
+	s.FertBirths = append([]int64(nil), s.FertBirths...)
+	s.BoldSteps = append([]int64(nil), s.BoldSteps...)
+	s.BoldNewSteps = append([]int64(nil), s.BoldNewSteps...)
 	return s
 }
 
