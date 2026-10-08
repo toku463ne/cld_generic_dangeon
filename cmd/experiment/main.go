@@ -1178,15 +1178,21 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		}
 	}
 
-	// After §9 so that the brief report keeps it (brief prints from §9 on).
-	if baseCfg, _ := variant.Config(base, o.seed0); baseCfg.AllotVenture {
-		p("### 補助の表: 開拓の段ごとの未踏タイル率（%s）\n\n", base)
+	// After §9 so that the brief report keeps it (brief prints from §9 on):
+	// for every condition that has the slot, since the base often does not.
+	for _, v := range o.variants {
+		vCfg, _ := variant.Config(v, o.seed0)
+		if !vCfg.AllotVenture {
+			continue
+		}
+		vs := results[v]
+		p("### 補助の表: 開拓の段ごとの未踏タイル率（%s）\n\n", v)
 		p("tick 5000 より後の、別のタイルへの歩みを歩いた身体の開拓の段ごとに数えたもの。未踏タイル率はシードごとの、一度も立ったことのないタイルへの歩み ÷ 歩み。\n\n")
 		p("| 段 | 歩み（1シードあたり） | 未踏タイル率 |\n| --- | --- | --- |\n")
-		for k := 0; k <= baseCfg.VentureMost; k++ {
+		for k := 0; k <= vCfg.VentureMost; k++ {
 			p("| %d | %s | %s |\n", k,
-				fmtMeanSE(collect(rs, func(r result) float64 { return float64(r.boldSteps[k]) }), 2),
-				fmtMeanSE(collectWhere(rs, func(r result) bool { return k < len(r.boldSteps) && r.boldSteps[k] > 0 }, func(r result) float64 { return boldRate(r, k) }), 4))
+				fmtMeanSE(collect(vs, func(r result) float64 { return float64(r.boldSteps[k]) }), 2),
+				fmtMeanSE(collectWhere(vs, func(r result) bool { return k < len(r.boldSteps) && r.boldSteps[k] > 0 }, func(r result) float64 { return boldRate(r, k) }), 4))
 		}
 		p("\n")
 	}
