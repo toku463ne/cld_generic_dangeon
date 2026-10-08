@@ -109,6 +109,9 @@ func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 	if cfg.AllotFertility && (cfg.FertMost < 1 || cfg.Fertility < 0 || cfg.Fertility > 1) {
 		return nil, fmt.Errorf("AllotFertility needs FertMost >= 1 and 0 <= Fertility <= 1, got FertMost %d Fertility %v", cfg.FertMost, cfg.Fertility)
 	}
+	if cfg.Learn && !(cfg.Venture > 0) {
+		return nil, fmt.Errorf("Venture must be above zero, got %v", cfg.Venture)
+	}
 	if cfg.AllotBudget && (cfg.BudgetLevels < 1 || !(cfg.BudgetStep > 0) || !(cfg.Budget > 0)) {
 		return nil, fmt.Errorf("AllotBudget needs BudgetLevels >= 1 and BudgetStep and Budget above zero, got %d %v %v", cfg.BudgetLevels, cfg.BudgetStep, cfg.Budget)
 	}

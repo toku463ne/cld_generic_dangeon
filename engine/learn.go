@@ -279,9 +279,26 @@ func (mem *Memory) region(r RegionID) Tally {
 	return Tally{}
 }
 
+// regionPrior is what a body's region rows are pulled toward: the land's
+// estimate, times what the body expects of regions it has little evidence
+// of (Venture), held to one.
+func (w *World) regionPrior(b *Body, land float64) float64 {
+	if w.cfg.Venture == 1 {
+		return land
+	}
+	return math.Min(land*w.cfg.Venture, 1)
+}
+
 // regionRate is a body's estimate for region r.
 func (w *World) regionRate(b *Body, r RegionID) float64 {
-	return w.Fresh(b.Memory.region(r)).estimate(w.land(b), w.cfg.RegionWeight)
+	return w.Fresh(b.Memory.region(r)).estimate(w.regionPrior(b, w.land(b)), w.cfg.RegionWeight)
+}
+
+// RegionEvidence is how many tiles of region r body b has seen, as they
+// weigh now: the evidence behind its own row of the region, against
+// RegionWeight. For counts.
+func (w *World) RegionEvidence(b Body, r RegionID) float64 {
+	return w.Fresh(b.Memory.region(r)).N
 }
 
 // pathRate is a body's estimate for a tile it walked lately, in region r.
@@ -389,7 +406,7 @@ type ray struct {
 // ratesOf reads body b's memory once for a decision.
 func (w *World) ratesOf(b *Body, rs *rates) {
 	n := len(w.m.RegionFood)
-	land := w.land(b)
+	land := w.regionPrior(b, w.land(b))
 	path := w.pathTally(b)
 	rs.region, rs.path = rs.region[:0], rs.path[:0]
 	rs.tables, rs.built = rs.tables[:0], rs.built[:0]

@@ -398,6 +398,14 @@ type Config struct {
 	// RegionWeight is how many tiles pull a region's estimate toward the
 	// land's, and PathWeight how many pull the path's toward its region's.
 	RegionWeight, PathWeight float64
+	// Venture is what a body expects of a region it has little evidence
+	// of, over the land's estimate: a region's row is pulled toward the
+	// land's estimate times Venture (held to 1). One reads regions as
+	// the land; above one a body ventures into regions it does not know
+	// expecting more than it has seen anywhere, below one less. The
+	// evidence of a region it knows outweighs it (RegionWeight). The
+	// sweep before stage 9-6 (the exploratory trait).
+	Venture float64
 	// PathRecall is how many ticks a body remembers a tile it left, and
 	// PathAhead how many tiles along a heading it reads for them.
 	PathRecall, PathAhead int
@@ -571,6 +579,7 @@ func DefaultConfig() Config {
 		PriorFood:          0.01,
 		PriorWeight:        50,
 		RegionWeight:       50,
+		Venture:            1,
 		PathWeight:         20,
 		PathRecall:         200,
 		PathAhead:          8,

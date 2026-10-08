@@ -239,3 +239,41 @@ func TestEvidenceAges(t *testing.T) {
 		t.Fatalf("an entry worth nothing kept: %+v", tl)
 	}
 }
+
+// A body expects of a region it has little evidence of what the land has
+// shown it times Venture; the evidence of a region it knows outweighs that.
+// At one, regions read as the land (the worlds before the sweep).
+func TestVentureReadsUnknownRegionsRicher(t *testing.T) {
+	for _, venture := range []float64{1, 1.5, 1 / 1.5} {
+		cfg := testConfig(1)
+		cfg.Bodies, cfg.FoodCap = 0, 0
+		cfg.Venture = venture
+		w, err := NewWorld(cfg, testMap())
+		if err != nil {
+			t.Fatal(err)
+		}
+		b := &Body{X: 2.5, Y: 2.5}
+		want := math.Min(cfg.PriorFood*venture, 1)
+		if got := w.regionRate(b, 0); math.Abs(got-want) > 1e-12 {
+			t.Fatalf("venture %v: a newborn reads region 0 at %v, want %v", venture, got, want)
+		}
+		// Plenty of evidence of region 0: a tenth of its tiles hold food.
+		b.Memory.Regions = []Tally{{N: 5000, K: 500, Chunks: []Chunk{{T: w.tick, N: 5000, K: 500}}}}
+		known, unknown := w.regionRate(b, 0), w.regionRate(b, 1)
+		if math.Abs(known-0.1) > 0.002 {
+			t.Fatalf("venture %v: a known region reads %v, want about 0.1", venture, known)
+		}
+		land := w.land(b)
+		if want := math.Min(land*venture, 1); math.Abs(unknown-want) > 1e-12 {
+			t.Fatalf("venture %v: an unknown region reads %v, want the land %v times it, %v", venture, unknown, land, want)
+		}
+		if venture == 1 && unknown != land {
+			t.Fatalf("at one an unknown region must read exactly as the land: %v vs %v", unknown, land)
+		}
+	}
+	cfg := testConfig(1)
+	cfg.Venture = 0
+	if _, err := NewWorld(cfg, testMap()); err == nil {
+		t.Fatal("a Venture of zero was accepted")
+	}
+}

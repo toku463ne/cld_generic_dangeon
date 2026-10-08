@@ -61,6 +61,10 @@ type Body struct {
 	// LastSlept is the tile its last sleep began on, plus one; zero for
 	// none yet (ReuseNights, stage 9-3b).
 	LastSlept int `json:",omitempty"`
+	// Trod is a bit per tile of the map, set for the tiles it has stood
+	// on (its first step sets the tile it stepped from). No rule reads
+	// it; it is an instrument (Stats.Steps, stage 9-6).
+	Trod []uint64 `json:",omitempty"`
 	// Sex is Female or Male, drawn when it comes into the world (with
 	// Sexes); NoSex in a world without sexes.
 	Sex Sex `json:",omitempty"`
@@ -238,6 +242,10 @@ type Stats struct {
 	// SheltersPassed counts the places to rest passed from parent to child
 	// that the child did not know (stage 6-5a).
 	SheltersPassed int64 `json:",omitempty"`
+	// Steps counts the steps that took a body onto another tile, and
+	// NewSteps those onto a tile it had never stood on (Body.Trod, stage
+	// 9-6): the untrodden-tile rate is NewSteps over Steps.
+	Steps, NewSteps int64 `json:",omitempty"`
 }
 
 // RowCount counts, for one learned row, the observations bodies added to it
@@ -378,6 +386,26 @@ func (w *World) step(i int, b *Body, d int) {
 	to := w.tileOf(b.X, b.Y)
 	w.moved(i, from, to)
 	w.stepped(b, from, to)
+	w.trod(b, from, to)
+}
+
+// trod counts a step from tile from onto tile to, and whether the body had
+// stood on to before (Body.Trod). An instrument: no rule reads it.
+func (w *World) trod(b *Body, from, to int) {
+	if to < 0 || to == from {
+		return
+	}
+	if b.Trod == nil {
+		b.Trod = make([]uint64, (len(w.m.Terrain)+63)/64)
+		if from >= 0 {
+			b.Trod[from/64] |= 1 << (from % 64)
+		}
+	}
+	w.stats.Steps++
+	if b.Trod[to/64]&(1<<(to%64)) == 0 {
+		b.Trod[to/64] |= 1 << (to % 64)
+		w.stats.NewSteps++
+	}
 }
 
 // stepTowards moves body b a step in direction d if that step is open, and

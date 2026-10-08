@@ -34,6 +34,14 @@ const (
 	Sight2 = "sight2"
 )
 
+// Bold and Timid are the sweep before stage 9-6 (the exploratory trait):
+// every body expects a region it has little evidence of to hold one and a
+// half times what the land has shown it, or two thirds of it.
+const (
+	Bold  = "bold"
+	Timid = "timid"
+)
+
 // Exact builds a survival table for every exact most (FullStep 0): the
 // worlds before the tables' cap went on a grid (2026-10-07), as stage
 // 9-5b was measured.
@@ -341,6 +349,8 @@ var rewrites = map[string]func(*engine.Config){
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
 	Exact:        func(c *engine.Config) { c.FullStep = 0 },
+	Bold:         func(c *engine.Config) { c.Venture = 1.5 },
+	Timid:        func(c *engine.Config) { c.Venture = 1 / 1.5 },
 	Unsized:      unsized,
 	Unpriced:     func(c *engine.Config) { c.BudgetBurn = false },
 	Unmixed:      unmixed,

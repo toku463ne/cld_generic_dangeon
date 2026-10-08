@@ -129,3 +129,18 @@ func TestDeathOfAge(t *testing.T) {
 		t.Fatal("without a lifespan a fed body died")
 	}
 }
+
+// Steps onto another tile are counted, and those onto a tile the body never
+// stood on; the tile its first step left counts as stood on.
+func TestStepsCountNewTiles(t *testing.T) {
+	w := newTestWorld(t, 1)
+	b := &Body{}
+	w.trod(b, 0, 1)
+	w.trod(b, 1, 0) // back where it started: not new
+	w.trod(b, 0, 2)
+	w.trod(b, 2, 2) // did not leave the tile
+	w.trod(b, 2, -1)
+	if w.stats.Steps != 3 || w.stats.NewSteps != 2 {
+		t.Fatalf("steps %d new %d, want 3 and 2", w.stats.Steps, w.stats.NewSteps)
+	}
+}

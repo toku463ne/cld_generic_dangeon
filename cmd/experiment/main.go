@@ -139,6 +139,12 @@ type result struct {
 	// every 1000 ticks after tick 5000); edge the mean share of the living
 	// on land tiles next to the map's edge or water, sampled the same.
 	displace, edge float64
+	// untrod is the share of the steps after tick 5000 that took a body
+	// onto a tile it had never stood on (NaN with no step); unknown the
+	// mean share of adults standing in a region they hold less than
+	// RegionWeight tiles of evidence of, sampled with the adults (stage
+	// 9-6).
+	untrod, unknown float64
 	// back is the share of decisions after tick 5000 that took a move
 	// straight back the way the body last moved.
 	back float64
@@ -306,6 +312,8 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	var sLow, sHigh, sN float64
 	var fLow, fHigh, fN float64
 	var zLow, zHigh, zN, bSum1, bN1, bSum2, bN2 float64
+	var uSum, uN float64
+	var st5 engine.Stats           // the counts as of tick 5000
 	budgets := map[int64]float64{} // every body seen, for its children
 	var cN, cX, cY, cXX, cYY, cXY float64
 	for _, b := range w.Bodies() {
@@ -321,6 +329,9 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		}
 		if l := w.BudgetLedger(); !l.Balanced() {
 			return result{}, fmt.Errorf("tick %d: budget ledger does not close: %+v", t, l)
+		}
+		if t == 5000 {
+			st5 = w.Stats()
 		}
 		r.series = append(r.series, int32(len(w.Bodies())))
 		r.valley = math.Min(r.valley, float64(len(w.Bodies())))
@@ -396,10 +407,14 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 			low, high := 0.0, 0.0
 			fertLow, fertHigh := 0.0, 0.0
 			sizeLow, sizeHigh, budget := 0.0, 0.0, 0.0
+			unk := 0.0
 			for _, b := range bs {
 				if w.Tick() >= b.Mature {
 					bySex[b.Sex]++
 					budget += b.Budget
+					if w.RegionEvidence(b, m.RegionAt(int(b.X), int(b.Y))) < cfg.RegionWeight {
+						unk++
+					}
 					switch w.BodySize(b) {
 					case 0:
 						sizeLow++
@@ -424,6 +439,10 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 				adults := bySex[0] + bySex[1] + bySex[2]
 				aSum += adults / float64(len(bs))
 				aN++
+				if adults > 0 {
+					uSum += unk / adults
+					uN++
+				}
 				if cfg.AllotSight && adults > 0 {
 					sLow += low / adults
 					sHigh += high / adults
@@ -497,6 +516,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		}
 	}
 	r.displace, r.edge = dSum/math.Max(dN, 1), eSum/math.Max(eN, 1)
+	r.unknown = uSum / math.Max(uN, 1)
 	r.back = backs / math.Max(traced, 1)
 	r.adults = aSum / math.Max(aN, 1)
 	r.sightLow, r.sightHigh = sLow/math.Max(sN, 1), sHigh/math.Max(sN, 1)
@@ -523,6 +543,10 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	st := w.Stats()
 	if cfg.Learn {
 		r.rows = memRows(w, m)
+	}
+	r.untrod = math.NaN()
+	if steps := st.Steps - st5.Steps; steps > 0 {
+		r.untrod = float64(st.NewSteps-st5.NewSteps) / float64(steps)
 	}
 	r.starved = float64(st.Deaths[engine.CauseStarved])
 	r.aged = float64(st.Deaths[engine.CauseAged])
@@ -1004,6 +1028,8 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	p("| 量 | 値 |\n| --- | --- |\n")
 	p("| 1000 tick の変位（タイル、tick 5000 より後） | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.displace }), 2))
 	p("| 縁（地図の端か水の隣のタイル）にいる割合 | %s（縁の面積比 %.4f） |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.edge }), 4), edgeShare(m))
+	p("| 未踏タイル率（tick 5000 より後） | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.untrod }), 4))
+	p("| 知らない地域にいる成人の割合 | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.unknown }), 4))
 	p("| 真後ろへの手（tick 5000 より後の決定のうち） | %s |\n\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.back }), 4))
 
 	p("### 補助の表: 成人と性（%s、tick 5000 より後、1000 tick ごと）\n\n", base)
@@ -1057,6 +1083,8 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"最大世代数の出生数", 2, func(r result) float64 { return r.topGenBirths }},
 		{"1000 tick の変位（タイル）", 2, func(r result) float64 { return r.displace }},
 		{"縁（地図の端か水の隣）にいる割合", 4, func(r result) float64 { return r.edge }},
+		{"未踏タイル率", 4, func(r result) float64 { return r.untrod }},
+		{"知らない地域にいる成人の割合", 4, func(r result) float64 { return r.unknown }},
 		{"真後ろへの手（決定のうち）", 4, func(r result) float64 { return r.back }},
 		{"決定の割合", 4, func(r result) float64 { return r.decided }},
 		{"成人の割合", 4, func(r result) float64 { return r.adults }},
