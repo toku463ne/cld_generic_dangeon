@@ -74,15 +74,23 @@ func main() {
 // (MEASURE.md). The checkpoints after that are recorded as not surviving,
 // and every per-tick figure is averaged over the seeds still surviving.
 type result struct {
-	pop       []float64 // bodies at tick 0 and at each checkpoint
-	series    []int32   // bodies at every tick from 0, up to the tick the seed stopped
-	food      []float64 // food on the ground at the same ticks
-	surviving []bool    // whether the seed was above the floor at the same ticks
-	fellAt    int       // first tick at or below the floor, -1 if never
-	starved   float64
-	sleepless float64
-	asleep    float64 // body-ticks asleep over all body-ticks
-	sheltered float64 // sleeps begun on a place to rest over all sleeps begun
+	pop []float64 // bodies at tick 0 and at each checkpoint
+	// speciesPop is the same by species (stage 9-7a), speciesGone whether
+	// each species had no body left at the end, and speciesBudget the
+	// mean budget of each species' adults (sampled with the adults; NaN
+	// where a species had none).
+	speciesPop    [][]float64
+	speciesNames  []string
+	speciesGone   []float64
+	speciesBudget []float64
+	series        []int32   // bodies at every tick from 0, up to the tick the seed stopped
+	food          []float64 // food on the ground at the same ticks
+	surviving     []bool    // whether the seed was above the floor at the same ticks
+	fellAt        int       // first tick at or below the floor, -1 if never
+	starved       float64
+	sleepless     float64
+	asleep        float64 // body-ticks asleep over all body-ticks
+	sheltered     float64 // sleeps begun on a place to rest over all sleeps begun
 	// places built, sleeps begun on them after the building, and those by
 	// their builders (stage 8-1)
 	built, builtSleeps, returns float64
@@ -283,9 +291,21 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		}
 		return k
 	}
+	species := w.SpeciesCount()
+	r.speciesPop = make([][]float64, species)
+	for k := 0; k < species; k++ {
+		r.speciesNames = append(r.speciesNames, w.SpeciesName(k))
+	}
 	record := func() {
 		n := len(w.Bodies())
 		r.pop = append(r.pop, float64(n))
+		var by []float64 = make([]float64, species)
+		for _, b := range w.Bodies() {
+			by[b.Species]++
+		}
+		for k := range by {
+			r.speciesPop[k] = append(r.speciesPop[k], by[k])
+		}
 		r.regions = append(r.regions, occupied())
 		r.food = append(r.food, float64(w.FoodLedger().OnGround))
 		r.surviving = append(r.surviving, n > floor)
@@ -322,6 +342,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	var zLow, zHigh, zN, bSum1, bN1, bSum2, bN2 float64
 	var uSum, uN float64
 	var vLow, vHigh, vN float64
+	spBudget, spN := make([]float64, species), make([]float64, species)
 	var st5 engine.Stats           // the counts as of tick 5000
 	budgets := map[int64]float64{} // every body seen, for its children
 	var cN, cX, cY, cXX, cYY, cXY float64
@@ -422,6 +443,8 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 				if w.Tick() >= b.Mature {
 					bySex[b.Sex]++
 					budget += b.Budget
+					spBudget[b.Species] += b.Budget
+					spN[b.Species]++
 					switch w.BodyBold(b) {
 					case 0:
 						boldLow++
@@ -514,6 +537,9 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 			r.fellAt = t
 			for len(r.pop) < ticks/every+1 {
 				r.pop = append(r.pop, float64(len(w.Bodies())))
+				for k := range r.speciesPop {
+					r.speciesPop[k] = append(r.speciesPop[k], r.speciesPop[k][len(r.speciesPop[k])-1])
+				}
 				r.regions = append(r.regions, math.NaN())
 				r.food = append(r.food, math.NaN())
 				r.surviving = append(r.surviving, false)
@@ -544,6 +570,16 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.fertLow, r.fertHigh = fLow/math.Max(fN, 1), fHigh/math.Max(fN, 1)
 	r.sizeLow, r.sizeHigh = zLow/math.Max(zN, 1), zHigh/math.Max(zN, 1)
 	r.boldLow, r.boldHigh = vLow/math.Max(vN, 1), vHigh/math.Max(vN, 1)
+	r.speciesGone, r.speciesBudget = make([]float64, species), make([]float64, species)
+	for k := 0; k < species; k++ {
+		if r.speciesPop[k][len(r.speciesPop[k])-1] == 0 {
+			r.speciesGone[k] = 1
+		}
+		r.speciesBudget[k] = math.NaN()
+		if spN[k] > 0 {
+			r.speciesBudget[k] = spBudget[k] / spN[k]
+		}
+	}
 	r.budgetCorr = math.NaN()
 	if cN >= 3 {
 		vx, vy := cXX-cX*cX/cN, cYY-cY*cY/cN
@@ -772,6 +808,20 @@ func fertRate(r result, k int) float64 {
 	return float64(r.fertBirths[k]) / float64(r.fertMatings[k])
 }
 
+// speciesAt reads f for the species named, by its row in the result's
+// world; NaN where the result's world has no species of that name (a
+// world of one species is all human).
+func speciesAt(name string, f func(result, int) float64) func(result) float64 {
+	return func(r result) float64 {
+		for k, n := range r.speciesNames {
+			if n == name {
+				return f(r, k)
+			}
+		}
+		return math.NaN()
+	}
+}
+
 // boldRate is the untrodden-tile rate of exploratory level k in result r.
 func boldRate(r result, k int) float64 {
 	return float64(r.boldNew[k]) / float64(r.boldSteps[k])
@@ -882,10 +932,21 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	aliveAt := func(i int) func(result) bool { return func(r result) bool { return r.surviving[i] } }
 	p("### 3. 人口推移（%s・生存しているシードの平均）\n\n", base)
 	p("| tick | 人口（全体） | 人間 | 獣 | 鳥 | 魚 | 生存シード数 |\n| --- | --- | --- | --- | --- | --- | --- |\n")
+	popCfg, _ := variant.Config(base, o.seed0)
+	speciesCol := func(name string, i int) string {
+		for k, s := range popCfg.Species {
+			if s.Name == name {
+				return fmtMeanSE(collectWhere(rs, aliveAt(i), func(r result) float64 { return r.speciesPop[k][i] }), 1)
+			}
+		}
+		if name == "human" && len(popCfg.Species) <= 1 {
+			return fmtMeanSE(collectWhere(rs, aliveAt(i), func(r result) float64 { return r.pop[i] }), 1)
+		}
+		return ""
+	}
 	for i := 0; i < rows; i++ {
 		xs := collectWhere(rs, aliveAt(i), func(r result) float64 { return r.pop[i] })
-		pop := fmtMeanSE(xs, 1)
-		p("| %d | %s | %s | | | | %d / %d |\n", i*every, pop, pop, len(xs), len(rs))
+		p("| %d | %s | %s | %s | %s | %s | %d / %d |\n", i*every, fmtMeanSE(xs, 1), speciesCol("human", i), speciesCol("beast", i), speciesCol("bird", i), speciesCol("fish", i), len(xs), len(rs))
 	}
 	if rows < len(rs[0].pop) {
 		p("\n%d tick 以降は全シードが崩壊の下限（%d）を割ったので省略。\n", rows*every, o.floor)
@@ -1099,6 +1160,12 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		f    func(result) float64
 	}{
 		{"人口（最終）", 2, func(r result) float64 { return r.pop[len(r.pop)-1] }},
+		{"人間の個体数（最終）", 2, speciesAt("human", func(r result, k int) float64 { return r.speciesPop[k][len(r.speciesPop[k])-1] })},
+		{"獣の個体数（最終）", 2, speciesAt("beast", func(r result, k int) float64 { return r.speciesPop[k][len(r.speciesPop[k])-1] })},
+		{"人間が絶滅したシードの割合", 4, speciesAt("human", func(r result, k int) float64 { return r.speciesGone[k] })},
+		{"獣が絶滅したシードの割合", 4, speciesAt("beast", func(r result, k int) float64 { return r.speciesGone[k] })},
+		{"人間の成人の平均予算", 4, speciesAt("human", func(r result, k int) float64 { return r.speciesBudget[k] })},
+		{"獣の成人の平均予算", 4, speciesAt("beast", func(r result, k int) float64 { return r.speciesBudget[k] })},
 		{"崩壊したシードの割合", 4, func(r result) float64 {
 			if r.fellAt > 0 {
 				return 1

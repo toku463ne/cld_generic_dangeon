@@ -32,13 +32,17 @@ type Genome struct {
 	Fert  int
 	Size  int
 	Bold  int
+	// Species is the index of the body's species (stage 9-7a): born
+	// with and passed on, but not drawn or mutated - a child is of its
+	// parents' species.
+	Species int
 }
 
 // GenomeOf is the genome body b was born with.
 func (w *World) GenomeOf(b Body) Genome { return w.genomeOf(&b) }
 
 func (w *World) genomeOf(b *Body) Genome {
-	return Genome{Level: b.Level, Sight: w.sightOf(b), Fert: w.fertOf(b), Size: w.sizeOf(b), Bold: w.boldOf(b)}
+	return Genome{Level: b.Level, Sight: w.sightOf(b), Fert: w.fertOf(b), Size: w.sizeOf(b), Bold: w.boldOf(b), Species: b.Species}
 }
 
 // sizeNeutral is the budget level that buys Config.Budget.
@@ -53,10 +57,11 @@ func (w *World) sizeOf(b *Body) int {
 	return w.sizeNeutral()
 }
 
-// budgetOf is the budget that level size buys: Config.Budget scaled by
-// BudgetStep for every level off the neutral.
-func (w *World) budgetOf(size int) float64 {
-	return w.cfg.Budget * math.Pow(w.cfg.BudgetStep, float64(size-w.sizeNeutral()))
+// budgetOf is the budget that level size buys body b: Config.Budget scaled
+// by BudgetStep for every level off the neutral, on the scale of b's
+// species.
+func (w *World) budgetOf(b *Body, size int) float64 {
+	return w.cfg.Budget * w.speciesScale(b) * math.Pow(w.cfg.BudgetStep, float64(size-w.sizeNeutral()))
 }
 
 // validGenome reports whether g lies within the levels the config has, in
@@ -76,6 +81,9 @@ func (w *World) validGenome(g Genome) error {
 	}
 	if w.cfg.AllotVenture && (g.Bold < 0 || g.Bold > w.cfg.VentureMost) {
 		return fmt.Errorf("genome boldness %d is not within 0..%d", g.Bold, w.cfg.VentureMost)
+	}
+	if g.Species < 0 || g.Species >= w.SpeciesCount() {
+		return fmt.Errorf("genome species %d is not within 0..%d", g.Species, w.SpeciesCount()-1)
 	}
 	return nil
 }
@@ -122,7 +130,7 @@ func (w *World) inherit(a, b Genome) Genome {
 			from = &parents[w.rng.Intn(2)]
 		}
 	}
-	g := Genome{Sight: w.cfg.Sight, Fert: w.cfg.FertMost / 2, Size: w.sizeNeutral(), Bold: w.cfg.VentureMost / 2}
+	g := Genome{Sight: w.cfg.Sight, Fert: w.cfg.FertMost / 2, Size: w.sizeNeutral(), Bold: w.cfg.VentureMost / 2, Species: a.Species}
 	if n := w.cfg.AllotLevels; n > 1 {
 		pick()
 		g.Level = w.mutate(from.Level, n)
@@ -156,10 +164,16 @@ func (w *World) inherit(a, b Genome) Genome {
 // buys nothing: it is outside the budget. Without Allot the body is the
 // config's and g is not read.
 func (w *World) endow(b *Body, g Genome) {
+	b.Species = g.Species
 	b.Budget = w.cfg.Budget
-	if w.cfg.Allot && w.cfg.AllotBudget {
-		b.Size = g.Size + 1
-		b.Budget = w.budgetOf(g.Size)
+	if w.cfg.Allot {
+		// The species' scale is a budget's: without Allot every body is
+		// the config's, whatever its species.
+		b.Budget *= w.speciesScale(b)
+		if w.cfg.AllotBudget {
+			b.Size = g.Size + 1
+			b.Budget = w.budgetOf(b, g.Size)
+		}
 	}
 	w.stats.BudgetIn += b.Budget
 	if !w.cfg.Allot {

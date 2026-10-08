@@ -34,6 +34,14 @@ const (
 	Sight2 = "sight2"
 )
 
+// Single is stage 9-6a: one species, the config's table cut to its first
+// row (no beasts, and no draw of a species).
+const Single = "single"
+
+// Twin is stage 9-7a with the beast no different from a human but its
+// tag: the control that shows what the budget's shift does.
+const Twin = "twin"
+
 // Steady and Fickle are the sweep before stage 9-6b (the conservative
 // trait): every body's own evidence of a place outweighs the prior one
 // and a half times sooner, or later (the weights toward the parents
@@ -298,7 +306,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func unventured(c *engine.Config)   { c.AllotVenture = false }
+func single(c *engine.Config)       { c.Species = c.Species[:1] }
+func unventured(c *engine.Config)   { single(c); c.AllotVenture = false }
 func unsized(c *engine.Config)      { unventured(c); c.AllotBudget = false }
 func unmixed(c *engine.Config)      { unsized(c); c.AllotMix = false }
 func unfertile(c *engine.Config)    { unmixed(c); c.AllotFertility = false }
@@ -356,14 +365,21 @@ func everytick(c *engine.Config)    { nobreed(c); c.Recheck = 0 }
 // rewrites maps a variant name to the rewrite of the default config it
 // stands for.
 var rewrites = map[string]func(*engine.Config){
-	Base:         func(*engine.Config) {},
-	Mature750:    func(c *engine.Config) { c.MatureAge = 750 },
-	Mature400:    func(c *engine.Config) { c.MatureAge = 400 },
-	Unprovided:   func(c *engine.Config) { c.Provision = false },
-	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
-	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
-	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
-	Exact:        func(c *engine.Config) { unventured(c); c.FullStep = 0 },
+	Base:       func(*engine.Config) {},
+	Mature750:  func(c *engine.Config) { c.MatureAge = 750 },
+	Mature400:  func(c *engine.Config) { c.MatureAge = 400 },
+	Unprovided: func(c *engine.Config) { c.Provision = false },
+	Food2:      func(c *engine.Config) { c.FoodReturn *= 2 },
+	Food4:      func(c *engine.Config) { c.FoodReturn *= 4 },
+	Tight:      func(c *engine.Config) { c.AllotCurve /= 2 },
+	Exact:      func(c *engine.Config) { unventured(c); c.FullStep = 0 },
+	Single:     single,
+	Twin: func(c *engine.Config) {
+		c.Species = append([]engine.SpeciesSpec(nil), c.Species...)
+		for i := range c.Species {
+			c.Species[i].Size = 0
+		}
+	},
 	Unventured:   unventured,
 	Steady:       func(c *engine.Config) { c.Steady = 1.5 },
 	Fickle:       func(c *engine.Config) { c.Steady = 1 / 1.5 },

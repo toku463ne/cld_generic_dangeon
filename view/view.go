@@ -449,12 +449,23 @@ func (v *View) Render(dst *image.RGBA) {
 				line(dst, px(b.X)-rad, px(b.Y)+rad+2, px(b.X)+rad, px(b.Y)+rad+2, sightHighColor)
 			}
 		}
-		if b.Asleep {
-			// A sleeper is a ring: its hue, hollow.
-			strokeCircle(dst, px(b.X), px(b.Y), rad, bodyColor(b, now, b.Energy/full))
+		c := bodyColor(b, now, b.Energy/full)
+		if b.Species != 0 {
+			// Any species but the first is a square (stage 9-7a); a
+			// sleeper is hollow either way.
+			if b.Asleep {
+				strokeRect(dst, px(b.X)-rad, px(b.Y)-rad, 2*rad+1, 2*rad+1, c)
+			} else {
+				fillRect(dst, px(b.X)-rad, px(b.Y)-rad, 2*rad+1, 2*rad+1, c)
+			}
 			continue
 		}
-		fillCircle(dst, px(b.X), px(b.Y), rad, bodyColor(b, now, b.Energy/full))
+		if b.Asleep {
+			// A sleeper is a ring: its hue, hollow.
+			strokeCircle(dst, px(b.X), px(b.Y), rad, c)
+			continue
+		}
+		fillCircle(dst, px(b.X), px(b.Y), rad, c)
 	}
 	if following {
 		strokeCircle(dst, px(fb.X), px(fb.Y), rad+2, followColor)
@@ -644,7 +655,7 @@ func (v *View) FollowText() string {
 		return fmt.Sprintf("body #%d is dead", v.follow)
 	}
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "body #%d%s  energy %.1f  age %d  sight %d  fert %d  bold %d  heading %s", b.ID, sexName(b, v.W.Tick()), b.Energy, v.W.Tick()-b.Born, v.W.BodySight(b), v.W.BodyFertility(b), v.W.BodyBold(b), dirName(b.Heading))
+	fmt.Fprintf(&sb, "%s #%d%s  energy %.1f  age %d  sight %d  fert %d  bold %d  heading %s", v.W.SpeciesName(b.Species), b.ID, sexName(b, v.W.Tick()), b.Energy, v.W.Tick()-b.Born, v.W.BodySight(b), v.W.BodyFertility(b), v.W.BodyBold(b), dirName(b.Heading))
 	if v.W.Config().Sleep {
 		state := "awake"
 		if b.Asleep {

@@ -314,6 +314,7 @@ func (w *World) allot(b *Body, parents ...*Body) {
 			g = w.drawGenome()
 		}
 	}
+	g.Species = b.Species // drawn before, or the parents'; never here
 	w.endow(b, g)
 }
 

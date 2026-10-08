@@ -112,6 +112,9 @@ func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 	if cfg.Learn && !(cfg.Venture > 0) {
 		return nil, fmt.Errorf("Venture must be above zero, got %v", cfg.Venture)
 	}
+	if err := validSpecies(cfg.Species); err != nil {
+		return nil, err
+	}
 	if cfg.Learn && !(cfg.Steady > 0) {
 		return nil, fmt.Errorf("Steady must be above zero, got %v", cfg.Steady)
 	}
@@ -475,6 +478,9 @@ func (w *World) Fingerprint() uint64 {
 		}
 		if b.Bold != 0 {
 			put(uint64(b.Bold))
+		}
+		if b.Species != 0 {
+			put(uint64(b.Species))
 		}
 		// And what it has learned, where bodies learn.
 		if w.cfg.Learn {

@@ -418,6 +418,7 @@ func TestUnkeptIsStage82b3(t *testing.T) {
 	cfg.AllotFertility = false
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
+	cfg.Species = cfg.Species[:1]
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.ShelterFoodLife = 0

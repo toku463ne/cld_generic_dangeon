@@ -58,6 +58,9 @@ type Body struct {
 	// (stage 9-5b); zero stands for the neutral level. Budget (below) is
 	// what the level buys.
 	Size int `json:",omitempty"`
+	// Species is the index of its row in the config's species table
+	// (stage 9-7a); zero for the first row, or a world of one species.
+	Species int `json:",omitempty"`
 	// Bold is its exploratory level plus one, drawn at birth with
 	// AllotVenture (stage 9-6a); zero stands for the neutral level. It is
 	// outside the budget and buys nothing: it scales what the body expects
@@ -289,8 +292,15 @@ func (w *World) placeBodies(genomes []Genome) {
 	}
 	for i := 0; i < n; i++ {
 		t := land[w.rng.Intn(len(land))]
+		species := 0
+		if genomes != nil {
+			species = genomes[i].Species
+		} else {
+			species = w.drawSpecies()
+		}
 		b := Body{
 			ID:      w.nextID,
+			Species: species,
 			X:       float64(t%w.m.Width) + 0.5,
 			Y:       float64(t/w.m.Width) + 0.5,
 			Energy:  w.cfg.EnergyMax,

@@ -41,6 +41,11 @@ type Config struct {
 
 	// Bodies is how many bodies the world starts with, placed on land.
 	Bodies int
+	// Species is the table of species (stage 9-7a, species.go): the first
+	// bodies are drawn among its rows by Share, a body mates within its
+	// row only, and the row shifts the scale of its budget by Size levels
+	// of BudgetStep. Empty, or one row, is a world of one species.
+	Species []SpeciesSpec
 	// EnergyMax is the most energy a body can hold. Bodies start full.
 	EnergyMax float64
 	// EnergyBurn is the energy every body spends per tick, moving or not.
@@ -598,6 +603,7 @@ func DefaultConfig() Config {
 		PriorWeight:        50,
 		RegionWeight:       50,
 		Venture:            1,
+		Species:            []SpeciesSpec{{Name: "human", Share: 0.5}, {Name: "beast", Share: 0.5, Size: 1}},
 		AllotVenture:       true,
 		VentureMost:        2,
 		VentureStep:        1.5,
