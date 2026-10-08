@@ -281,12 +281,13 @@ func (mem *Memory) region(r RegionID) Tally {
 
 // regionPrior is what a body's region rows are pulled toward: the land's
 // estimate, times what the body expects of regions it has little evidence
-// of (Venture), held to one.
+// of (Venture, and its own boldness with AllotVenture), held to one.
 func (w *World) regionPrior(b *Body, land float64) float64 {
-	if w.cfg.Venture == 1 {
+	v := w.ventureOf(b)
+	if v == 1 {
 		return land
 	}
-	return math.Min(land*w.cfg.Venture, 1)
+	return math.Min(land*v, 1)
 }
 
 // regionRate is a body's estimate for region r.

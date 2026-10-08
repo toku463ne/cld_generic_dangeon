@@ -406,6 +406,17 @@ type Config struct {
 	// evidence of a region it knows outweighs it (RegionWeight). The
 	// sweep before stage 9-6 (the exploratory trait).
 	Venture float64
+	// AllotVenture puts the exploratory trait into the genome (stage
+	// 9-6a; VISION "性格の遺伝子は予測の事前分布を動かす"): a level 0 to
+	// VentureMost, drawn, inherited and mutated as every slot is, that
+	// scales what the body expects of regions it has little evidence of
+	// by VentureStep for every level off the neutral (VentureMost/2) -
+	// Venture times that. It is outside the budget: no ability is traded
+	// for it, and it enters the prior alone, no valuation term and no
+	// threshold on behaviour.
+	AllotVenture bool
+	VentureMost  int
+	VentureStep  float64
 	// PathRecall is how many ticks a body remembers a tile it left, and
 	// PathAhead how many tiles along a heading it reads for them.
 	PathRecall, PathAhead int
@@ -580,6 +591,9 @@ func DefaultConfig() Config {
 		PriorWeight:        50,
 		RegionWeight:       50,
 		Venture:            1,
+		AllotVenture:       true,
+		VentureMost:        2,
+		VentureStep:        1.5,
 		PathWeight:         20,
 		PathRecall:         200,
 		PathAhead:          8,

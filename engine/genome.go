@@ -23,19 +23,22 @@ import (
 // sees (0 to SightMost; the config's Sight without AllotSight), Fert its
 // fertility level (0 to FertMost; the neutral level without
 // AllotFertility), Size its budget level (0 to BudgetLevels-1; the
-// neutral level without AllotBudget).
+// neutral level without AllotBudget), Bold its exploratory level (0 to
+// VentureMost; the neutral level without AllotVenture - the one slot
+// outside the budget).
 type Genome struct {
 	Level int
 	Sight int
 	Fert  int
 	Size  int
+	Bold  int
 }
 
 // GenomeOf is the genome body b was born with.
 func (w *World) GenomeOf(b Body) Genome { return w.genomeOf(&b) }
 
 func (w *World) genomeOf(b *Body) Genome {
-	return Genome{Level: b.Level, Sight: w.sightOf(b), Fert: w.fertOf(b), Size: w.sizeOf(b)}
+	return Genome{Level: b.Level, Sight: w.sightOf(b), Fert: w.fertOf(b), Size: w.sizeOf(b), Bold: w.boldOf(b)}
 }
 
 // sizeNeutral is the budget level that buys Config.Budget.
@@ -71,11 +74,15 @@ func (w *World) validGenome(g Genome) error {
 	if w.cfg.AllotBudget && (g.Size < 0 || g.Size >= w.cfg.BudgetLevels) {
 		return fmt.Errorf("genome size %d is not within 0..%d", g.Size, w.cfg.BudgetLevels-1)
 	}
+	if w.cfg.AllotVenture && (g.Bold < 0 || g.Bold > w.cfg.VentureMost) {
+		return fmt.Errorf("genome boldness %d is not within 0..%d", g.Bold, w.cfg.VentureMost)
+	}
 	return nil
 }
 
 // drawGenome is the genome of a body with no parents: every slot drawn
-// uniformly, the share's level first, then sight, fertility and size.
+// uniformly, the share's level first, then sight, fertility, size and
+// boldness.
 func (w *World) drawGenome() Genome {
 	var g Genome
 	if w.cfg.AllotLevels > 1 {
@@ -95,6 +102,10 @@ func (w *World) drawGenome() Genome {
 	if w.cfg.AllotBudget {
 		g.Size = w.rng.Intn(w.cfg.BudgetLevels)
 	}
+	g.Bold = w.cfg.VentureMost / 2
+	if w.cfg.AllotVenture {
+		g.Bold = w.rng.Intn(w.cfg.VentureMost + 1)
+	}
 	return g
 }
 
@@ -111,7 +122,7 @@ func (w *World) inherit(a, b Genome) Genome {
 			from = &parents[w.rng.Intn(2)]
 		}
 	}
-	g := Genome{Sight: w.cfg.Sight, Fert: w.cfg.FertMost / 2, Size: w.sizeNeutral()}
+	g := Genome{Sight: w.cfg.Sight, Fert: w.cfg.FertMost / 2, Size: w.sizeNeutral(), Bold: w.cfg.VentureMost / 2}
 	if n := w.cfg.AllotLevels; n > 1 {
 		pick()
 		g.Level = w.mutate(from.Level, n)
@@ -128,6 +139,10 @@ func (w *World) inherit(a, b Genome) Genome {
 		pick()
 		g.Size = w.mutate(from.Size, w.cfg.BudgetLevels)
 	}
+	if w.cfg.AllotVenture {
+		pick()
+		g.Bold = w.mutate(from.Bold, w.cfg.VentureMost+1)
+	}
 	return g
 }
 
@@ -137,7 +152,9 @@ func (w *World) inherit(a, b Genome) Genome {
 // and most energy) the pair is left with after each tile of sight off the
 // neutral costs or refunds SightTrade and each fertility level off the
 // neutral FertTrade, all of it scaled by the budget. Its energy is held to
-// its most. Without Allot the body is the config's and g is not read.
+// its most. Its boldness (AllotVenture, stage 9-6a) is written down and
+// buys nothing: it is outside the budget. Without Allot the body is the
+// config's and g is not read.
 func (w *World) endow(b *Body, g Genome) {
 	b.Budget = w.cfg.Budget
 	if w.cfg.Allot && w.cfg.AllotBudget {
@@ -147,6 +164,9 @@ func (w *World) endow(b *Body, g Genome) {
 	w.stats.BudgetIn += b.Budget
 	if !w.cfg.Allot {
 		return
+	}
+	if w.cfg.AllotVenture {
+		b.Bold = g.Bold + 1
 	}
 	n := w.cfg.AllotLevels
 	s := 0.5

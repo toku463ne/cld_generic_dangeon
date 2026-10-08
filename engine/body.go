@@ -58,6 +58,11 @@ type Body struct {
 	// (stage 9-5b); zero stands for the neutral level. Budget (below) is
 	// what the level buys.
 	Size int `json:",omitempty"`
+	// Bold is its exploratory level plus one, drawn at birth with
+	// AllotVenture (stage 9-6a); zero stands for the neutral level. It is
+	// outside the budget and buys nothing: it scales what the body expects
+	// of regions it has little evidence of.
+	Bold int `json:",omitempty"`
 	// LastSlept is the tile its last sleep began on, plus one; zero for
 	// none yet (ReuseNights, stage 9-3b).
 	LastSlept int `json:",omitempty"`
@@ -246,6 +251,9 @@ type Stats struct {
 	// NewSteps those onto a tile it had never stood on (Body.Trod, stage
 	// 9-6): the untrodden-tile rate is NewSteps over Steps.
 	Steps, NewSteps int64 `json:",omitempty"`
+	// BoldSteps and BoldNewSteps count the same by the body's exploratory
+	// level (AllotVenture, stage 9-6a).
+	BoldSteps, BoldNewSteps []int64 `json:",omitempty"`
 }
 
 // RowCount counts, for one learned row, the observations bodies added to it
@@ -402,9 +410,21 @@ func (w *World) trod(b *Body, from, to int) {
 		}
 	}
 	w.stats.Steps++
-	if b.Trod[to/64]&(1<<(to%64)) == 0 {
+	fresh := b.Trod[to/64]&(1<<(to%64)) == 0
+	if fresh {
 		b.Trod[to/64] |= 1 << (to % 64)
 		w.stats.NewSteps++
+	}
+	if w.cfg.AllotVenture {
+		k := w.boldOf(b)
+		for len(w.stats.BoldSteps) <= k {
+			w.stats.BoldSteps = append(w.stats.BoldSteps, 0)
+			w.stats.BoldNewSteps = append(w.stats.BoldNewSteps, 0)
+		}
+		w.stats.BoldSteps[k]++
+		if fresh {
+			w.stats.BoldNewSteps[k]++
+		}
 	}
 }
 

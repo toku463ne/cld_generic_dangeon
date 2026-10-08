@@ -112,6 +112,9 @@ func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 	if cfg.Learn && !(cfg.Venture > 0) {
 		return nil, fmt.Errorf("Venture must be above zero, got %v", cfg.Venture)
 	}
+	if cfg.AllotVenture && (cfg.VentureMost < 1 || !(cfg.VentureStep > 0)) {
+		return nil, fmt.Errorf("AllotVenture needs VentureMost >= 1 and VentureStep above zero, got %d %v", cfg.VentureMost, cfg.VentureStep)
+	}
 	if cfg.AllotBudget && (cfg.BudgetLevels < 1 || !(cfg.BudgetStep > 0) || !(cfg.Budget > 0)) {
 		return nil, fmt.Errorf("AllotBudget needs BudgetLevels >= 1 and BudgetStep and Budget above zero, got %d %v %v", cfg.BudgetLevels, cfg.BudgetStep, cfg.Budget)
 	}
@@ -307,6 +310,31 @@ func (w *World) BodyFertility(b Body) int { return w.fertOf(&b) }
 // BodySize is sizeOf, the budget level, for counts and clients.
 func (w *World) BodySize(b Body) int { return w.sizeOf(&b) }
 
+// boldOf is body b's exploratory level (AllotVenture, stage 9-6a): its own
+// drawn level, or the neutral one.
+func (w *World) boldOf(b *Body) int {
+	if b.Bold > 0 {
+		return b.Bold - 1
+	}
+	return w.cfg.VentureMost / 2
+}
+
+// ventureOf is what body b expects of a region it has little evidence of,
+// over the land: the config's Venture, scaled by VentureStep for every
+// level of boldness off the neutral (AllotVenture).
+func (w *World) ventureOf(b *Body) float64 {
+	v := w.cfg.Venture
+	if w.cfg.AllotVenture {
+		if off := w.boldOf(b) - w.cfg.VentureMost/2; off != 0 {
+			v *= math.Pow(w.cfg.VentureStep, float64(off))
+		}
+	}
+	return v
+}
+
+// BodyBold is boldOf, for counts and clients.
+func (w *World) BodyBold(b Body) int { return w.boldOf(&b) }
+
 // maxSight is the largest sight any body can have, for sizing bounds.
 func (w *World) maxSight() int {
 	if w.cfg.AllotSight && w.cfg.SightMost > w.cfg.Sight {
@@ -432,6 +460,9 @@ func (w *World) Fingerprint() uint64 {
 		}
 		if b.Size != 0 {
 			put(uint64(b.Size))
+		}
+		if b.Bold != 0 {
+			put(uint64(b.Bold))
 		}
 		// And what it has learned, where bodies learn.
 		if w.cfg.Learn {

@@ -202,3 +202,100 @@ func TestAllotBudget(t *testing.T) {
 		t.Fatalf("GenBudget %v does not follow GenBirths %v", st.GenBudget, st.GenBirths)
 	}
 }
+
+// With AllotVenture the exploratory trait is a slot of the genome outside
+// the budget (stage 9-6a): first bodies draw a level, a child takes a
+// parent's moved at most one, the level scales what the body expects of a
+// region it has little evidence of by VentureStep per level off the
+// neutral, and nothing else about the body - budget, speed, most energy,
+// sight, fertility - changes with it. The zero field reads as the neutral
+// level, and without the slot every body reads the config's Venture.
+func TestAllotVenture(t *testing.T) {
+	w := newTestWorld(t, 5)
+	if !w.cfg.AllotVenture || w.cfg.VentureMost != 2 || w.cfg.VentureStep != 1.5 {
+		t.Fatalf("defaults: AllotVenture %v VentureMost %d VentureStep %v, want on, 2, 1.5", w.cfg.AllotVenture, w.cfg.VentureMost, w.cfg.VentureStep)
+	}
+	seen := map[int]bool{}
+	for _, b := range w.Bodies() {
+		if b.Bold < 1 || b.Bold > w.cfg.VentureMost+1 {
+			t.Fatalf("a first body drew boldness %d", b.Bold)
+		}
+		seen[b.Bold-1] = true
+	}
+	if len(seen) != w.cfg.VentureMost+1 {
+		t.Fatalf("first bodies drew only levels %v", seen)
+	}
+	run(w, 1500)
+	if !w.BudgetLedger().Balanced() {
+		t.Fatalf("budget ledger does not close: %+v", w.BudgetLedger())
+	}
+
+	// Outside the budget: the same body at every level.
+	body := func(bold int) Body {
+		var b Body
+		b.Energy = math.Inf(1)
+		w.endow(&b, Genome{Level: w.cfg.AllotLevels / 2, Sight: w.cfg.Sight, Fert: w.cfg.FertMost / 2, Size: w.sizeNeutral(), Bold: bold})
+		return b
+	}
+	neutral := w.cfg.VentureMost / 2
+	plain, bold, timid := body(neutral), body(w.cfg.VentureMost), body(0)
+	for _, b := range []Body{bold, timid} {
+		if b.Budget != plain.Budget || b.Build != plain.Build || b.Sight != plain.Sight || b.Fert != plain.Fert || b.Size != plain.Size {
+			t.Fatalf("boldness %d changes the body: %+v vs %+v", b.Bold-1, b, plain)
+		}
+	}
+	// The prior: a newborn reads an unknown region at PriorFood times its
+	// venture.
+	step := math.Pow(w.cfg.VentureStep, float64(neutral))
+	for _, c := range []struct {
+		b    Body
+		want float64
+	}{{plain, 1}, {bold, step}, {timid, 1 / step}} {
+		if got := w.ventureOf(&c.b); math.Abs(got-c.want) > 1e-12 {
+			t.Fatalf("boldness %d ventures %v, want %v", c.b.Bold-1, got, c.want)
+		}
+		if got, want := w.regionRate(&c.b, 1), math.Min(w.cfg.PriorFood*c.want, 1); math.Abs(got-want) > 1e-12 {
+			t.Fatalf("boldness %d reads an unknown region at %v, want %v", c.b.Bold-1, got, want)
+		}
+	}
+	// A child takes a parent's level (mutation off), moved at most one
+	// with mutation, inward at the ends.
+	w.cfg.AllotMutation = 0
+	var child Body
+	w.allot(&child, &bold, &bold)
+	if child.Bold != bold.Bold {
+		t.Fatalf("child boldness %d, parent %d", child.Bold, bold.Bold)
+	}
+	w.cfg.AllotMutation = 1
+	for i := 0; i < 50; i++ {
+		var c Body
+		w.allot(&c, &bold, &bold)
+		if c.Bold != bold.Bold-1 {
+			t.Fatalf("mutation from the top level gave %d, want %d", c.Bold-1, bold.Bold-2)
+		}
+	}
+	// The zero value stands for the neutral level.
+	none := Body{ID: 3}
+	if w.boldOf(&none) != neutral || w.GenomeOf(none).Bold != neutral || w.ventureOf(&none) != w.cfg.Venture {
+		t.Fatalf("zero boldness reads as level %d venture %v, want %d and %v", w.boldOf(&none), w.ventureOf(&none), neutral, w.cfg.Venture)
+	}
+	// Steps are counted by level.
+	st := w.Stats()
+	if len(st.BoldSteps) != w.cfg.VentureMost+1 || st.BoldSteps[0] == 0 || st.BoldSteps[w.cfg.VentureMost] == 0 {
+		t.Fatalf("steps by boldness %v", st.BoldSteps)
+	}
+	var sum int64
+	for _, n := range st.BoldSteps {
+		sum += n
+	}
+	if sum != st.Steps {
+		t.Fatalf("steps by level sum to %d, all steps %d", sum, st.Steps)
+	}
+	// Without the slot every body reads the config's Venture, whatever
+	// the field says.
+	w.cfg.AllotVenture = false
+	w.cfg.Venture = 1.5
+	if w.ventureOf(&bold) != 1.5 || w.ventureOf(&timid) != 1.5 {
+		t.Fatal("without AllotVenture boldness still reads")
+	}
+}

@@ -80,6 +80,7 @@ func TestAtduskIsStage82a(t *testing.T) {
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
 	cfg.AllotBudget = false
+	cfg.AllotVenture = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.ShelterFoodLife = 0
@@ -129,6 +130,7 @@ func TestBuriedIsStage82a2(t *testing.T) {
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
 	cfg.AllotBudget = false
+	cfg.AllotVenture = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.ShelterFoodLife = 0

@@ -107,6 +107,7 @@ func TestEatingAgainstTheWindow(t *testing.T) {
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
 	cfg.AllotBudget = false
+	cfg.AllotVenture = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Sight, cfg.DayTicks = -1, 0

@@ -34,7 +34,12 @@ const (
 	Sight2 = "sight2"
 )
 
-// Bold and Timid are the sweep before stage 9-6 (the exploratory trait):
+// Unventured is stage 9-5b: the exploratory trait is not in the genome,
+// and every body expects of a region it has little evidence of what the
+// land has shown it.
+const Unventured = "unventured"
+
+// Bold and Timid are the sweep before stage 9-6a, on the unventured world:
 // every body expects a region it has little evidence of to hold one and a
 // half times what the land has shown it, or two thirds of it.
 const (
@@ -284,7 +289,8 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func unsized(c *engine.Config)      { c.AllotBudget = false }
+func unventured(c *engine.Config)   { c.AllotVenture = false }
+func unsized(c *engine.Config)      { unventured(c); c.AllotBudget = false }
 func unmixed(c *engine.Config)      { unsized(c); c.AllotMix = false }
 func unfertile(c *engine.Config)    { unmixed(c); c.AllotFertility = false }
 func unbedded(c *engine.Config)     { unfertile(c); c.SeekBed = false }
@@ -348,9 +354,10 @@ var rewrites = map[string]func(*engine.Config){
 	Food2:        func(c *engine.Config) { c.FoodReturn *= 2 },
 	Food4:        func(c *engine.Config) { c.FoodReturn *= 4 },
 	Tight:        func(c *engine.Config) { c.AllotCurve /= 2 },
-	Exact:        func(c *engine.Config) { c.FullStep = 0 },
-	Bold:         func(c *engine.Config) { c.Venture = 1.5 },
-	Timid:        func(c *engine.Config) { c.Venture = 1 / 1.5 },
+	Exact:        func(c *engine.Config) { unventured(c); c.FullStep = 0 },
+	Unventured:   unventured,
+	Bold:         func(c *engine.Config) { unventured(c); c.Venture = 1.5 },
+	Timid:        func(c *engine.Config) { unventured(c); c.Venture = 1 / 1.5 },
 	Unsized:      unsized,
 	Unpriced:     func(c *engine.Config) { c.BudgetBurn = false },
 	Unmixed:      unmixed,

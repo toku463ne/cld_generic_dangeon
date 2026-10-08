@@ -284,7 +284,7 @@ func TestAllotSight(t *testing.T) {
 	// A tile off the neutral scales the pair.
 	var plain, dear, cheap Body
 	w.cfg.AllotLevels = 1 // share fixed at one half: only sight differs
-	w.cfg.AllotInherit, w.cfg.AllotFertility, w.cfg.AllotBudget = false, false, false
+	w.cfg.AllotInherit, w.cfg.AllotFertility, w.cfg.AllotBudget, w.cfg.AllotVenture = false, false, false, false
 	draw := func(dst *Body, sight int) {
 		for i := 0; i < 200; i++ {
 			var b Body
@@ -336,6 +336,7 @@ func TestUnsightedIsStage82c(t *testing.T) {
 	cfg.AllotSight = false
 	cfg.AllotFertility = false
 	cfg.AllotBudget = false
+	cfg.AllotVenture = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	w, err := NewWorld(cfg, tempMap())
@@ -366,7 +367,7 @@ func TestAllotFertility(t *testing.T) {
 	}
 	var plain, dear, cheap Body
 	w.cfg.AllotLevels = 1 // share fixed at one half
-	w.cfg.AllotInherit, w.cfg.AllotSight, w.cfg.AllotBudget = false, false, false
+	w.cfg.AllotInherit, w.cfg.AllotSight, w.cfg.AllotBudget, w.cfg.AllotVenture = false, false, false, false
 	draw := func(dst *Body, fert int) {
 		for i := 0; i < 200; i++ {
 			var b Body

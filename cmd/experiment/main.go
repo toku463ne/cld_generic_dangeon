@@ -145,6 +145,14 @@ type result struct {
 	// RegionWeight tiles of evidence of, sampled with the adults (stage
 	// 9-6).
 	untrod, unknown float64
+	// boldLow and boldHigh are the mean shares of adults at exploratory
+	// level 0 and VentureMost (stage 9-6a), sampled with the adults;
+	// boldSteps and boldNew the steps and the steps onto new tiles by
+	// level after tick 5000; boldSlope the untrodden-tile rate at the
+	// top level less the bottom (NaN where either level took no step).
+	boldLow, boldHigh  float64
+	boldSteps, boldNew []int64
+	boldSlope          float64
 	// back is the share of decisions after tick 5000 that took a move
 	// straight back the way the body last moved.
 	back float64
@@ -313,6 +321,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	var fLow, fHigh, fN float64
 	var zLow, zHigh, zN, bSum1, bN1, bSum2, bN2 float64
 	var uSum, uN float64
+	var vLow, vHigh, vN float64
 	var st5 engine.Stats           // the counts as of tick 5000
 	budgets := map[int64]float64{} // every body seen, for its children
 	var cN, cX, cY, cXX, cYY, cXY float64
@@ -408,10 +417,17 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 			fertLow, fertHigh := 0.0, 0.0
 			sizeLow, sizeHigh, budget := 0.0, 0.0, 0.0
 			unk := 0.0
+			boldLow, boldHigh := 0.0, 0.0
 			for _, b := range bs {
 				if w.Tick() >= b.Mature {
 					bySex[b.Sex]++
 					budget += b.Budget
+					switch w.BodyBold(b) {
+					case 0:
+						boldLow++
+					case cfg.VentureMost:
+						boldHigh++
+					}
 					if w.RegionEvidence(b, m.RegionAt(int(b.X), int(b.Y))) < cfg.RegionWeight {
 						unk++
 					}
@@ -452,6 +468,11 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 					fLow += fertLow / adults
 					fHigh += fertHigh / adults
 					fN++
+				}
+				if cfg.AllotVenture && adults > 0 {
+					vLow += boldLow / adults
+					vHigh += boldHigh / adults
+					vN++
 				}
 				if cfg.AllotBudget && adults > 0 {
 					zLow += sizeLow / adults
@@ -522,6 +543,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.sightLow, r.sightHigh = sLow/math.Max(sN, 1), sHigh/math.Max(sN, 1)
 	r.fertLow, r.fertHigh = fLow/math.Max(fN, 1), fHigh/math.Max(fN, 1)
 	r.sizeLow, r.sizeHigh = zLow/math.Max(zN, 1), zHigh/math.Max(zN, 1)
+	r.boldLow, r.boldHigh = vLow/math.Max(vN, 1), vHigh/math.Max(vN, 1)
 	r.budgetCorr = math.NaN()
 	if cN >= 3 {
 		vx, vy := cXX-cX*cX/cN, cYY-cY*cY/cN
@@ -547,6 +569,24 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.untrod = math.NaN()
 	if steps := st.Steps - st5.Steps; steps > 0 {
 		r.untrod = float64(st.NewSteps-st5.NewSteps) / float64(steps)
+	}
+	r.boldSlope = math.NaN()
+	if cfg.AllotVenture {
+		n := cfg.VentureMost + 1
+		r.boldSteps, r.boldNew = make([]int64, n), make([]int64, n)
+		for k := 0; k < n; k++ {
+			if k < len(st.BoldSteps) {
+				r.boldSteps[k] = st.BoldSteps[k]
+				r.boldNew[k] = st.BoldNewSteps[k]
+			}
+			if k < len(st5.BoldSteps) {
+				r.boldSteps[k] -= st5.BoldSteps[k]
+				r.boldNew[k] -= st5.BoldNewSteps[k]
+			}
+		}
+		if top := cfg.VentureMost; r.boldSteps[0] > 0 && r.boldSteps[top] > 0 {
+			r.boldSlope = boldRate(r, top) - boldRate(r, 0)
+		}
 	}
 	r.starved = float64(st.Deaths[engine.CauseStarved])
 	r.aged = float64(st.Deaths[engine.CauseAged])
@@ -730,6 +770,11 @@ func fmtMeanSE(xs []float64, prec int) string {
 // result r, which must have seen a mating at it.
 func fertRate(r result, k int) float64 {
 	return float64(r.fertBirths[k]) / float64(r.fertMatings[k])
+}
+
+// boldRate is the untrodden-tile rate of exploratory level k in result r.
+func boldRate(r result, k int) float64 {
+	return float64(r.boldNew[k]) / float64(r.boldSteps[k])
 }
 
 // collectWhere is collect over the results for which keep is true.
@@ -1085,6 +1130,9 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"縁（地図の端か水の隣）にいる割合", 4, func(r result) float64 { return r.edge }},
 		{"未踏タイル率", 4, func(r result) float64 { return r.untrod }},
 		{"知らない地域にいる成人の割合", 4, func(r result) float64 { return r.unknown }},
+		{"開拓0の成人の割合", 4, func(r result) float64 { return r.boldLow }},
+		{"開拓が最大の成人の割合", 4, func(r result) float64 { return r.boldHigh }},
+		{"開拓の最高段と最低段の未踏タイル率の差", 4, func(r result) float64 { return r.boldSlope }},
 		{"真後ろへの手（決定のうち）", 4, func(r result) float64 { return r.back }},
 		{"決定の割合", 4, func(r result) float64 { return r.decided }},
 		{"成人の割合", 4, func(r result) float64 { return r.adults }},
@@ -1128,6 +1176,19 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 			}
 			p("| %s（%s） | %s | %s | %s |\n", mt.name, v, fmtMeanSE(known(b), mt.prec), fmtMeanSE(known(x), mt.prec), fmtMeanSE(d, mt.prec))
 		}
+	}
+
+	// After §9 so that the brief report keeps it (brief prints from §9 on).
+	if baseCfg, _ := variant.Config(base, o.seed0); baseCfg.AllotVenture {
+		p("### 補助の表: 開拓の段ごとの未踏タイル率（%s）\n\n", base)
+		p("tick 5000 より後の、別のタイルへの歩みを歩いた身体の開拓の段ごとに数えたもの。未踏タイル率はシードごとの、一度も立ったことのないタイルへの歩み ÷ 歩み。\n\n")
+		p("| 段 | 歩み（1シードあたり） | 未踏タイル率 |\n| --- | --- | --- |\n")
+		for k := 0; k <= baseCfg.VentureMost; k++ {
+			p("| %d | %s | %s |\n", k,
+				fmtMeanSE(collect(rs, func(r result) float64 { return float64(r.boldSteps[k]) }), 2),
+				fmtMeanSE(collectWhere(rs, func(r result) bool { return k < len(r.boldSteps) && r.boldSteps[k] > 0 }, func(r result) float64 { return boldRate(r, k) }), 4))
+		}
+		p("\n")
 	}
 }
 
