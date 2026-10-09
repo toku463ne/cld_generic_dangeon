@@ -27,6 +27,10 @@ type Config struct {
 	// one kind every species eats in one pool of the whole cap.
 	FoodKinds []FoodKind
 	Foods     []FoodSpec
+	// PoolPlaces has each pool come back where the map says it does
+	// (Map.PoolFood, stage 9-7b-2); off, every pool follows the map's
+	// region shares, so species' pools lie over each other.
+	PoolPlaces bool
 	// FoodEnergy is how much energy eating one unit gives.
 	FoodEnergy float64
 	// Grain is the unit of energy the survival tables count in: a body's
@@ -523,6 +527,7 @@ func DefaultConfig() Config {
 		Seed:               1,
 		FoodCap:            300,
 		FoodReturn:         0.002,
+		PoolPlaces:         true,
 		FoodKinds:          []FoodKind{{Name: "human food", Tags: []string{"human"}}, {Name: "beast food", Tags: []string{"beast"}}},
 		Foods:              []FoodSpec{{Name: "human food", Kind: 0, Share: 0.5}, {Name: "beast food", Kind: 1, Share: 0.5}},
 		FoodEnergy:         30,

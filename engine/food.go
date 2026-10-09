@@ -270,22 +270,31 @@ func (w *World) shareSum(shares []float64) float64 {
 	return sum
 }
 
+// poolShares is the regions' shares of pool p's food that comes back now:
+// the map's for that pool (PoolPlaces), or the map's for all food.
+func (w *World) poolShares(p int) []float64 {
+	if w.cfg.PoolPlaces {
+		return w.m.PoolShares(w.food.pools[p].name, w.tick)
+	}
+	return w.m.FoodShares(w.tick)
+}
+
 // fillFood puts every pool's whole cap on the map, each unit in a region
-// drawn by share. It is how a world starts.
+// drawn by the pool's share. It is how a world starts.
 func (w *World) fillFood() {
 	for p := range w.food.pools {
 		for w.food.pools[p].count < w.food.pools[p].cap {
-			if !w.placeFood(w.drawRegion(), p) {
+			if !w.placeFood(w.drawRegion(w.poolShares(p)), p) {
 				break
 			}
 		}
 	}
 }
 
-// drawRegion picks a region with land, with chance proportional to its share.
-func (w *World) drawRegion() RegionID {
+// drawRegion picks a region with land, with chance proportional to its
+// share.
+func (w *World) drawRegion(shares []float64) RegionID {
 	f := &w.food
-	shares := w.m.FoodShares(w.tick)
 	x := w.rng.Float64() * w.shareSum(shares)
 	last := RegionID(0)
 	for r, s := range shares {
@@ -334,17 +343,14 @@ func (w *World) placeFood(r RegionID, p int) bool {
 // IDs are the ones served; the debt of the others carries over.
 func (w *World) returnFood() {
 	f := &w.food
-	shares := w.m.FoodShares(w.tick)
-	sum := w.shareSum(shares)
-	if sum == 0 {
-		return
-	}
 	asked := false
 	var resting [][]int // per region, the indices of the mothers resting there
 	for p := range f.pools {
 		pl := &f.pools[p]
 		vacant := pl.cap - pl.count - pl.held
-		if vacant <= 0 {
+		shares := w.poolShares(p)
+		sum := w.shareSum(shares)
+		if vacant <= 0 || sum == 0 {
 			continue
 		}
 		if !asked {
@@ -602,6 +608,18 @@ func (w *World) GroundFoodOf(s int) int {
 		}
 	}
 	return n
+}
+
+// Home reports whether region r is home to species s: whether some food
+// it may eat comes back there now. The first bodies of a species start
+// in its home regions (placeBodies).
+func (w *World) Home(s int, r RegionID) bool {
+	for p := range w.food.pools {
+		if w.food.eats[s][p] && w.poolShares(p)[r] > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // KindOf returns the kind of food unit f, for drawing.

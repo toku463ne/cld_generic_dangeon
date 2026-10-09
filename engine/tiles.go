@@ -42,6 +42,13 @@ type Map struct {
 	SeasonFood  [][]float64 `json:",omitempty"`
 	SeasonTicks int         `json:",omitempty"`
 
+	// PoolFood, if set, gives a pool of food (Config.Foods, by name) its
+	// own region shares in place of RegionFood and the seasons (stage
+	// 9-7b-2): where that pool comes back. A pool not named here follows
+	// RegionFood. This is how a map keeps species apart: each species'
+	// food returns in its own regions.
+	PoolFood map[string][]float64 `json:",omitempty"`
+
 	// RegionTemp is each region's range of temperature, indexed by
 	// RegionID (stage 7-4): a tile's temperature is its region's Low in the
 	// dark and High in full light, and follows the light between. Empty
@@ -83,6 +90,15 @@ func (m *Map) FoodShares(t int64) []float64 {
 		return m.RegionFood
 	}
 	return m.SeasonFood[m.Season(t)]
+}
+
+// PoolShares returns the regions' shares of the food of the named pool
+// that comes back at tick t: the pool's own (PoolFood), or FoodShares.
+func (m *Map) PoolShares(name string, t int64) []float64 {
+	if s, ok := m.PoolFood[name]; ok {
+		return s
+	}
+	return m.FoodShares(t)
 }
 
 // NewMap returns a map that is all land and all region 0, which takes all of
@@ -144,6 +160,21 @@ func (m Map) Validate() error {
 	if len(m.SeasonFood) > 0 && m.SeasonTicks <= 0 {
 		return fmt.Errorf("seasons of %d ticks", m.SeasonTicks)
 	}
+	for name, shares := range m.PoolFood {
+		if len(shares) != len(m.RegionFood) {
+			return fmt.Errorf("pool %s has %d shares, want %d", name, len(shares), len(m.RegionFood))
+		}
+		sum := 0.0
+		for r, f := range shares {
+			if !(f >= 0) {
+				return fmt.Errorf("pool %s: region %d has food share %v", name, r, f)
+			}
+			sum += f
+		}
+		if !(sum > 0) {
+			return fmt.Errorf("pool %s: no region has a food share", name)
+		}
+	}
 	for s, shares := range m.SeasonFood {
 		if len(shares) != len(m.RegionFood) {
 			return fmt.Errorf("season %d has %d shares, want %d", s, len(shares), len(m.RegionFood))
@@ -204,6 +235,13 @@ func (m Map) Clone() Map {
 	c.SeasonFood = nil
 	for _, s := range m.SeasonFood {
 		c.SeasonFood = append(c.SeasonFood, append([]float64(nil), s...))
+	}
+	c.PoolFood = nil
+	if m.PoolFood != nil {
+		c.PoolFood = map[string][]float64{}
+		for name, s := range m.PoolFood {
+			c.PoolFood[name] = append([]float64(nil), s...)
+		}
 	}
 	return c
 }

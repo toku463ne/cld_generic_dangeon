@@ -90,7 +90,9 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	const want = uint64(0xd6c19e4ea88c6432)
+	// Re-pinned at stage 9-7b-2: a first body's species is drawn before
+	// its tile, since the tile is drawn among its species' home regions.
+	const want = uint64(0x8433ad19c82fd3a5)
 	w, err := NewWorld(testConfig(1), tempMap())
 	if err != nil {
 		t.Fatal(err)

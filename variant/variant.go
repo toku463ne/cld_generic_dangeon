@@ -47,6 +47,11 @@ const Shared = "shared"
 // tag: the control that shows what the budget's shift does.
 const Twin = "twin"
 
+// Together is stage 9-7b-1: every pool of food comes back by the map's
+// region shares, so the species' pools lie over each other instead of
+// each in its own regions.
+const Together = "together"
+
 // Halffed is the count before stage 9-7b-1: one species (Single) on half
 // the food cap, from half the first bodies, which is what one of two
 // species has once the food is split into a pool per species. (Half the
@@ -387,6 +392,7 @@ var rewrites = map[string]func(*engine.Config){
 	Tight:      func(c *engine.Config) { c.AllotCurve /= 2 },
 	Exact:      func(c *engine.Config) { unventured(c); c.FullStep = 0 },
 	Shared:     shared,
+	Together:   func(c *engine.Config) { c.PoolPlaces = false },
 	Single:     single,
 	Halffed:    func(c *engine.Config) { single(c); c.FoodCap /= 2; c.Bodies /= 2 },
 	Twin: func(c *engine.Config) {

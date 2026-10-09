@@ -106,6 +106,13 @@ func Constrained(width, height int) engine.Map {
 			m.SetTerrain(x, y, engine.TerrainWater)
 		}
 	}
+	// The species keep apart (stage 9-7b-2): human food comes back in the
+	// top half (regions 0 and 1), beast food in the bottom (2 and 3), each
+	// at the map's ratio between its two regions.
+	m.PoolFood = map[string][]float64{
+		"human food": {ConstrainedFood[0], ConstrainedFood[1], 0, 0},
+		"beast food": {0, 0, ConstrainedFood[2], ConstrainedFood[3]},
+	}
 	shelters(&m)
 	return m
 }
@@ -122,6 +129,7 @@ const SeasonTicks = 1000
 // not of where bodies are - but one life sees only part of the round.
 func Seasons(width, height int) engine.Map {
 	m := Constrained(width, height)
+	m.PoolFood = nil           // every pool follows the seasons
 	round := []int{0, 1, 3, 2} // the quadrants clockwise
 	for s := range round {
 		shares := make([]float64, len(ConstrainedFood))
@@ -162,6 +170,13 @@ func Patches(width, height int) engine.Map {
 				}
 			}
 		}
+	}
+	// The species keep apart (stage 9-7b-2): human food comes back in the
+	// top and left patches (regions 1 and 2), beast food in the right and
+	// bottom (3 and 4).
+	m.PoolFood = map[string][]float64{
+		"human food": {0, 0.5, 0.5, 0, 0},
+		"beast food": {0, 0, 0, 0.5, 0.5},
 	}
 	shelters(&m)
 	return m

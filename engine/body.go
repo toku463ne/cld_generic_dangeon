@@ -279,6 +279,8 @@ func (w *World) tileOf(x, y float64) int {
 // random: Config.Bodies of them with drawn genomes, or, given genomes, one
 // with each (NewWorldFrom).
 func (w *World) placeBodies(genomes []Genome) {
+	// Each species' first bodies land where its food comes back (Home),
+	// or anywhere on land where it comes back nowhere.
 	var land []int
 	for i, t := range w.m.Terrain {
 		if t == TerrainLand {
@@ -288,18 +290,29 @@ func (w *World) placeBodies(genomes []Genome) {
 	if len(land) == 0 {
 		return
 	}
+	homes := make([][]int, w.SpeciesCount())
+	for s := range homes {
+		for _, t := range land {
+			if w.Home(s, w.m.Region[t]) {
+				homes[s] = append(homes[s], t)
+			}
+		}
+		if len(homes[s]) == 0 {
+			homes[s] = land
+		}
+	}
 	n := w.cfg.Bodies
 	if genomes != nil {
 		n = len(genomes)
 	}
 	for i := 0; i < n; i++ {
-		t := land[w.rng.Intn(len(land))]
 		species := 0
 		if genomes != nil {
 			species = genomes[i].Species
 		} else {
 			species = w.drawSpecies()
 		}
+		t := homes[species][w.rng.Intn(len(homes[species]))]
 		b := Body{
 			ID:      w.nextID,
 			Species: species,

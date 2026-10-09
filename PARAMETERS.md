@@ -98,7 +98,8 @@
 | 食料の上限 | `FoodCap` | 300 | 仮。64×48 の地図で陸のおよそ1割。全池の合計。9-7b-1 で各種族の池を 300 にするため一度 600 にしたが、種族は同じ地域に混ぜず別の地域に住まわせる設計（ユーザ判断 2026-10-09）なので 300 に戻した（[20261009-9-7b-1](docs/experiments/20261009-9-7b-1.md)、`docs/history/20261009.md`） |
 | 空きが戻る確率（/tick） | `FoodReturn` | 0.002 | 仮 |
 | 食料の種類の表（名前・種族タグ） | `FoodKinds` | human food [human] / beast food [beast] | 9-7b-1（`VISION.md`「沸く食料」）。タグの無い種族には無いのと同じ。空なら 1 種類で全種族が食べる（条件 `single`・`shared`） |
-| 食料の ID の表（名前・種類・`FoodCap` の取り分・戻る率） | `Foods` | human food 0.5 / beast food 0.5（戻る率 0 ＝ `FoodReturn`） | 9-7b-1。ID ごとに保存則が閉じる。取り分は半々で各池 300 |
+| 食料の ID の表（名前・種類・`FoodCap` の取り分・戻る率） | `Foods` | human food 0.5 / beast food 0.5（戻る率 0 ＝ `FoodReturn`） | 9-7b-1。ID ごとに保存則が閉じる。取り分は半々 |
+| ID が地図の言う地域に戻る | `PoolPlaces` | true | 9-7b-2。地図の `PoolFood`（ID ごとの地域の取り分）に従う。切ると全部の ID が地図の取り分に従い種族の池が重なる（条件 `together`、9-7b-1 の世界） |
 | 1単位で戻る体力 | `FoodEnergy` | 30 | 仮 |
 | 生存の表の体力の粒 | `Grain` | 0.1 | 7-3c。既定の身体が 1 tick に消耗する量（`EnergyBurn`）と同じにして、既定の身体では tick と粒が一致する。身体ごとの消耗・速さは表の鍵に入らず、見込みの段に畳まれる（[20261003](docs/history/20261003.md)） |
 | 食料の寿命（tick） | `FoodLife` | 1000 | 4-4。食べられた単位の 99.8% より長く、窓と同じ。身体のいなくなった陸に閉じ込められる食料を上限へ戻す（[foodage-count](docs/experiments/20261002-foodage-count.md)・[lock-count](docs/experiments/20261002-lock-count.md)）。0 で古びない（条件 `unspoiled`） |

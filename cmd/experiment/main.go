@@ -86,6 +86,11 @@ type result struct {
 	// speciesFood is the mean, over the samples of the adults, of the
 	// food on the ground each species may eat (stage 9-7b-1).
 	speciesFood []float64
+	// away is the share of bodies standing in a region none of their food
+	// comes back to (stage 9-7b-2), over the same samples; speciesAway the
+	// same per species (NaN where a species had no body in any sample).
+	away        float64
+	speciesAway []float64
 	series      []int32   // bodies at every tick from 0, up to the tick the seed stopped
 	food        []float64 // food on the ground at the same ticks
 	surviving   []bool    // whether the seed was above the floor at the same ticks
@@ -347,6 +352,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	var vLow, vHigh, vN float64
 	spBudget, spN := make([]float64, species), make([]float64, species)
 	spFood, spFoodN := make([]float64, species), 0.0
+	spAway, spBodies, awaySum, awayN := make([]float64, species), make([]float64, species), 0.0, 0.0
 	var st5 engine.Stats           // the counts as of tick 5000
 	budgets := map[int64]float64{} // every body seen, for its children
 	var cN, cX, cY, cXX, cYY, cXY float64
@@ -447,6 +453,18 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 				spFood[k] += float64(w.GroundFoodOf(k))
 			}
 			spFoodN++
+			if len(bs) > 0 {
+				out := 0.0
+				for _, b := range bs {
+					spBodies[b.Species]++
+					if !w.Home(b.Species, m.RegionAt(int(b.X), int(b.Y))) {
+						out++
+						spAway[b.Species]++
+					}
+				}
+				awaySum += out / float64(len(bs))
+				awayN++
+			}
 			for _, b := range bs {
 				if w.Tick() >= b.Mature {
 					bySex[b.Sex]++
@@ -586,7 +604,13 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.boldLow, r.boldHigh = vLow/math.Max(vN, 1), vHigh/math.Max(vN, 1)
 	r.speciesGone, r.speciesBudget = make([]float64, species), make([]float64, species)
 	r.speciesFood = make([]float64, species)
+	r.speciesAway = make([]float64, species)
+	r.away = awaySum / math.Max(awayN, 1)
 	for k := 0; k < species; k++ {
+		r.speciesAway[k] = math.NaN()
+		if spBodies[k] > 0 {
+			r.speciesAway[k] = spAway[k] / spBodies[k]
+		}
 		if r.speciesPop[k][len(r.speciesPop[k])-1] == 0 {
 			r.speciesGone[k] = 1
 		}
@@ -1202,6 +1226,9 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"獣の成人の平均予算", 4, speciesAt("beast", func(r result, k int) float64 { return r.speciesBudget[k] })},
 		{"人間の食料（地面）", 1, speciesAt("human", func(r result, k int) float64 { return r.speciesFood[k] })},
 		{"獣の食料（地面）", 1, speciesAt("beast", func(r result, k int) float64 { return r.speciesFood[k] })},
+		{"よその地域にいる割合", 4, func(r result) float64 { return r.away }},
+		{"人間がよその地域にいる割合", 4, speciesAt("human", func(r result, k int) float64 { return r.speciesAway[k] })},
+		{"獣がよその地域にいる割合", 4, speciesAt("beast", func(r result, k int) float64 { return r.speciesAway[k] })},
 		{"崩壊したシードの割合", 4, func(r result) float64 {
 			if r.fellAt > 0 {
 				return 1

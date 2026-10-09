@@ -112,3 +112,43 @@ func TestPatches(t *testing.T) {
 		t.Fatal("food outside the patches")
 	}
 }
+
+// On the constrained and patches maps human food and beast food come
+// back in different regions, and the seasons map lets every pool follow
+// the seasons.
+func TestPoolsKeepApart(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		m            engine.Map
+		human, beast []int
+	}{
+		{"constrained", Constrained(32, 24), []int{0, 1}, []int{2, 3}},
+		{"patches", Patches(64, 48), []int{1, 2}, []int{3, 4}},
+	} {
+		h, b := tc.m.PoolFood["human food"], tc.m.PoolFood["beast food"]
+		if h == nil || b == nil {
+			t.Fatalf("%s: pools %v", tc.name, tc.m.PoolFood)
+		}
+		for r := range tc.m.RegionFood {
+			if (h[r] > 0) == (b[r] > 0) && (h[r] > 0 || tc.m.RegionFood[r] > 0) {
+				t.Fatalf("%s: region %d has human share %v and beast share %v", tc.name, r, h[r], b[r])
+			}
+		}
+		for _, r := range tc.human {
+			if h[r] == 0 || b[r] != 0 {
+				t.Fatalf("%s: region %d should be human: %v / %v", tc.name, r, h, b)
+			}
+		}
+		for _, r := range tc.beast {
+			if b[r] == 0 || h[r] != 0 {
+				t.Fatalf("%s: region %d should be beast: %v / %v", tc.name, r, h, b)
+			}
+		}
+		if err := tc.m.Validate(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if Seasons(32, 24).PoolFood != nil || Flat(32, 24).PoolFood != nil {
+		t.Fatal("the seasons and flat maps should not place pools")
+	}
+}

@@ -564,7 +564,7 @@ func TestFoodKinds(t *testing.T) {
 // With the default tables (a human pool and a beast pool) the world is
 // stage 9-7b-1: its fingerprint is pinned here.
 func TestPooledIsStage97b1(t *testing.T) {
-	const want = uint64(0x34ebb57daf5b89e8)
+	const want = uint64(0x6a21d31b3bb73515)
 	cfg := testConfig(1)
 	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
 	w, err := NewWorld(cfg, tempMap())
@@ -574,5 +574,79 @@ func TestPooledIsStage97b1(t *testing.T) {
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
 		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// A map may give a pool its own region shares (PoolFood, stage 9-7b-2):
+// the pool fills and comes back there alone, a species' first bodies
+// start where its food is, and Home says which regions those are. With
+// PoolPlaces off every pool follows the map's shares.
+func TestPoolPlaces(t *testing.T) {
+	m := NewMap(20, 10)
+	m.RegionFood = []float64{1, 1}
+	for y := 0; y < m.Height; y++ {
+		for x := 10; x < m.Width; x++ {
+			m.SetRegion(x, y, 1)
+		}
+	}
+	m.PoolFood = map[string][]float64{"human food": {1, 0}, "beast food": {0, 1}}
+	cfg := testConfig(6)
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
+	cfg.FoodCap, cfg.FoodReturn = 40, 1
+	w, err := NewWorld(cfg, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !w.Home(0, 0) || w.Home(0, 1) || w.Home(1, 0) || !w.Home(1, 1) {
+		t.Fatal("home regions are not the pools' regions")
+	}
+	for _, b := range w.Bodies() {
+		if r := m.RegionAt(int(b.X), int(b.Y)); int(r) != b.Species {
+			t.Fatalf("a body of species %d starts in region %d", b.Species, r)
+		}
+	}
+	check := func() {
+		t.Helper()
+		for _, f := range w.Foods() {
+			if int(m.RegionAt(f.X, f.Y)) != f.ID {
+				t.Fatalf("tick %d: a unit of pool %d lies in region %d", w.Tick(), f.ID, m.RegionAt(f.X, f.Y))
+			}
+		}
+	}
+	check()
+	for i := 0; i < 10; i++ {
+		w.eatFood(0)
+	}
+	for i := 0; i < 20; i++ {
+		w.Step()
+		checkFood(t, w)
+		check()
+	}
+	if l := w.FoodLedger(); l.OnGround+l.Held != l.Cap {
+		t.Fatalf("not back to the cap: %+v", l)
+	}
+	// Off: both pools over the whole map.
+	cfg.PoolPlaces = false
+	w, err = NewWorld(cfg, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var in [2][2]int
+	for _, f := range w.Foods() {
+		in[f.ID][m.RegionAt(f.X, f.Y)]++
+	}
+	if in[0][1] == 0 || in[1][0] == 0 {
+		t.Fatalf("with PoolPlaces off the pools still keep apart: %v", in)
+	}
+	// Bad shares are refused.
+	for _, bad := range [][]float64{{1}, {0, 0}, {-1, 1}} {
+		m2 := m.Clone()
+		m2.PoolFood["human food"] = bad
+		if err := m2.Validate(); err == nil {
+			t.Fatalf("pool shares %v were accepted", bad)
+		}
+	}
+	if m.Clone().PoolFood["human food"][0] != 1 {
+		t.Fatal("clone lost the pool shares")
 	}
 }
