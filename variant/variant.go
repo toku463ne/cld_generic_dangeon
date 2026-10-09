@@ -42,6 +42,11 @@ const Single = "single"
 // tag: the control that shows what the budget's shift does.
 const Twin = "twin"
 
+// Halffed is the count before stage 9-7b-1: one species (Single) on half
+// the food cap, which is what one of two species sees once the food is
+// split into a pool per species.
+const Halffed = "halffed"
+
 // Steady and Fickle are the sweep before stage 9-6b (the conservative
 // trait): every body's own evidence of a place outweighs the prior one
 // and a half times sooner, or later (the weights toward the parents
@@ -374,6 +379,7 @@ var rewrites = map[string]func(*engine.Config){
 	Tight:      func(c *engine.Config) { c.AllotCurve /= 2 },
 	Exact:      func(c *engine.Config) { unventured(c); c.FullStep = 0 },
 	Single:     single,
+	Halffed:    func(c *engine.Config) { single(c); c.FoodCap /= 2 },
 	Twin: func(c *engine.Config) {
 		c.Species = append([]engine.SpeciesSpec(nil), c.Species...)
 		for i := range c.Species {
