@@ -392,7 +392,7 @@ func TestRestingMotherReadsHerRestEnding(t *testing.T) {
 			w.food.born = append(w.food.born, w.tick)
 			w.food.owner = append(w.food.owner, noOwner)
 			w.food.foodAt[tile] = int32(len(w.food.foods))
-			w.food.onGround[w.m.Region[tile]]++
+			w.foodMoved(w.m.Region[tile], 0, +1)
 		}
 		if got, want := w.restReserve(mother), map[bool]int{true: 150, false: 0}[ahead]; got != want {
 			t.Fatalf("ahead %v: reserve %d, want %d", ahead, got, want)

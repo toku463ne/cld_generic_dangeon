@@ -18,6 +18,13 @@ type Config struct {
 	// FoodReturn is the chance per tick that one vacancy comes back. Where it
 	// comes back is decided by the map's RegionFood shares.
 	FoodReturn float64
+	// FoodKinds and Foods are the kinds of food and its pools (stage
+	// 9-7b-1, food.go): a kind is the label a body sees, tagged with the
+	// species that may eat it; a pool is a share of FoodCap of one kind
+	// with a conservation law and return rate of its own. Both empty for
+	// one kind every species eats in one pool of the whole cap.
+	FoodKinds []FoodKind
+	Foods     []FoodSpec
 	// FoodEnergy is how much energy eating one unit gives.
 	FoodEnergy float64
 	// Grain is the unit of energy the survival tables count in: a body's
@@ -514,6 +521,8 @@ func DefaultConfig() Config {
 		Seed:               1,
 		FoodCap:            300,
 		FoodReturn:         0.002,
+		FoodKinds:          []FoodKind{{Name: "human food", Tags: []string{"human"}}, {Name: "beast food", Tags: []string{"beast"}}},
+		Foods:              []FoodSpec{{Name: "human food", Kind: 0, Share: 0.5}, {Name: "beast food", Kind: 1, Share: 0.5}},
 		FoodEnergy:         30,
 		Grain:              0.1,
 		FoodLife:           1000,

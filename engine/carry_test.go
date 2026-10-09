@@ -27,8 +27,8 @@ func soloWorld(t *testing.T, energy float64) (*World, *Body) {
 	w.food.born = append(w.food.born, w.tick)
 	w.food.owner = append(w.food.owner, noOwner)
 	w.food.foodAt[tile] = int32(len(w.food.foods))
-	w.food.appeared++
-	w.foodMoved(w.m.Region[tile], +1)
+	w.food.pools[0].appeared++
+	w.foodMoved(w.m.Region[tile], 0, +1)
 	return w, b
 }
 

@@ -20,7 +20,7 @@ import (
 // saved, so that a loaded world can build them before play (World.Warm).
 
 // snapshotVersion changes whenever the format does.
-const snapshotVersion = 52
+const snapshotVersion = 53
 
 type snapshot struct {
 	Version int    `json:"version"`
@@ -29,21 +29,14 @@ type snapshot struct {
 	Tick    int64  `json:"tick"`
 	Draws   uint64 `json:"draws"`
 
-	Foods    []Food    `json:"foods"`
-	FoodOwed []float64 `json:"foodOwed"`
-	FoodBorn []int64   `json:"foodBorn"`
+	Foods    []Food  `json:"foods"`
+	FoodBorn []int64 `json:"foodBorn"`
 	// FoodOwner is each unit's owner (stage 6-4c), noOwner for none.
 	FoodOwner []int64 `json:"foodOwner,omitempty"`
-	Appeared  int64   `json:"appeared"`
-	Eaten     int64   `json:"eaten"`
-
-	Provisioned int64 `json:"provisioned,omitempty"`
-	// Picked and Lost count the units picked up and lost with the dead
-	// (Carry); what bodies hold now is in Bodies.
-	Picked int64 `json:"picked,omitempty"`
-	Lost   int64 `json:"lost,omitempty"`
-	// Decayed counts the units that decayed (FoodLife).
-	Decayed int64 `json:"decayed,omitempty"`
+	// Pools is each pool's account (stage 9-7b-1): what it is owed per
+	// region and what has happened to its units since the world was
+	// built. What bodies hold now is in Bodies.
+	Pools []poolSnapshot `json:"pools"`
 
 	Bodies []Body `json:"bodies"`
 	NextID int64  `json:"nextID"`
@@ -61,25 +54,34 @@ type snapshot struct {
 	Tables []TableKey `json:"tables,omitempty"`
 }
 
+// poolSnapshot is one pool's saved account (food.go).
+type poolSnapshot struct {
+	Owed        []float64 `json:"owed"`
+	Appeared    int64     `json:"appeared"`
+	Eaten       int64     `json:"eaten"`
+	Provisioned int64     `json:"provisioned,omitempty"`
+	Picked      int64     `json:"picked,omitempty"`
+	Lost        int64     `json:"lost,omitempty"`
+	Decayed     int64     `json:"decayed,omitempty"`
+}
+
 // Save writes the whole state of the world.
 func (w *World) Save(out io.Writer) error {
+	var pools []poolSnapshot
+	for _, p := range w.food.pools {
+		pools = append(pools, poolSnapshot{Owed: p.owed, Appeared: p.appeared, Eaten: p.eaten,
+			Provisioned: p.provisioned, Picked: p.picked, Lost: p.lost, Decayed: p.decayed})
+	}
 	return json.NewEncoder(out).Encode(snapshot{
-		Version:   snapshotVersion,
-		Config:    w.cfg,
-		Map:       w.m,
-		Tick:      w.tick,
-		Draws:     w.draws.draws,
-		Foods:     w.food.foods,
-		FoodOwed:  w.food.owed,
-		FoodBorn:  w.food.born,
-		FoodOwner: w.food.owner,
-		Appeared:  w.food.appeared,
-		Eaten:     w.food.eaten,
-
-		Provisioned: w.food.provisioned,
-		Picked:      w.food.picked,
-		Lost:        w.food.lost,
-		Decayed:     w.food.decayed,
+		Version:     snapshotVersion,
+		Config:      w.cfg,
+		Map:         w.m,
+		Tick:        w.tick,
+		Draws:       w.draws.draws,
+		Foods:       w.food.foods,
+		FoodBorn:    w.food.born,
+		FoodOwner:   w.food.owner,
+		Pools:       pools,
 		Bodies:      w.bodies,
 		NextID:      w.nextID,
 		Places:      w.places,
@@ -104,13 +106,22 @@ func Load(in io.Reader) (*World, error) {
 	}
 	w := &World{cfg: s.Config, m: s.Map, tick: s.Tick, bodies: s.Bodies, nextID: s.NextID, stats: s.Stats}
 	w.rng, w.draws = replayTo(s.Config.Seed, s.Draws)
-	w.initFood()
-	if len(s.FoodOwed) != len(w.food.owed) {
-		return nil, fmt.Errorf("snapshot owes food to %d regions, map has %d", len(s.FoodOwed), len(w.food.owed))
+	if err := validFood(s.Config.FoodKinds, s.Config.Foods); err != nil {
+		return nil, err
 	}
-	copy(w.food.owed, s.FoodOwed)
-	w.food.appeared, w.food.eaten, w.food.provisioned = s.Appeared, s.Eaten, s.Provisioned
-	w.food.picked, w.food.lost, w.food.decayed = s.Picked, s.Lost, s.Decayed
+	w.initFood()
+	if len(s.Pools) != len(w.food.pools) {
+		return nil, fmt.Errorf("snapshot has %d food pools, config has %d", len(s.Pools), len(w.food.pools))
+	}
+	for i, ps := range s.Pools {
+		p := &w.food.pools[i]
+		if len(ps.Owed) != len(p.owed) {
+			return nil, fmt.Errorf("snapshot owes food to %d regions, map has %d", len(ps.Owed), len(p.owed))
+		}
+		copy(p.owed, ps.Owed)
+		p.appeared, p.eaten, p.provisioned = ps.Appeared, ps.Eaten, ps.Provisioned
+		p.picked, p.lost, p.decayed = ps.Picked, ps.Lost, ps.Decayed
+	}
 	if len(s.FoodBorn) != len(s.Foods) {
 		return nil, fmt.Errorf("snapshot has %d food ages for %d units", len(s.FoodBorn), len(s.Foods))
 	}
@@ -120,15 +131,28 @@ func Load(in io.Reader) (*World, error) {
 	}
 	w.food.owner = append(w.food.owner, s.FoodOwner...)
 	for _, b := range w.bodies {
-		w.food.held += b.Held
+		if len(b.HeldPool) != b.Held {
+			return nil, fmt.Errorf("body %d holds %d units of %d pools", b.ID, b.Held, len(b.HeldPool))
+		}
+		for _, p := range b.HeldPool {
+			if p < 0 || p >= len(w.food.pools) {
+				return nil, fmt.Errorf("body %d holds food of pool %d, have %d", b.ID, p, len(w.food.pools))
+			}
+			w.food.pools[p].held++
+		}
 	}
 	for _, f := range s.Foods {
 		if !w.m.InBounds(f.X, f.Y) {
 			return nil, fmt.Errorf("food at (%d,%d) is off the map", f.X, f.Y)
 		}
+		if f.ID < 0 || f.ID >= len(w.food.pools) {
+			return nil, fmt.Errorf("food at (%d,%d) is of pool %d, have %d", f.X, f.Y, f.ID, len(w.food.pools))
+		}
 		w.food.foods = append(w.food.foods, f)
 		w.food.foodAt[w.m.index(f.X, f.Y)] = int32(len(w.food.foods))
-		w.food.onGround[w.m.RegionAt(f.X, f.Y)]++
+		p := &w.food.pools[f.ID]
+		p.onGround[w.m.RegionAt(f.X, f.Y)]++
+		p.count++
 	}
 	w.places, w.nextPlace = s.Places, s.NextPlace
 	w.groundTents = s.GroundTents

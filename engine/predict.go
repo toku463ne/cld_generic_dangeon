@@ -78,9 +78,9 @@ func (w *World) TruthTable() TruthTable {
 }
 
 // meet is the third row of the table for region r and a body of the given
-// speed and burn, read from the food on its ground now.
+// speed and burn, read from all the food on its ground now.
 func (w *World) meet(r RegionID, speed, burn float64) float64 {
-	return w.meetAt(r, w.food.onGround[r], speed, burn)
+	return w.meetAt(r, w.allGroundFood(r), speed, burn)
 }
 
 // meetAt is meet with the given food on region r's ground: the chance per
@@ -676,7 +676,7 @@ func (w *World) sleepRiskAt(b *Body, rs *rates, win, reserve int, now, energy fl
 	if rs != nil {
 		s = w.learnedTable(rs.region[r]*rs.slept*w.factor(w.speedOf(b), burn), full)
 	} else {
-		s = w.survivalFor(r, full, w.factorLevel(w.speedOf(b), burn))
+		s = w.survivalFor(b, r, full, w.factorLevel(w.speedOf(b), burn))
 	}
 	return s.deadAtLeast(win-ts, w.units(left)+reserve-1)
 }
@@ -730,15 +730,16 @@ func (w *World) inSight(dst []Food, b *Body) []Food {
 // window: the table's two fixed rows, and one survival table per region for
 // its food on the ground now. A survival table depends on nothing but the
 // region's food count and the body's build, so each is built once per count
-// and build and kept; the config's build has a fast path (surv, fresh). All
+// and build and kept; the config's build has a fast path (surv, fresh, per
+// species, as each species counts the food it may eat). All
 // of it can be rebuilt from the rest of the world, and a table is the same
 // whenever it is built: when tables are built, kept or dropped changes no
 // decision, which is what lets the cache forget and a loaded world warm up.
 type predictor struct {
 	meal, full int
 	windows    []int
-	surv       []*table
-	fresh      []bool
+	surv       [][]*table // per species, per region
+	fresh      [][]bool
 	cache      []map[survKey]*table // per region
 	// learned are the tables of bodies that learn (learn.go), by a
 	// believed chance per tile (its level, in survKey.food) and build.
@@ -793,48 +794,53 @@ func (w *World) initPredict() {
 		meal:    w.units(w.cfg.FoodEnergy),
 		full:    w.units(w.cfg.EnergyMax),
 		windows: []int{w.windowGrains()},
-		surv:    make([]*table, n),
-		fresh:   make([]bool, n),
+		surv:    make([][]*table, w.SpeciesCount()),
+		fresh:   make([][]bool, w.SpeciesCount()),
 		cache:   make([]map[survKey]*table, n),
 		learned: map[survKey]*table{},
 	}
 	for r := range w.pred.cache {
 		w.pred.cache[r] = map[survKey]*table{}
 	}
+	for s := range w.pred.surv {
+		w.pred.surv[s] = make([]*table, n)
+		w.pred.fresh[s] = make([]bool, n)
+	}
 }
 
 // refreshRegion marks region r's survival table stale after its food
 // changed. It is rebuilt, or found in the cache, when next asked for.
 func (w *World) refreshRegion(r RegionID) {
-	if w.pred.fresh != nil {
-		w.pred.fresh[r] = false
+	for s := range w.pred.fresh {
+		w.pred.fresh[s][r] = false
 	}
 }
 
-// survival returns region r's survival table for its food on the ground now
-// and the config's build.
-func (w *World) survival(r RegionID) Survival {
+// survival returns region r's survival table for the food on the ground
+// now that body b may eat, and the config's build.
+func (w *World) survival(b *Body, r RegionID) Survival {
 	p := &w.pred
-	if !p.fresh[r] {
-		p.surv[r], p.fresh[r] = w.tableFor(r, p.full, 0), true
+	if !p.fresh[b.Species][r] {
+		p.surv[b.Species][r], p.fresh[b.Species][r] = w.tableFor(b, r, p.full, 0), true
 	}
-	t := p.surv[r]
+	t := p.surv[b.Species][r]
 	t.used = w.tick
 	return t.s
 }
 
-// survivalFor returns region r's survival table for its food on the ground
-// now, a body of the given most grains, and a factor level.
-func (w *World) survivalFor(r RegionID, full, factor int) Survival {
-	t := w.tableFor(r, full, factor)
-	t.used = w.tick
-	return t.s
-}
-
-// tableFor finds or builds region r's table for its food now, a most and a
+// survivalFor returns region r's survival table for the food on the
+// ground now that body b may eat, a body of the given most grains, and a
 // factor level.
-func (w *World) tableFor(r RegionID, full, factor int) *table {
-	return w.tableAt(r, survKey{food: w.food.onGround[r], full: full, factor: factor})
+func (w *World) survivalFor(b *Body, r RegionID, full, factor int) Survival {
+	t := w.tableFor(b, r, full, factor)
+	t.used = w.tick
+	return t.s
+}
+
+// tableFor finds or builds region r's table for the food now that body b
+// may eat, a most and a factor level.
+func (w *World) tableFor(b *Body, r RegionID, full, factor int) *table {
+	return w.tableAt(r, survKey{food: w.groundFood(b, r), full: full, factor: factor})
 }
 
 // tableAt finds or builds region r's table for key k.
@@ -864,7 +870,7 @@ func (w *World) forget() {
 				delete(p.cache[r], k)
 			}
 		}
-		p.fresh[r] = false
+		w.refreshRegion(RegionID(r))
 	}
 	for k, t := range p.learned {
 		if w.tick-t.used > forgetAfter {
@@ -944,10 +950,10 @@ func (w *World) decide(b *Body) Action {
 		w.valueInto(v, w.pred.meal, full, w.pred.windows, alive, w.mateRate(b), rs, b)
 		v.Belief = w.belief(b)
 	case w.cfg.Window > 0 && b.Build == (Build{}) && w.readBurn(b) == w.cfg.EnergyBurn && w.ageFactor(b) == 1:
-		w.valueInto(v, w.pred.meal, w.pred.full, w.pred.windows, w.survival, 1, nil, b)
+		w.valueInto(v, w.pred.meal, w.pred.full, w.pred.windows, func(r RegionID) Survival { return w.survival(b, r) }, 1, nil, b)
 	case w.cfg.Window > 0:
 		full, level := w.units(w.maxOf(b)), w.factorLevel(w.speedOf(b), w.readBurn(b))
-		w.valueInto(v, w.pred.meal, full, w.pred.windows, func(r RegionID) Survival { return w.survivalFor(r, full, level) }, 1, nil, b)
+		w.valueInto(v, w.pred.meal, full, w.pred.windows, func(r RegionID) Survival { return w.survivalFor(b, r, full, level) }, 1, nil, b)
 	default:
 		v.Options = w.possibleActions(v.Options[:0], b)
 		v.Seen, v.Plan, v.Arrive, v.Child = v.Seen[:0], v.Plan[:0], v.Arrive[:0], v.Child[:0]

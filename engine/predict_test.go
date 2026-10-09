@@ -173,7 +173,7 @@ func TestWalksToFoodInSight(t *testing.T) {
 	w.food.born = append(w.food.born, w.tick)
 	w.food.owner = append(w.food.owner, noOwner)
 	w.food.foodAt[m.index(5, 4)] = 1
-	w.food.onGround[0] = 1
+	w.foodMoved(0, 0, +1)
 	w.refreshRegion(0)
 	b := Body{X: 4.5, Y: 4.5, Energy: 10}
 	tab := w.TruthTable()
@@ -337,7 +337,7 @@ func TestBouncesOffPoorerRegion(t *testing.T) {
 		w.food.born = append(w.food.born, w.tick)
 		w.food.owner = append(w.food.owner, noOwner)
 		w.food.foodAt[m.index(p[0], p[1])] = int32(len(w.food.foods))
-		w.food.onGround[0]++
+		w.foodMoved(0, 0, +1)
 	}
 	w.refreshRegion(0)
 	b := Body{X: 5.9, Y: 4.5, Energy: 50, Heading: 7} // north-east, at the edge of region 1

@@ -20,12 +20,16 @@ func testMap() Map {
 	return m
 }
 
-// testConfig is the default rules scaled to the small test map.
+// testConfig is the default rules scaled to the small test map, with one
+// kind of food in one pool: the tests of kinds and pools (food_test.go)
+// set the tables themselves, and every other test places food by hand
+// for bodies of either species.
 func testConfig(seed int64) Config {
 	cfg := DefaultConfig()
 	cfg.Seed = seed
 	cfg.FoodCap = 30
 	cfg.Bodies = 20
+	cfg.FoodKinds, cfg.Foods = nil, nil
 	return cfg
 }
 

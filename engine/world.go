@@ -115,6 +115,9 @@ func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 	if err := validSpecies(cfg.Species); err != nil {
 		return nil, err
 	}
+	if err := validFood(cfg.FoodKinds, cfg.Foods); err != nil {
+		return nil, err
+	}
 	if cfg.Learn && !(cfg.Steady > 0) {
 		return nil, fmt.Errorf("Steady must be above zero, got %v", cfg.Steady)
 	}
@@ -427,15 +430,22 @@ func (w *World) Fingerprint() uint64 {
 		binary.LittleEndian.PutUint16(buf[:2], uint16(r))
 		h.Write(buf[:2])
 	}
+	// A unit's pool is state only where there is more than one.
+	pools := len(w.food.pools) > 1
 	for _, f := range w.food.foods {
 		put(uint64(f.X))
 		put(uint64(f.Y))
+		if pools {
+			put(uint64(f.ID))
+		}
 	}
-	for _, o := range w.food.owed {
-		putF(o)
+	for _, p := range w.food.pools {
+		for _, o := range p.owed {
+			putF(o)
+		}
+		put(uint64(p.appeared))
+		put(uint64(p.eaten))
 	}
-	put(uint64(w.food.appeared))
-	put(uint64(w.food.eaten))
 	for _, b := range w.bodies {
 		put(uint64(b.ID))
 		putF(b.X)

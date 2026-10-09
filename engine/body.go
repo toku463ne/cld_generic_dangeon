@@ -100,8 +100,10 @@ type Body struct {
 	// Held is how many units of food it holds (with Carry).
 	Held int `json:",omitempty"`
 	// HeldBorn is the tick each held unit appeared, oldest first (with
-	// FoodLife): a held unit decays like one on the ground.
+	// FoodLife): a held unit decays like one on the ground. HeldPool is
+	// each held unit's pool, in the same order (food.go).
 	HeldBorn []int64 `json:",omitempty"`
+	HeldPool []int   `json:",omitempty"`
 	// Pressure is its sleep pressure (0 to 1), Debt its sleep debt, and
 	// Asleep whether it sleeps now (Sleep, stage 7-3b).
 	Pressure float64 `json:",omitempty"`

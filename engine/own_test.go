@@ -15,7 +15,7 @@ func TestOwnership(t *testing.T) {
 		w.food.born = append(w.food.born, w.tick)
 		w.food.owner = append(w.food.owner, noOwner)
 		w.food.foodAt[tile] = int32(len(w.food.foods))
-		w.food.onGround[w.m.Region[tile]]++
+		w.foodMoved(w.m.Region[tile], 0, +1)
 	}
 	i := w.foodOn(tile)
 	w.food.owner[i] = owner.ID

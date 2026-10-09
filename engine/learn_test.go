@@ -130,7 +130,7 @@ func TestLearningReadsNoUnseenFood(t *testing.T) {
 				w.food.born = append(w.food.born, w.tick)
 				w.food.owner = append(w.food.owner, noOwner)
 				w.food.foodAt[w.m.index(x, 8)] = int32(len(w.food.foods))
-				w.food.onGround[w.m.RegionAt(x, 8)]++
+				w.foodMoved(w.m.RegionAt(x, 8), 0, +1)
 			}
 		}
 		b := Body{X: 2.5, Y: 2.5, Energy: 30, Heading: -1, Goal: -1, Decided: -1}

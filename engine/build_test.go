@@ -59,7 +59,7 @@ func TestOwnBuild(t *testing.T) {
 		f := Food{X: tile % w.m.Width, Y: tile / w.m.Width}
 		w.food.foods = append(w.food.foods[:len(w.food.foods)-1], f)
 		w.food.foodAt[tile] = int32(len(w.food.foods))
-		w.food.onGround[w.m.Region[tile]]++
+		w.foodMoved(w.m.Region[tile], 0, +1)
 	} else {
 		w.food.foods = w.food.foods[:len(w.food.foods)-1]
 		w.food.born = w.food.born[:len(w.food.born)-1]

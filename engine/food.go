@@ -1,34 +1,72 @@
 package engine
 
+import "fmt"
+
 // Food.
 //
-// Each unit sits on one land tile, at most one per tile. The total is
-// conserved: FoodCap units exist, each either on the ground or vacant, and a
-// vacancy comes back with chance FoodReturn per tick. A region does not make
-// food of its own; it takes its RegionFood share of what comes back. That is
-// what makes the contrast between regions a division of one total rather than
-// new food. On a map with seasons (Map.SeasonFood) the shares are the
-// season's; food on the ground does not move, so it follows the seasons late.
+// Food comes in kinds and pools (stage 9-7b-1, VISION "沸く食料"). A kind
+// (FoodKind) is the label a body sees: the unit the species' tags attach
+// to, what the client draws apart, and the subject of a memory row. A pool
+// (FoodSpec, the "ID" of VISION) is a conservation law of its own: a share
+// of FoodCap of one kind, with a return rate. Two pools may hold the same
+// kind in different places at different rates; one species may eat several
+// kinds. A world with no tables has one kind every species eats and one
+// pool of the whole cap: the world before this stage.
+//
+// A species whose name is not among a kind's tags cannot eat it, and to
+// its bodies the food is not there - not in sight, not remembered, not
+// evidence, not an option (foodFor, own.go): the same shape as another's
+// owned thing. No rule reads the kind otherwise.
+//
+// Each unit sits on one land tile, at most one per tile. Each pool's total
+// is conserved: its cap of units exist, each either on the ground or
+// vacant, and a vacancy comes back with chance Return per tick. A region
+// does not make food of its own; it takes its RegionFood share of what
+// comes back. That is what makes the contrast between regions a division
+// of one total rather than new food. On a map with seasons
+// (Map.SeasonFood) the shares are the season's; food on the ground does
+// not move, so it follows the seasons late.
 //
 // A unit can also be held by a body (Carry): it is then neither on the
 // ground nor vacant. A unit held by a body that dies is lost: it becomes a
-// vacancy.
+// vacancy of its pool.
 //
 // A unit lasts FoodLife ticks from when it appears, on the ground or held
 // (stage 4-4); then it decays and becomes a vacancy. Without it, food on land
 // no body can reach any more would hold the cap there for ever.
 //
 // The ledger (FoodLedger) counts every unit that appears, is eaten or is
-// lost, so that a test can check the total tick by tick.
+// lost, per pool and in all, so that a test can check each total tick by
+// tick.
 
-// Food is one unit of food on a tile.
-type Food struct {
-	X, Y int
+// FoodKind is one kind of food: what a body sees, and who may eat it.
+type FoodKind struct {
+	Name string
+	// Tags names the species that may eat it (SpeciesSpec.Name; "human"
+	// is the name of a world without a table).
+	Tags []string
 }
 
-// FoodLedger is the running account of the food.
-type FoodLedger struct {
-	Cap      int   // FoodCap
+// FoodSpec is one pool of food (VISION's ID): a kind, its share of
+// FoodCap, and its own return rate (zero: FoodReturn).
+type FoodSpec struct {
+	Name   string
+	Kind   int
+	Share  float64
+	Return float64
+}
+
+// Food is one unit of food on a tile, of pool ID.
+type Food struct {
+	X, Y int
+	ID   int `json:",omitempty"`
+}
+
+// PoolLedger is the running account of one pool.
+type PoolLedger struct {
+	Name     string
+	Kind     int
+	Cap      int   // its share of FoodCap, in units
 	OnGround int   // units on the map now
 	Appeared int64 // units that have appeared since the world was built
 	Eaten    int64 // units that have been eaten
@@ -45,11 +83,66 @@ type FoodLedger struct {
 	Decayed int64
 }
 
-// Balanced reports whether the account closes: nothing appeared or vanished
-// except by coming back and being eaten, and the map never held more than the
-// cap.
-func (l FoodLedger) Balanced() bool {
+// Balanced reports whether the pool's account closes.
+func (l PoolLedger) Balanced() bool {
 	return int64(l.OnGround+l.Held) == l.Appeared-l.Eaten-l.Lost-l.Decayed && l.OnGround+l.Held <= l.Cap && l.OnGround >= 0 && l.Held >= 0
+}
+
+// FoodLedger is the running account of the food: the sum of the pools,
+// and each pool.
+type FoodLedger struct {
+	Cap      int   // FoodCap
+	OnGround int   // units on the map now
+	Appeared int64 // units that have appeared since the world was built
+	Eaten    int64 // units that have been eaten
+	// Provisioned counts the units that went straight to a resting mother
+	// (Provision): each appeared and was eaten in the same tick.
+	Provisioned int64
+	// Held is the units bodies hold now (Carry), and Picked and Lost the
+	// units picked up, and held by bodies that died, since the world was
+	// built.
+	Held         int
+	Picked, Lost int64
+	// Decayed counts the units that decayed (FoodLife), on the ground or
+	// held.
+	Decayed int64
+	// Pools is the account of each pool, in the order of Config.Foods.
+	Pools []PoolLedger
+}
+
+// Balanced reports whether the account closes: in every pool nothing
+// appeared or vanished except by coming back and being eaten, and the map
+// never held more than the cap.
+func (l FoodLedger) Balanced() bool {
+	sum := 0
+	for _, p := range l.Pools {
+		if !p.Balanced() {
+			return false
+		}
+		sum += p.Cap
+	}
+	return int64(l.OnGround+l.Held) == l.Appeared-l.Eaten-l.Lost-l.Decayed && l.OnGround+l.Held <= l.Cap && sum == l.Cap
+}
+
+// pool is the state of one pool of food.
+type pool struct {
+	name string
+	kind int
+	cap  int
+	ret  float64
+	// owed is, per region, the fraction of a unit that region has been
+	// promised by the return rate and not yet received. Returning food as
+	// whole units from a running fraction draws nothing from the random
+	// source for how many come back, only for where.
+	owed []float64
+	// onGround is, per region, how many units are on the ground there. It
+	// is all the survival tables read of the food (predict.go).
+	onGround []int
+	// count is the units of the pool on the ground now, held the units
+	// bodies hold; the rest count what has happened since the world was
+	// built.
+	count, held                                         int
+	appeared, eaten, provisioned, picked, lost, decayed int64
 }
 
 // foodState is the world's food. foodAt maps a tile to the index of the unit
@@ -63,40 +156,108 @@ type foodState struct {
 	// born is the tick each unit of foods appeared, in the same order.
 	born []int64
 
-	// owed is, per region, the fraction of a unit that region has been
-	// promised by FoodReturn and not yet received. Returning food as whole
-	// units from a running fraction draws nothing from the random source for
-	// how many come back, only for where.
-	owed []float64
-
-	appeared, eaten, provisioned int64
-	// held is the units bodies hold now; picked and lost count units
-	// picked up and units held by bodies that died (Carry).
-	held                  int
-	picked, lost, decayed int64
+	pools []pool
+	// eats says, per species and pool, whether the species may eat the
+	// pool's kind.
+	eats [][]bool
 
 	// regionLand lists each region's land tiles, which is where its food can
 	// appear.
 	regionLand [][]int
 
-	// onGround is, per region, how many units are on the ground there. It
-	// is all the truth table reads of the food (predict.go).
-	onGround []int
+	scratch []int
+}
+
+// validFood reports whether the food tables can be used with the species.
+func validFood(kinds []FoodKind, pools []FoodSpec) error {
+	if (len(kinds) == 0) != (len(pools) == 0) {
+		return fmt.Errorf("FoodKinds and Foods must both be set or both be empty, got %d kinds and %d pools", len(kinds), len(pools))
+	}
+	seen := map[string]bool{}
+	for _, k := range kinds {
+		if k.Name == "" || seen[k.Name] {
+			return fmt.Errorf("food kinds' names must be set and distinct, got %q", k.Name)
+		}
+		seen[k.Name] = true
+		if len(k.Tags) == 0 {
+			return fmt.Errorf("food kind %s has no species tag", k.Name)
+		}
+	}
+	seen = map[string]bool{}
+	sum := 0.0
+	for _, p := range pools {
+		if p.Name == "" || seen[p.Name] {
+			return fmt.Errorf("food pools' names must be set and distinct, got %q", p.Name)
+		}
+		seen[p.Name] = true
+		if p.Kind < 0 || p.Kind >= len(kinds) {
+			return fmt.Errorf("food pool %s is of kind %d, have %d kinds", p.Name, p.Kind, len(kinds))
+		}
+		if !(p.Share >= 0) || !(p.Return >= 0) {
+			return fmt.Errorf("food pool %s has share %v and return %v", p.Name, p.Share, p.Return)
+		}
+		sum += p.Share
+	}
+	if len(pools) > 0 && !(sum > 0) {
+		return fmt.Errorf("the food pools' shares sum to %v", sum)
+	}
+	return nil
 }
 
 func (w *World) initFood() {
 	f := &w.food
 	f.foodAt = make([]int32, len(w.m.Terrain))
-	f.owed = make([]float64, len(w.m.RegionFood))
 	f.regionLand = make([][]int, len(w.m.RegionFood))
-	f.onGround = make([]int, len(w.m.RegionFood))
 	for i, t := range w.m.Terrain {
 		if t == TerrainLand {
 			r := w.m.Region[i]
 			f.regionLand[r] = append(f.regionLand[r], i)
 		}
 	}
+	kinds, specs := w.cfg.FoodKinds, w.cfg.Foods
+	if len(specs) == 0 {
+		// One kind every species eats, one pool of the whole cap.
+		kinds = []FoodKind{{Name: "food"}}
+		specs = []FoodSpec{{Name: "food", Share: 1}}
+	}
+	sum := 0.0
+	for _, s := range specs {
+		sum += s.Share
+	}
+	// Caps are the shares of FoodCap, rounded so that they add up to it.
+	given, cum := 0, 0.0
+	f.pools = make([]pool, len(specs))
+	for i, s := range specs {
+		cum += s.Share / sum
+		cap := int(cum*float64(w.cfg.FoodCap)+0.5) - given
+		given += cap
+		f.pools[i] = pool{name: s.Name, kind: s.Kind, cap: cap, ret: s.Return,
+			owed: make([]float64, len(w.m.RegionFood)), onGround: make([]int, len(w.m.RegionFood))}
+		if f.pools[i].ret == 0 {
+			f.pools[i].ret = w.cfg.FoodReturn
+		}
+	}
+	f.eats = make([][]bool, w.SpeciesCount())
+	for s := range f.eats {
+		f.eats[s] = make([]bool, len(specs))
+		for p, spec := range specs {
+			f.eats[s][p] = len(w.cfg.Foods) == 0 || tagged(kinds[spec.Kind].Tags, w.SpeciesName(s))
+		}
+	}
 }
+
+// tagged reports whether name is among tags.
+func tagged(tags []string, name string) bool {
+	for _, t := range tags {
+		if t == name {
+			return true
+		}
+	}
+	return false
+}
+
+// eats reports whether body b may eat the food of pool p.
+func (w *World) eats(b *Body, p int) bool { return w.food.eats[b.Species][p] }
 
 // shareSum is the sum of the shares, now, of the regions with land.
 func (w *World) shareSum(shares []float64) float64 {
@@ -109,12 +270,14 @@ func (w *World) shareSum(shares []float64) float64 {
 	return sum
 }
 
-// fillFood puts the whole cap on the map, each unit in a region drawn by
-// share. It is how a world starts.
+// fillFood puts every pool's whole cap on the map, each unit in a region
+// drawn by share. It is how a world starts.
 func (w *World) fillFood() {
-	for len(w.food.foods) < w.cfg.FoodCap {
-		if !w.placeFood(w.drawRegion()) {
-			return
+	for p := range w.food.pools {
+		for w.food.pools[p].count < w.food.pools[p].cap {
+			if !w.placeFood(w.drawRegion(), p) {
+				break
+			}
 		}
 	}
 }
@@ -138,10 +301,10 @@ func (w *World) drawRegion() RegionID {
 	return last
 }
 
-// placeFood puts one unit on a free land tile of region r. A region whose
-// tiles are all taken gives up after a few tries; the unit stays vacant and
-// is owed again next tick.
-func (w *World) placeFood(r RegionID) bool {
+// placeFood puts one unit of pool p on a free land tile of region r. A
+// region whose tiles are all taken gives up after a few tries; the unit
+// stays vacant and is owed again next tick.
+func (w *World) placeFood(r RegionID, p int) bool {
 	f := &w.food
 	land := f.regionLand[r]
 	if len(land) == 0 {
@@ -153,49 +316,59 @@ func (w *World) placeFood(r RegionID) bool {
 		if f.foodAt[t] != 0 {
 			continue
 		}
-		f.foods = append(f.foods, Food{X: t % w.m.Width, Y: t / w.m.Width})
+		f.foods = append(f.foods, Food{X: t % w.m.Width, Y: t / w.m.Width, ID: p})
 		f.born = append(f.born, w.tick)
 		f.owner = append(f.owner, noOwner)
 		f.foodAt[t] = int32(len(f.foods))
-		f.appeared++
-		w.foodMoved(r, +1)
+		f.pools[p].appeared++
+		w.foodMoved(r, p, +1)
 		return true
 	}
 	return false
 }
 
-// returnFood brings vacancies back. Each region is owed its share of
-// FoodReturn times the vacancies at the start of the tick, and receives whole
-// units as the debt passes one. Regions are served in ID order, so when the
-// cap is reached mid-tick the lower IDs are the ones served; the debt of the
-// others carries over.
+// returnFood brings vacancies back, pool by pool. Each region is owed its
+// share of the pool's return rate times the pool's vacancies at the start
+// of the tick, and receives whole units as the debt passes one. Regions
+// are served in ID order, so when the cap is reached mid-tick the lower
+// IDs are the ones served; the debt of the others carries over.
 func (w *World) returnFood() {
 	f := &w.food
-	vacant := w.cfg.FoodCap - len(f.foods) - f.held
 	shares := w.m.FoodShares(w.tick)
 	sum := w.shareSum(shares)
-	if vacant <= 0 || sum == 0 {
+	if sum == 0 {
 		return
 	}
-	w.askProvision()
+	asked := false
 	var resting [][]int // per region, the indices of the mothers resting there
-	for r, s := range shares {
-		if len(f.regionLand[r]) == 0 || s == 0 {
+	for p := range f.pools {
+		pl := &f.pools[p]
+		vacant := pl.cap - pl.count - pl.held
+		if vacant <= 0 {
 			continue
 		}
-		f.owed[r] += w.cfg.FoodReturn * float64(vacant) * s / sum
-		for f.owed[r] >= 1 && len(f.foods)+f.held < w.cfg.FoodCap {
-			if resting == nil {
-				resting = w.restingMothers()
-			}
-			if w.provision(RegionID(r), &resting[r]) {
-				f.owed[r]--
+		if !asked {
+			w.askProvision()
+			asked = true
+		}
+		for r, s := range shares {
+			if len(f.regionLand[r]) == 0 || s == 0 {
 				continue
 			}
-			if !w.placeFood(RegionID(r)) {
-				break
+			pl.owed[r] += pl.ret * float64(vacant) * s / sum
+			for pl.owed[r] >= 1 && pl.count+pl.held < pl.cap {
+				if resting == nil {
+					resting = w.restingMothers()
+				}
+				if w.provision(RegionID(r), p, &resting[r]) {
+					pl.owed[r]--
+					continue
+				}
+				if !w.placeFood(RegionID(r), p) {
+					break
+				}
+				pl.owed[r]--
 			}
-			f.owed[r]--
 		}
 	}
 }
@@ -218,17 +391,24 @@ func (w *World) restingMothers() [][]int {
 	return out
 }
 
-// provision gives a unit returning to region r to one of the mothers
-// resting there (the indices in mothers), drawn at random, with chance
-// ProvisionWith if the father of her last child stands in r now and
-// ProvisionAlone if not. It reports whether it did: the unit then appeared
-// and was eaten at once, and never lay on the ground.
-func (w *World) provision(r RegionID, list *[]int) bool {
+// provision gives a unit of pool p returning to region r to one of the
+// mothers resting there (the indices in list) who may eat it, drawn at
+// random, with chance ProvisionWith if the father of her last child stands
+// in r now and ProvisionAlone if not. It reports whether it did: the unit
+// then appeared and was eaten at once, and never lay on the ground.
+func (w *World) provision(r RegionID, p int, list *[]int) bool {
 	mothers := *list
-	if len(mothers) == 0 {
+	able := w.food.scratch[:0]
+	for j, i := range mothers {
+		if w.eats(&w.bodies[i], p) {
+			able = append(able, j)
+		}
+	}
+	w.food.scratch = able
+	if len(able) == 0 {
 		return false
 	}
-	k := w.rng.Intn(len(mothers))
+	k := able[w.rng.Intn(len(able))]
 	m := &w.bodies[mothers[k]]
 	if w.cfg.ProvisionEach {
 		// She asked: the unit is hers. Once she has no asks left she
@@ -239,18 +419,18 @@ func (w *World) provision(r RegionID, list *[]int) bool {
 			*list = mothers[:len(mothers)-1]
 		}
 	} else {
-		p := w.cfg.ProvisionAlone
+		prob := w.cfg.ProvisionAlone
 		if w.partnerNear(m, r) {
-			p = w.cfg.ProvisionWith
+			prob = w.cfg.ProvisionWith
 		}
-		if w.rng.Float64() >= p {
+		if w.rng.Float64() >= prob {
 			return false
 		}
 	}
 	m.Energy = min(m.Energy+w.cfg.FoodEnergy, w.maxOf(m))
-	w.food.appeared++
-	w.food.eaten++
-	w.food.provisioned++
+	w.food.pools[p].appeared++
+	w.food.pools[p].eaten++
+	w.food.pools[p].provisioned++
 	w.provisioned(r)
 	return true
 }
@@ -267,19 +447,21 @@ func (w *World) foodOn(t int) int {
 // eatFood removes unit i, eaten. The last unit moves into its slot, so
 // indices are not stable across an eat.
 func (w *World) eatFood(i int) {
+	p := w.food.foods[i].ID
 	w.liftFood(i)
-	w.food.eaten++
+	w.food.pools[p].eaten++
 }
 
 // takeFood lifts unit i off the ground into body b's hold (Carry). The
-// unit keeps the tick it appeared.
+// unit keeps the tick it appeared and its pool.
 func (w *World) takeFood(i int, b *Body) {
-	born := w.food.born[i]
+	born, p := w.food.born[i], w.food.foods[i].ID
 	w.liftFood(i)
-	w.food.held++
-	w.food.picked++
+	w.food.pools[p].held++
+	w.food.pools[p].picked++
 	b.Held++
 	b.HeldBorn = append(b.HeldBorn, born)
+	b.HeldPool = append(b.HeldPool, p)
 }
 
 // eatHeld has body b eat the units it holds while a whole meal fits; it
@@ -287,26 +469,37 @@ func (w *World) takeFood(i int, b *Body) {
 // is lost, which is when its valuation reads it.
 func (w *World) eatHeld(b *Body) {
 	for b.Held > 0 && b.Energy <= w.maxOf(b)-w.cfg.FoodEnergy {
-		b.Held--
-		b.HeldBorn = dropOldest(b.HeldBorn)
+		p := w.dropHeld(b)
 		b.Energy += w.cfg.FoodEnergy
-		w.food.held--
-		w.food.eaten++
+		w.food.pools[p].held--
+		w.food.pools[p].eaten++
 		w.stats.EatenHeld++
 	}
 }
 
+// dropHeld takes the oldest unit out of body b's hold and returns its
+// pool: a body eats the oldest first.
+func (w *World) dropHeld(b *Body) int {
+	p := b.HeldPool[0]
+	b.Held--
+	b.HeldBorn = dropOldest(b.HeldBorn)
+	b.HeldPool = append(b.HeldPool[:0], b.HeldPool[1:]...)
+	return p
+}
+
 // loseHeld drops what a dead body held out of the world: the units become
-// vacancies (Carry).
+// vacancies of their pools (Carry).
 func (w *World) loseHeld(b *Body) {
-	w.food.held -= b.Held
-	w.food.lost += int64(b.Held)
+	for _, p := range b.HeldPool {
+		w.food.pools[p].held--
+		w.food.pools[p].lost++
+	}
 	b.Held = 0
-	b.HeldBorn = nil
+	b.HeldBorn, b.HeldPool = nil, nil
 }
 
 // dropOldest removes the first (oldest) of the ticks a body's held units
-// appeared: a body eats the oldest first.
+// appeared.
 func dropOldest(born []int64) []int64 {
 	if len(born) == 0 {
 		return born
@@ -334,8 +527,9 @@ func (w *World) decayFood() {
 			e = endKept
 		}
 		if f.born[i] <= e {
+			p := f.foods[i].ID
 			w.liftFood(i) // the last unit moves into slot i: look at it next
-			f.decayed++
+			f.pools[p].decayed++
 			continue
 		}
 		i++
@@ -343,10 +537,9 @@ func (w *World) decayFood() {
 	for i := range w.bodies {
 		b := &w.bodies[i]
 		for len(b.HeldBorn) > 0 && b.HeldBorn[0] <= end {
-			b.HeldBorn = dropOldest(b.HeldBorn)
-			b.Held--
-			f.held--
-			f.decayed++
+			p := w.dropHeld(b)
+			f.pools[p].held--
+			f.pools[p].decayed++
 		}
 	}
 }
@@ -367,30 +560,71 @@ func (w *World) liftFood(i int) {
 	f.foods = f.foods[:last]
 	f.born = f.born[:last]
 	f.owner = f.owner[:last]
-	w.foodMoved(w.m.RegionAt(gone.X, gone.Y), -1)
+	w.foodMoved(w.m.RegionAt(gone.X, gone.Y), gone.ID, -1)
 }
 
-// foodMoved keeps the count of region r's food on the ground, and the
-// prediction that reads it, up to date.
-func (w *World) foodMoved(r RegionID, d int) {
-	w.food.onGround[r] += d
+// foodMoved keeps the count of pool p's food on region r's ground, and
+// the prediction that reads it, up to date.
+func (w *World) foodMoved(r RegionID, p int, d int) {
+	w.food.pools[p].onGround[r] += d
+	w.food.pools[p].count += d
 	w.refreshRegion(r)
 }
 
+// groundFood is the units on region r's ground that body b may eat: the
+// food as its survival tables read it.
+func (w *World) groundFood(b *Body, r RegionID) int {
+	n := 0
+	for p := range w.food.pools {
+		if w.eats(b, p) {
+			n += w.food.pools[p].onGround[r]
+		}
+	}
+	return n
+}
+
+// allGroundFood is the units on region r's ground, of every pool.
+func (w *World) allGroundFood(r RegionID) int {
+	n := 0
+	for p := range w.food.pools {
+		n += w.food.pools[p].onGround[r]
+	}
+	return n
+}
+
+// GroundFoodOf returns the units on the ground now that species s may
+// eat, over the whole map.
+func (w *World) GroundFoodOf(s int) int {
+	n := 0
+	for p := range w.food.pools {
+		if w.food.eats[s][p] {
+			n += w.food.pools[p].count
+		}
+	}
+	return n
+}
+
+// KindOf returns the kind of food unit f, for drawing.
+func (w *World) KindOf(f Food) int { return w.food.pools[f.ID].kind }
+
 // FoodLedger returns the food account.
 func (w *World) FoodLedger() FoodLedger {
-	return FoodLedger{
-		Cap:      w.cfg.FoodCap,
-		OnGround: len(w.food.foods),
-		Appeared: w.food.appeared,
-		Eaten:    w.food.eaten,
-
-		Provisioned: w.food.provisioned,
-		Held:        w.food.held,
-		Picked:      w.food.picked,
-		Lost:        w.food.lost,
-		Decayed:     w.food.decayed,
+	var l FoodLedger
+	for _, p := range w.food.pools {
+		pl := PoolLedger{Name: p.name, Kind: p.kind, Cap: p.cap, OnGround: p.count, Appeared: p.appeared, Eaten: p.eaten,
+			Provisioned: p.provisioned, Held: p.held, Picked: p.picked, Lost: p.lost, Decayed: p.decayed}
+		l.Pools = append(l.Pools, pl)
+		l.Cap += pl.Cap
+		l.OnGround += pl.OnGround
+		l.Appeared += pl.Appeared
+		l.Eaten += pl.Eaten
+		l.Provisioned += pl.Provisioned
+		l.Held += pl.Held
+		l.Picked += pl.Picked
+		l.Lost += pl.Lost
+		l.Decayed += pl.Decayed
 	}
+	return l
 }
 
 // Foods returns a copy of the food on the map.

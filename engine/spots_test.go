@@ -19,8 +19,8 @@ func place(w *World, x, y int) {
 	w.food.born = append(w.food.born, w.tick)
 	w.food.owner = append(w.food.owner, noOwner)
 	w.food.foodAt[t] = int32(len(w.food.foods))
-	w.food.appeared++
-	w.foodMoved(w.m.Region[t], +1)
+	w.food.pools[0].appeared++
+	w.foodMoved(w.m.Region[t], 0, +1)
 }
 
 // A body remembers the food it sees and forgets a tile it sees empty; the

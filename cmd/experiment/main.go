@@ -83,14 +83,17 @@ type result struct {
 	speciesNames  []string
 	speciesGone   []float64
 	speciesBudget []float64
-	series        []int32   // bodies at every tick from 0, up to the tick the seed stopped
-	food          []float64 // food on the ground at the same ticks
-	surviving     []bool    // whether the seed was above the floor at the same ticks
-	fellAt        int       // first tick at or below the floor, -1 if never
-	starved       float64
-	sleepless     float64
-	asleep        float64 // body-ticks asleep over all body-ticks
-	sheltered     float64 // sleeps begun on a place to rest over all sleeps begun
+	// speciesFood is the mean, over the samples of the adults, of the
+	// food on the ground each species may eat (stage 9-7b-1).
+	speciesFood []float64
+	series      []int32   // bodies at every tick from 0, up to the tick the seed stopped
+	food        []float64 // food on the ground at the same ticks
+	surviving   []bool    // whether the seed was above the floor at the same ticks
+	fellAt      int       // first tick at or below the floor, -1 if never
+	starved     float64
+	sleepless   float64
+	asleep      float64 // body-ticks asleep over all body-ticks
+	sheltered   float64 // sleeps begun on a place to rest over all sleeps begun
 	// places built, sleeps begun on them after the building, and those by
 	// their builders (stage 8-1)
 	built, builtSleeps, returns float64
@@ -343,6 +346,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	var uSum, uN float64
 	var vLow, vHigh, vN float64
 	spBudget, spN := make([]float64, species), make([]float64, species)
+	spFood, spFoodN := make([]float64, species), 0.0
 	var st5 engine.Stats           // the counts as of tick 5000
 	budgets := map[int64]float64{} // every body seen, for its children
 	var cN, cX, cY, cXX, cYY, cXY float64
@@ -439,6 +443,10 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 			sizeLow, sizeHigh, budget := 0.0, 0.0, 0.0
 			unk := 0.0
 			boldLow, boldHigh := 0.0, 0.0
+			for k := 0; k < species; k++ {
+				spFood[k] += float64(w.GroundFoodOf(k))
+			}
+			spFoodN++
 			for _, b := range bs {
 				if w.Tick() >= b.Mature {
 					bySex[b.Sex]++
@@ -571,9 +579,14 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.sizeLow, r.sizeHigh = zLow/math.Max(zN, 1), zHigh/math.Max(zN, 1)
 	r.boldLow, r.boldHigh = vLow/math.Max(vN, 1), vHigh/math.Max(vN, 1)
 	r.speciesGone, r.speciesBudget = make([]float64, species), make([]float64, species)
+	r.speciesFood = make([]float64, species)
 	for k := 0; k < species; k++ {
 		if r.speciesPop[k][len(r.speciesPop[k])-1] == 0 {
 			r.speciesGone[k] = 1
+		}
+		r.speciesFood[k] = math.NaN()
+		if spFoodN > 0 {
+			r.speciesFood[k] = spFood[k] / spFoodN
 		}
 		r.speciesBudget[k] = math.NaN()
 		if spN[k] > 0 {
@@ -930,23 +943,38 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		}
 	}
 	aliveAt := func(i int) func(result) bool { return func(r result) bool { return r.surviving[i] } }
-	p("### 3. 人口推移（%s・生存しているシードの平均）\n\n", base)
-	p("| tick | 人口（全体） | 人間 | 獣 | 鳥 | 魚 | 生存シード数 |\n| --- | --- | --- | --- | --- | --- | --- |\n")
-	popCfg, _ := variant.Config(base, o.seed0)
-	speciesCol := func(name string, i int) string {
-		for k, s := range popCfg.Species {
-			if s.Name == name {
-				return fmtMeanSE(collectWhere(rs, aliveAt(i), func(r result) float64 { return r.speciesPop[k][i] }), 1)
+	for _, v := range o.variants {
+		rs := results[v]
+		p("### 3. 人口推移（%s・生存しているシードの平均）\n\n", v)
+		p("| tick | 人口（全体） | 人間 | 獣 | 鳥 | 魚 | 生存シード数 |\n| --- | --- | --- | --- | --- | --- | --- |\n")
+		popCfg, _ := variant.Config(v, o.seed0)
+		speciesCol := func(name string, i int) string {
+			for k, s := range popCfg.Species {
+				if s.Name == name {
+					return fmtMeanSE(collectWhere(rs, aliveAt(i), func(r result) float64 { return r.speciesPop[k][i] }), 1)
+				}
+			}
+			if name == "human" && len(popCfg.Species) <= 1 {
+				return fmtMeanSE(collectWhere(rs, aliveAt(i), func(r result) float64 { return r.pop[i] }), 1)
+			}
+			return ""
+		}
+		vrows := 0
+		for i := range rs[0].pop {
+			for _, r := range rs {
+				if r.surviving[i] {
+					vrows = i + 1
+					break
+				}
 			}
 		}
-		if name == "human" && len(popCfg.Species) <= 1 {
-			return fmtMeanSE(collectWhere(rs, aliveAt(i), func(r result) float64 { return r.pop[i] }), 1)
+		for i := 0; i < vrows; i++ {
+			xs := collectWhere(rs, aliveAt(i), func(r result) float64 { return r.pop[i] })
+			p("| %d | %s | %s | %s | %s | %s | %d / %d |\n", i*every, fmtMeanSE(xs, 1), speciesCol("human", i), speciesCol("beast", i), speciesCol("bird", i), speciesCol("fish", i), len(xs), len(rs))
 		}
-		return ""
-	}
-	for i := 0; i < rows; i++ {
-		xs := collectWhere(rs, aliveAt(i), func(r result) float64 { return r.pop[i] })
-		p("| %d | %s | %s | %s | %s | %s | %d / %d |\n", i*every, fmtMeanSE(xs, 1), speciesCol("human", i), speciesCol("beast", i), speciesCol("bird", i), speciesCol("fish", i), len(xs), len(rs))
+		if v != base {
+			p("\n")
+		}
 	}
 	if rows < len(rs[0].pop) {
 		p("\n%d tick 以降は全シードが崩壊の下限（%d）を割ったので省略。\n", rows*every, o.floor)
@@ -1166,6 +1194,8 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"獣が絶滅したシードの割合", 4, speciesAt("beast", func(r result, k int) float64 { return r.speciesGone[k] })},
 		{"人間の成人の平均予算", 4, speciesAt("human", func(r result, k int) float64 { return r.speciesBudget[k] })},
 		{"獣の成人の平均予算", 4, speciesAt("beast", func(r result, k int) float64 { return r.speciesBudget[k] })},
+		{"人間の食料（地面）", 1, speciesAt("human", func(r result, k int) float64 { return r.speciesFood[k] })},
+		{"獣の食料（地面）", 1, speciesAt("beast", func(r result, k int) float64 { return r.speciesFood[k] })},
 		{"崩壊したシードの割合", 4, func(r result) float64 {
 			if r.fellAt > 0 {
 				return 1

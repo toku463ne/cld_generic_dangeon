@@ -23,10 +23,11 @@ func (w *World) mayTake(b *Body, owner int64) bool {
 }
 
 // foodFor returns the index of the unit on tile t that body b may take,
-// or -1: the food as b perceives it.
+// or -1: the food as b perceives it. A unit of a kind its species does
+// not eat (food.go) is not there to it, as another's owned thing is not.
 func (w *World) foodFor(b *Body, t int) int {
 	i := w.foodOn(t)
-	if i < 0 || !w.mayTake(b, w.food.owner[i]) {
+	if i < 0 || !w.mayTake(b, w.food.owner[i]) || !w.eats(b, w.food.foods[i].ID) {
 		return -1
 	}
 	return i

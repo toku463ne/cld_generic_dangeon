@@ -119,8 +119,11 @@ var regionColors = []color.RGBA{
 }
 
 var (
-	waterColor  = color.RGBA{0x4a, 0x78, 0xb0, 0xff}
-	foodColor   = color.RGBA{0xe0, 0x50, 0x40, 0xff}
+	waterColor = color.RGBA{0x4a, 0x78, 0xb0, 0xff}
+	foodColor  = color.RGBA{0xe0, 0x50, 0x40, 0xff}
+	// foodColors is one colour per kind of food (stage 9-7b-1): the
+	// first kind is foodColor; the client tells kinds apart, as bodies do.
+	foodColors  = []color.RGBA{foodColor, {0xe0, 0xb0, 0x30, 0xff}, {0x60, 0xc0, 0x60, 0xff}, {0xc0, 0x70, 0xe0, 0xff}}
 	trailColor  = color.RGBA{0x30, 0x30, 0x30, 0xff}
 	followColor = color.RGBA{0xff, 0xd0, 0x20, 0xff}
 	panelColor  = color.RGBA{0x18, 0x18, 0x20, 0xff}
@@ -365,7 +368,7 @@ func (v *View) Render(dst *image.RGBA) {
 		}
 	}
 	for _, f := range v.W.Foods() {
-		fillRect(dst, f.X*v.scale+v.scale/4, f.Y*v.scale+v.scale/4, v.scale/2, v.scale/2, foodColor)
+		fillRect(dst, f.X*v.scale+v.scale/4, f.Y*v.scale+v.scale/4, v.scale/2, v.scale/2, foodColors[v.W.KindOf(f)%len(foodColors)])
 	}
 
 	fb, following := v.followed()

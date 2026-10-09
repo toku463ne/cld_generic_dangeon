@@ -118,7 +118,7 @@ func TestSettleWork(t *testing.T) {
 		w.food.born = append(w.food.born, w.tick)
 		w.food.owner = append(w.food.owner, noOwner)
 		w.food.foodAt[ft] = int32(len(w.food.foods))
-		w.food.onGround[w.m.Region[ft]]++
+		w.foodMoved(w.m.Region[ft], 0, +1)
 	}
 	for i := 0; i < 20 && w.tileOf(b.X, b.Y) != ft; i++ {
 		a := w.work(b)

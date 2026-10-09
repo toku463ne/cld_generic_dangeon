@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bytes"
 	"math"
 	"testing"
 )
@@ -132,7 +133,7 @@ func TestFoodFollowsSeasons(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := w.food.onGround[1]; got != 0 {
+	if got := w.allGroundFood(1); got != 0 {
 		t.Fatalf("season 0 started with %d food in region 1, which has no share then", got)
 	}
 	// In season 1 food eaten comes back to region 1 only.
@@ -144,8 +145,8 @@ func TestFoodFollowsSeasons(t *testing.T) {
 		w.Step()
 		checkFood(t, w)
 	}
-	if w.food.onGround[1] != 30 || w.food.onGround[0] != 70 {
-		t.Fatalf("season 1: region 0 %d, region 1 %d, want 70 and 30", w.food.onGround[0], w.food.onGround[1])
+	if w.allGroundFood(1) != 30 || w.allGroundFood(0) != 70 {
+		t.Fatalf("season 1: region 0 %d, region 1 %d, want 70 and 30", w.allGroundFood(0), w.allGroundFood(1))
 	}
 	if s := m.Season(399); s != 1 {
 		t.Fatalf("season at tick 399 is %d, want 1", s)
@@ -306,8 +307,8 @@ func TestFoodDecays(t *testing.T) {
 	w.food.born = append(w.food.born, w.tick+5) // appears five ticks later
 	w.food.owner = append(w.food.owner, noOwner)
 	w.food.foodAt[tile] = int32(len(w.food.foods))
-	w.food.appeared++
-	w.foodMoved(w.m.Region[tile], +1)
+	w.food.pools[0].appeared++
+	w.foodMoved(w.m.Region[tile], 0, +1)
 	w.tick = 9
 	w.decayFood()
 	if l := w.FoodLedger(); l.Decayed != 0 || l.OnGround != 1 || l.Held != 1 {
@@ -373,8 +374,8 @@ func TestShelterFoodLife(t *testing.T) {
 		w.food.born = append(w.food.born, 0)
 		w.food.owner = append(w.food.owner, noOwner)
 		w.food.foodAt[tile] = int32(len(w.food.foods))
-		w.food.appeared++
-		w.foodMoved(w.m.Region[tile], +1)
+		w.food.pools[0].appeared++
+		w.foodMoved(w.m.Region[tile], 0, +1)
 	}
 	w.tick = 10
 	w.decayFood()
@@ -396,8 +397,8 @@ func TestShelterFoodLife(t *testing.T) {
 	w.food.born = append(w.food.born, 15)
 	w.food.owner = append(w.food.owner, noOwner)
 	w.food.foodAt[kept] = int32(len(w.food.foods))
-	w.food.appeared++
-	w.foodMoved(w.m.Region[kept], +1)
+	w.food.pools[0].appeared++
+	w.foodMoved(w.m.Region[kept], 0, +1)
 	w.decayFood()
 	if w.foodOn(kept) < 0 {
 		t.Fatal("decayed on the place before its longer life")
@@ -422,6 +423,150 @@ func TestUnkeptIsStage82b3(t *testing.T) {
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.ShelterFoodLife = 0
+	w, err := NewWorld(cfg, tempMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
+// Food comes in kinds, each tagged with the species that may eat it, and
+// pools, each a share of FoodCap with a ledger of its own (stage 9-7b-1).
+// To a body of a species without the tag a unit is not there: not in
+// sight, not an option, not evidence; and a resting mother is provisioned
+// only from a pool she may eat. The world's defaults split the cap into a
+// human pool and a beast pool.
+func TestFoodKinds(t *testing.T) {
+	cfg := testConfig(3)
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	l := w.FoodLedger()
+	if len(l.Pools) != 2 || l.Pools[0].Cap != 15 || l.Pools[1].Cap != 15 || l.Cap != 30 || l.OnGround != 30 {
+		t.Fatalf("pools at the start: %+v", l)
+	}
+	if w.food.eats[0][1] || w.food.eats[1][0] || !w.food.eats[0][0] || !w.food.eats[1][1] {
+		t.Fatalf("who eats what: %v", w.food.eats)
+	}
+	// A human standing on beast food sees nothing to eat, and the other
+	// way round; the survival table reads only the food it may eat.
+	for species := 0; species < 2; species++ {
+		for i, f := range w.food.foods {
+			b := Body{X: float64(f.X) + 0.5, Y: float64(f.Y) + 0.5, Energy: 50, Species: species}
+			tile := w.m.index(f.X, f.Y)
+			got := w.foodFor(&b, tile)
+			if want := map[bool]int{true: i, false: -1}[f.ID == species]; got != want {
+				t.Fatalf("species %d on unit %d of pool %d: foodFor %d, want %d", species, i, f.ID, got, want)
+			}
+			eat := false
+			for _, a := range w.possibleActions(nil, &b) {
+				eat = eat || a.Kind == ActEat
+			}
+			if eat != (f.ID == species) {
+				t.Fatalf("species %d on unit of pool %d: eat among the options %v", species, f.ID, eat)
+			}
+			if n := len(w.inSight(nil, &b)); n == 0 && f.ID == species {
+				t.Fatalf("species %d sees no food standing on its own", species)
+			}
+			if r := w.m.Region[tile]; w.groundFood(&b, r) != w.food.pools[species].onGround[r] {
+				t.Fatalf("species %d counts %d units in region %d, pool has %d", species, w.groundFood(&b, r), r, w.food.pools[species].onGround[r])
+			}
+		}
+	}
+	// Each pool's ledger closes tick by tick, and no unit is ever eaten
+	// by the other species.
+	for i := 0; i < 3000; i++ {
+		w.Step()
+		checkFood(t, w)
+		for _, b := range w.bodies {
+			for _, p := range b.HeldPool {
+				if p != b.Species {
+					t.Fatalf("tick %d: body of species %d holds a unit of pool %d", w.Tick(), b.Species, p)
+				}
+			}
+		}
+	}
+	l = w.FoodLedger()
+	if l.Pools[0].Eaten == 0 || l.Pools[1].Eaten == 0 {
+		t.Fatalf("a pool was never eaten from: %+v", l.Pools)
+	}
+	if l.Pools[0].Appeared+l.Pools[1].Appeared != l.Appeared {
+		t.Fatalf("the sum of the pools is not the total: %+v", l)
+	}
+	// Saved and loaded, a world of two pools runs on unchanged.
+	var buf bytes.Buffer
+	if err := w.Save(&buf); err != nil {
+		t.Fatal(err)
+	}
+	w2, err := Load(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 300)
+	run(w2, 300)
+	if w.Fingerprint() != w2.Fingerprint() || w.Draws() != w2.Draws() {
+		t.Fatalf("loaded world diverged: %x/%d vs %x/%d", w2.Fingerprint(), w2.Draws(), w.Fingerprint(), w.Draws())
+	}
+	// With no beasts, the beast pool is never touched: not eaten, not
+	// provisioned, not picked; only decay moves it.
+	cfg = testConfig(4)
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
+	cfg.Species = cfg.Species[:1]
+	w, err = NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 3000)
+	checkFood(t, w)
+	if p := w.FoodLedger().Pools[1]; p.Eaten != 0 || p.Provisioned != 0 || p.Picked != 0 || p.Decayed == 0 {
+		t.Fatalf("the beast pool with no beasts: %+v", p)
+	}
+	if p := w.FoodLedger().Pools[0]; p.Eaten == 0 {
+		t.Fatalf("the human pool with humans: %+v", p)
+	}
+	// A pool's own return rate; and bad tables are refused.
+	cfg = testConfig(5)
+	cfg.FoodKinds = []FoodKind{{Name: "food", Tags: []string{"human", "beast"}}}
+	cfg.Foods = []FoodSpec{{Name: "slow", Share: 0.5, Return: 0.0005}, {Name: "fast", Share: 0.5, Return: 0.02}}
+	w, err = NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 3000)
+	checkFood(t, w)
+	if ps := w.FoodLedger().Pools; ps[1].Appeared-int64(ps[1].Cap) <= 2*(ps[0].Appeared-int64(ps[0].Cap)) {
+		t.Fatalf("the fast pool did not return faster: %+v", ps)
+	}
+	for _, bad := range []struct {
+		kinds []FoodKind
+		pools []FoodSpec
+	}{
+		{nil, []FoodSpec{{Name: "a", Share: 1}}},
+		{[]FoodKind{{Name: "a", Tags: []string{"human"}}}, nil},
+		{[]FoodKind{{Name: "a"}}, []FoodSpec{{Name: "a", Share: 1}}},
+		{[]FoodKind{{Name: "a", Tags: []string{"human"}}}, []FoodSpec{{Name: "a", Kind: 1, Share: 1}}},
+		{[]FoodKind{{Name: "a", Tags: []string{"human"}}}, []FoodSpec{{Name: "a", Share: 0}}},
+		{[]FoodKind{{Name: "a", Tags: []string{"human"}}}, []FoodSpec{{Name: "a", Share: 1}, {Name: "a", Share: 1}}},
+	} {
+		cfg := testConfig(1)
+		cfg.FoodKinds, cfg.Foods = bad.kinds, bad.pools
+		if _, err := NewWorld(cfg, testMap()); err == nil {
+			t.Fatalf("tables %+v / %+v were accepted", bad.kinds, bad.pools)
+		}
+	}
+}
+
+// With the default tables (a human pool and a beast pool) the world is
+// stage 9-7b-1: its fingerprint is pinned here.
+func TestPooledIsStage97b1(t *testing.T) {
+	const want = uint64(0x34ebb57daf5b89e8)
+	cfg := testConfig(1)
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
 		t.Fatal(err)
