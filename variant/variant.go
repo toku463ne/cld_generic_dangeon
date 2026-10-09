@@ -50,6 +50,17 @@ const Twin = "twin"
 // Open is stage 9-7b-2a: a settlement admits bodies of every species.
 const Open = "open"
 
+// Roomy gives the two species, each in its own regions, the food one
+// species had alone: twice the cap, so each pool is 300 (stage 9-7b-2;
+// on 150 each, the world settles under the collapse floor however it is
+// cut). Roomytogether lays the pools over each other on that cap (stage
+// 9-7b-1's ample), and Roomyopen opens the settlements on it.
+const (
+	Roomy         = "roomy"
+	Roomytogether = "roomytogether"
+	Roomyopen     = "roomyopen"
+)
+
 // Together is stage 9-7b-1: every pool of food comes back by the map's
 // region shares, so the species' pools lie over each other instead of
 // each in its own regions.
@@ -397,8 +408,17 @@ var rewrites = map[string]func(*engine.Config){
 	Shared:     shared,
 	Together:   func(c *engine.Config) { c.PoolPlaces = false },
 	Open:       func(c *engine.Config) { c.ClosedPlaces = false },
-	Single:     single,
-	Halffed:    func(c *engine.Config) { single(c); c.FoodCap /= 2; c.Bodies /= 2 },
+	Roomy:      func(c *engine.Config) { c.FoodCap *= 2 },
+	Roomytogether: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.PoolPlaces = false
+	},
+	Roomyopen: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.ClosedPlaces = false
+	},
+	Single:  single,
+	Halffed: func(c *engine.Config) { single(c); c.FoodCap /= 2; c.Bodies /= 2 },
 	Twin: func(c *engine.Config) {
 		c.Species = append([]engine.SpeciesSpec(nil), c.Species...)
 		for i := range c.Species {
