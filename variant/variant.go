@@ -36,17 +36,13 @@ const (
 
 // Single is stage 9-6a: one species, the config's table cut to its first
 // row (no beasts, and no draw of a species), and one kind of food in one
-// pool.
+// pool of half the cap - the 300 units of the world before stage 9-7b-1,
+// which is what one species' pool holds now.
 const Single = "single"
 
 // Shared is stage 9-7a: two species, one kind of food in one pool that
 // both eat.
 const Shared = "shared"
-
-// Ample is stage 9-7b-1 with twice the food cap: each species' pool holds
-// what the one species of Single had, so the world is not smaller for
-// either species, only shared.
-const Ample = "ample"
 
 // Twin is stage 9-7a with the beast no different from a human but its
 // tag: the control that shows what the budget's shift does.
@@ -324,7 +320,7 @@ const Random = "random"
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
 func shared(c *engine.Config)       { c.FoodKinds, c.Foods = nil, nil }
-func single(c *engine.Config)       { shared(c); c.Species = c.Species[:1] }
+func single(c *engine.Config)       { shared(c); c.Species = c.Species[:1]; c.FoodCap /= 2 }
 func unventured(c *engine.Config)   { single(c); c.AllotVenture = false }
 func unsized(c *engine.Config)      { unventured(c); c.AllotBudget = false }
 func unmixed(c *engine.Config)      { unsized(c); c.AllotMix = false }
@@ -392,7 +388,6 @@ var rewrites = map[string]func(*engine.Config){
 	Tight:      func(c *engine.Config) { c.AllotCurve /= 2 },
 	Exact:      func(c *engine.Config) { unventured(c); c.FullStep = 0 },
 	Shared:     shared,
-	Ample:      func(c *engine.Config) { c.FoodCap *= 2 },
 	Single:     single,
 	Halffed:    func(c *engine.Config) { single(c); c.FoodCap /= 2; c.Bodies /= 2 },
 	Twin: func(c *engine.Config) {

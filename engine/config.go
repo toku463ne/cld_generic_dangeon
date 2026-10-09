@@ -10,10 +10,13 @@ type Config struct {
 	// Seed is the seed of the world's single random source.
 	Seed int64
 
-	// FoodCap is how many units of food may exist on the map at once. The
-	// world starts with the map full, and a unit that is eaten leaves a
-	// vacancy that comes back somewhere later: food on the ground plus
-	// vacancies is always FoodCap.
+	// FoodCap is how many units of food may exist on the map at once, over
+	// every pool (Foods). The world starts with the map full, and a unit
+	// that is eaten leaves a vacancy that comes back somewhere later: food
+	// on the ground plus vacancies is always FoodCap. With a pool per
+	// species, each species' pool is its share of this: a species on 150
+	// units settles under the collapse floor (stage 9-7b-1), so the default
+	// gives each of the two species the 300 one species had alone.
 	FoodCap int
 	// FoodReturn is the chance per tick that one vacancy comes back. Where it
 	// comes back is decided by the map's RegionFood shares.
@@ -519,7 +522,7 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		Seed:               1,
-		FoodCap:            300,
+		FoodCap:            600,
 		FoodReturn:         0.002,
 		FoodKinds:          []FoodKind{{Name: "human food", Tags: []string{"human"}}, {Name: "beast food", Tags: []string{"beast"}}},
 		Foods:              []FoodSpec{{Name: "human food", Kind: 0, Share: 0.5}, {Name: "beast food", Kind: 1, Share: 0.5}},

@@ -543,10 +543,16 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 			// Early termination: this seed stops, the run goes on for
 			// the others. The remaining checkpoints are not surviving.
 			r.fellAt = t
+			bySpecies := make([]float64, species)
+			for _, b := range w.Bodies() {
+				bySpecies[b.Species]++
+			}
 			for len(r.pop) < ticks/every+1 {
 				r.pop = append(r.pop, float64(len(w.Bodies())))
 				for k := range r.speciesPop {
-					r.speciesPop[k] = append(r.speciesPop[k], r.speciesPop[k][len(r.speciesPop[k])-1])
+					// The count at the fall, as pop is: not the last
+					// checkpoint's.
+					r.speciesPop[k] = append(r.speciesPop[k], bySpecies[k])
 				}
 				r.regions = append(r.regions, math.NaN())
 				r.food = append(r.food, math.NaN())
