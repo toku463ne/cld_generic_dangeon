@@ -239,6 +239,9 @@ type Stats struct {
 	// begun on one by anyone but at its building, and Returns those of
 	// them by its builder.
 	Built, BuiltSleeps, Returns int64 `json:",omitempty"`
+	// SleptAbroad counts the sleeps begun on a settlement of another
+	// species (only with ClosedPlaces off; stage 9-7b-2b).
+	SleptAbroad int64 `json:",omitempty"`
 	// Begun, Fetched and Abandoned count the settlements begun, the times
 	// a builder went for food in sight, and the sites given up (stage
 	// 8-2b).
@@ -405,6 +408,9 @@ func (w *World) fallAsleep(b *Body) {
 	w.stats.Slept++
 	if w.m.ShelterAt(int(math.Floor(b.X)), int(math.Floor(b.Y))) {
 		w.stats.SleptSheltered++
+	}
+	if t := w.tileOf(b.X, b.Y); t >= 0 && w.placeSp != nil && w.placeSp[t] != 0 && int(w.placeSp[t])-1 != b.Species {
+		w.stats.SleptAbroad++
 	}
 }
 

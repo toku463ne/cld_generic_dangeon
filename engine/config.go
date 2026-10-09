@@ -165,6 +165,11 @@ type Config struct {
 	// spend least energy over Window ticks are kept - the same chance of
 	// living on, for less of the body's energy.
 	TieSpend bool
+	// ClosedPlaces keeps a body out of a settlement another species built
+	// (stage 9-7b-2b, VISION "他種族は定住場所には入れない"): it cannot
+	// step onto its tiles and does not count them as places to rest. The
+	// map's own places to rest are everyone's. Off: stage 9-7b-2a.
+	ClosedPlaces bool
 	// Building lets a body born with the skill to build (BuildBorn) begin
 	// a settlement as it falls asleep (stage 8-2b, raise.go): it pays
 	// BuildEnergy, works BuildTicks on its site (going for food in sight
@@ -528,6 +533,7 @@ func DefaultConfig() Config {
 		FoodCap:            300,
 		FoodReturn:         0.002,
 		PoolPlaces:         true,
+		ClosedPlaces:       true,
 		FoodKinds:          []FoodKind{{Name: "human food", Tags: []string{"human"}}, {Name: "beast food", Tags: []string{"beast"}}},
 		Foods:              []FoodSpec{{Name: "human food", Kind: 0, Share: 0.5}, {Name: "beast food", Kind: 1, Share: 0.5}},
 		FoodEnergy:         30,

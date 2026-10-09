@@ -49,6 +49,7 @@ type World struct {
 	// last place's ID.
 	places    []Place
 	placeAt   []int64
+	placeSp   []int8 // per tile, the species of its place plus one (0: none)
 	nextPlace int64
 	// groundTents are the tents lying folded on tiles (stage 8-2a3).
 	groundTents []GroundTent

@@ -91,6 +91,9 @@ type result struct {
 	// same per species (NaN where a species had no body in any sample).
 	away        float64
 	speciesAway []float64
+	// sleptAbroad counts the sleeps begun on another species' settlement
+	// (stage 9-7b-2b).
+	sleptAbroad float64
 	series      []int32   // bodies at every tick from 0, up to the tick the seed stopped
 	food        []float64 // food on the ground at the same ticks
 	surviving   []bool    // whether the seed was above the floor at the same ticks
@@ -678,6 +681,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.asleep = float64(st.Actions[engine.ActSleep]) / math.Max(total, 1)
 	r.sheltered = float64(st.SleptSheltered) / math.Max(float64(st.Slept), 1)
 	r.built, r.builtSleeps, r.returns = float64(st.Built), float64(st.BuiltSleeps), float64(st.Returns)
+	r.sleptAbroad = float64(st.SleptAbroad)
 	if n := len(st.GenBirths); n > 0 {
 		r.maxGen = float64(n - 1)
 		r.topGenBirths = float64(st.GenBirths[n-1])
@@ -1229,6 +1233,7 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"よその地域にいる割合", 4, func(r result) float64 { return r.away }},
 		{"人間がよその地域にいる割合", 4, speciesAt("human", func(r result, k int) float64 { return r.speciesAway[k] })},
 		{"獣がよその地域にいる割合", 4, speciesAt("beast", func(r result, k int) float64 { return r.speciesAway[k] })},
+		{"他種族の定住場所で始まった眠り", 2, func(r result) float64 { return r.sleptAbroad }},
 		{"崩壊したシードの割合", 4, func(r result) float64 {
 			if r.fellAt > 0 {
 				return 1

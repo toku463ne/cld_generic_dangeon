@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bytes"
 	"math"
 	"testing"
 )
@@ -453,6 +454,75 @@ func TestAllotMix(t *testing.T) {
 		w.allot(&c, a, b)
 		if !same(&c, a) && !same(&c, b) {
 			t.Fatalf("without AllotMix child %+v mixed its parents", c)
+		}
+	}
+}
+
+// A settlement is its builder's species' (stage 9-7b-2b): a body of
+// another species cannot step onto its tiles and does not remember them
+// as places to rest; with ClosedPlaces off it can and does. The map's own
+// places to rest are everyone's.
+func TestClosedPlaces(t *testing.T) {
+	for _, closed := range []bool{true, false} {
+		w := pairWorld(t, Body{ID: 0, X: 5.5, Y: 5.5, Energy: 60, Species: 0}, Body{ID: 1, X: 5.5, Y: 7.1, Energy: 60, Species: 1})
+		w.cfg.ClosedPlaces, w.cfg.Learn, w.cfg.ShelterRead = closed, true, true
+		builder, other := &w.bodies[0], &w.bodies[1]
+		builder.Work = Work{Site: w.tileOf(builder.X, builder.Y) + 1}
+		w.settle(builder)
+		if len(w.places) != 1 || w.places[0].Species != 0 {
+			t.Fatalf("closed %v: places %+v", closed, w.places)
+		}
+		inPlace := map[int]bool{}
+		for _, tile := range w.places[0].Tiles {
+			inPlace[tile] = true
+		}
+		// other stands just south of the place: a step north (at its
+		// speed, as possibleActions takes it) crosses into it.
+		into := false
+		for _, a := range w.possibleActions(nil, other) {
+			if a.Kind == ActMove {
+				x, y := other.X+float64(moveDirs[a.Dir][0])*w.speedOf(other), other.Y+float64(moveDirs[a.Dir][1])*w.speedOf(other)
+				if inPlace[w.tileOf(x, y)] {
+					into = true
+				}
+			}
+		}
+		if into == closed {
+			t.Fatalf("closed %v: a move into another species' place among the options: %v", closed, into)
+		}
+		w.noteShelters(other)
+		remembered := false
+		for tile := range other.Memory.Shelters {
+			remembered = remembered || inPlace[tile]
+		}
+		if remembered == closed {
+			t.Fatalf("closed %v: remembers another species' place: %v", closed, remembered)
+		}
+		// Its own species may, either way.
+		kin := Body{ID: 2, X: 5.5, Y: 7.1, Energy: 60, Species: 0, Heading: -1, Goal: -1, Decided: -1}
+		into = false
+		for _, a := range w.possibleActions(nil, &kin) {
+			if a.Kind == ActMove {
+				x, y := kin.X+float64(moveDirs[a.Dir][0])*w.speedOf(&kin), kin.Y+float64(moveDirs[a.Dir][1])*w.speedOf(&kin)
+				if inPlace[w.tileOf(x, y)] {
+					into = true
+				}
+			}
+		}
+		if !into {
+			t.Fatalf("closed %v: its own species cannot enter", closed)
+		}
+		// The index survives a save and a load.
+		var buf bytes.Buffer
+		if err := w.Save(&buf); err != nil {
+			t.Fatal(err)
+		}
+		w2, err := Load(&buf)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if w2.barred(&w2.bodies[1], w.places[0].Tiles[0]) != closed {
+			t.Fatalf("closed %v: barred after a load: %v", closed, !closed)
 		}
 	}
 }

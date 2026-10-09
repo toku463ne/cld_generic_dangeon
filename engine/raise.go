@@ -45,6 +45,10 @@ const (
 type Place struct {
 	ID      int64
 	Builder int64
+	// Species is its builder's: with ClosedPlaces no body of another
+	// species may step onto its tiles or count them as places to rest
+	// (stage 9-7b-2b, VISION "他種族は定住場所には入れない").
+	Species int `json:",omitempty"`
 	// Tiles are its tiles; Until the tick it wears out.
 	Tiles []int
 	Until int64
@@ -216,9 +220,10 @@ func (w *World) buildTick(b *Body) {
 func (w *World) settle(b *Body) {
 	if w.placeAt == nil {
 		w.placeAt = make([]int64, len(w.m.Terrain))
+		w.placeSp = make([]int8, len(w.m.Terrain))
 	}
 	w.nextPlace++
-	p := Place{ID: w.nextPlace, Builder: b.ID, Until: w.tick + int64(w.cfg.BuildLife)}
+	p := Place{ID: w.nextPlace, Builder: b.ID, Species: b.Species, Until: w.tick + int64(w.cfg.BuildLife)}
 	site := b.Work.Site - 1
 	bx, by := site%w.m.Width, site/w.m.Width
 	lo := w.cfg.BuildSide / 2
@@ -237,6 +242,7 @@ func (w *World) settle(b *Body) {
 				w.rememberShelter(b, t) // it knows what it built
 			}
 			w.placeAt[t] = p.ID
+			w.placeSp[t] = int8(b.Species + 1)
 			p.Tiles = append(p.Tiles, t)
 		}
 	}
@@ -285,6 +291,7 @@ func (w *World) wearPlaces() {
 		for _, t := range p.Tiles {
 			if w.placeAt[t] == p.ID {
 				w.placeAt[t] = 0
+				w.placeSp[t] = 0
 				w.m.Shelter[t] = false
 			}
 		}
@@ -320,11 +327,20 @@ func (w *World) loadPlaces() {
 		return
 	}
 	w.placeAt = make([]int64, len(w.m.Terrain))
+	w.placeSp = make([]int8, len(w.m.Terrain))
 	for _, p := range w.places {
 		for _, t := range p.Tiles {
 			w.placeAt[t] = p.ID
+			w.placeSp[t] = int8(p.Species + 1)
 		}
 	}
+}
+
+// barred reports whether tile t is a settlement of another species than
+// body b's, which b may not enter nor count as a place to rest
+// (ClosedPlaces).
+func (w *World) barred(b *Body, t int) bool {
+	return w.cfg.ClosedPlaces && w.placeSp != nil && w.placeSp[t] != 0 && int(w.placeSp[t])-1 != b.Species
 }
 
 // Places returns the settlements standing now.

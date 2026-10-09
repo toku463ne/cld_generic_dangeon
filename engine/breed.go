@@ -124,11 +124,14 @@ func (w *World) occupied(t int, b *Body) bool {
 // another body stands on: with Collide, a step within its own tile never
 // is, and a step into another occupied tile always is.
 func (w *World) blocks(b *Body, x, y float64) bool {
-	if !w.cfg.Collide || w.grid == nil {
+	to := w.tileOf(x, y)
+	if to < 0 || to == w.tileOf(b.X, b.Y) {
 		return false
 	}
-	to := w.tileOf(x, y)
-	return to >= 0 && to != w.tileOf(b.X, b.Y) && w.occupied(to, b)
+	if w.barred(b, to) { // another species' settlement (stage 9-7b-2b)
+		return true
+	}
+	return w.cfg.Collide && w.grid != nil && w.occupied(to, b)
 }
 
 // moved keeps the grid up to date after body i went from tile from to tile

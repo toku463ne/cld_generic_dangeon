@@ -47,6 +47,9 @@ const Shared = "shared"
 // tag: the control that shows what the budget's shift does.
 const Twin = "twin"
 
+// Open is stage 9-7b-2a: a settlement admits bodies of every species.
+const Open = "open"
+
 // Together is stage 9-7b-1: every pool of food comes back by the map's
 // region shares, so the species' pools lie over each other instead of
 // each in its own regions.
@@ -393,6 +396,7 @@ var rewrites = map[string]func(*engine.Config){
 	Exact:      func(c *engine.Config) { unventured(c); c.FullStep = 0 },
 	Shared:     shared,
 	Together:   func(c *engine.Config) { c.PoolPlaces = false },
+	Open:       func(c *engine.Config) { c.ClosedPlaces = false },
 	Single:     single,
 	Halffed:    func(c *engine.Config) { single(c); c.FoodCap /= 2; c.Bodies /= 2 },
 	Twin: func(c *engine.Config) {

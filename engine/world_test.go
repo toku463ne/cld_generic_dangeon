@@ -90,9 +90,10 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 // length. Speeding something up must not change it; a rule changed on purpose
 // updates the value in the same commit.
 func TestFingerprint(t *testing.T) {
-	// Re-pinned at stage 9-7b-2: a first body's species is drawn before
-	// its tile, since the tile is drawn among its species' home regions.
-	const want = uint64(0x8433ad19c82fd3a5)
+	// Re-pinned at stage 9-7b-2a (a first body's species is drawn before
+	// its tile, since the tile is drawn among its species' home regions)
+	// and 9-7b-2b (settlements closed to other species).
+	const want = uint64(0x48a3323e7fc3fffd)
 	w, err := NewWorld(testConfig(1), tempMap())
 	if err != nil {
 		t.Fatal(err)
@@ -124,6 +125,22 @@ func TestExactIsStage95b(t *testing.T) {
 
 // With one species, the world is stage 9-6a: its fingerprint is what
 // TestFingerprint pinned before stage 9-7a.
+// With settlements open to every species, the world is stage 9-7b-2a:
+// its fingerprint is the one pinned then.
+func TestOpenIsStage97b2a(t *testing.T) {
+	const want = uint64(0x8433ad19c82fd3a5)
+	cfg := testConfig(1)
+	cfg.ClosedPlaces = false
+	w, err := NewWorld(cfg, tempMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 1000)
+	if got := w.Fingerprint(); got != want {
+		t.Fatalf("fingerprint = %#x, want %#x", got, want)
+	}
+}
+
 func TestSingleIsStage96a(t *testing.T) {
 	const want = uint64(0xeca10aba5b721dd9)
 	cfg := testConfig(1)

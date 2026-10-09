@@ -99,6 +99,7 @@
 | 空きが戻る確率（/tick） | `FoodReturn` | 0.002 | 仮 |
 | 食料の種類の表（名前・種族タグ） | `FoodKinds` | human food [human] / beast food [beast] | 9-7b-1（`VISION.md`「沸く食料」）。タグの無い種族には無いのと同じ。空なら 1 種類で全種族が食べる（条件 `single`・`shared`） |
 | 食料の ID の表（名前・種類・`FoodCap` の取り分・戻る率） | `Foods` | human food 0.5 / beast food 0.5（戻る率 0 ＝ `FoodReturn`） | 9-7b-1。ID ごとに保存則が閉じる。取り分は半々 |
+| 他種族は定住場所に入れない | `ClosedPlaces` | true | 9-7b-2b（`VISION.md`「他種族は定住場所には入れない」）。建てた場所は建てた身体の種族のもので、他種族は入れず休める場所として覚えない。共用の休める場所は誰でも使える。切ると条件 `open`（9-7b-2a） |
 | ID が地図の言う地域に戻る | `PoolPlaces` | true | 9-7b-2。地図の `PoolFood`（ID ごとの地域の取り分）に従う。切ると全部の ID が地図の取り分に従い種族の池が重なる（条件 `together`、9-7b-1 の世界） |
 | 1単位で戻る体力 | `FoodEnergy` | 30 | 仮 |
 | 生存の表の体力の粒 | `Grain` | 0.1 | 7-3c。既定の身体が 1 tick に消耗する量（`EnergyBurn`）と同じにして、既定の身体では tick と粒が一致する。身体ごとの消耗・速さは表の鍵に入らず、見込みの段に畳まれる（[20261003](docs/history/20261003.md)） |

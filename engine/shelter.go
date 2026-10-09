@@ -25,7 +25,7 @@ func (w *World) noteShelters(b *Body) {
 			if !w.m.InBounds(x, y) || !w.seesFrom(b, bx, by, x, y) {
 				continue
 			}
-			if !w.m.ShelterAt(x, y) {
+			if !w.m.ShelterAt(x, y) || w.barred(b, w.m.index(x, y)) {
 				w.forgetPlace(b, w.m.index(x, y))
 				continue
 			}
