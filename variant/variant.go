@@ -36,8 +36,7 @@ const (
 
 // Single is stage 9-6a: one species, the config's table cut to its first
 // row (no beasts, and no draw of a species), and one kind of food in one
-// pool of half the cap - the 300 units of the world before stage 9-7b-1,
-// which is what one species' pool holds now.
+// pool.
 const Single = "single"
 
 // Shared is stage 9-7a: two species, one kind of food in one pool that
@@ -320,7 +319,7 @@ const Random = "random"
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
 func shared(c *engine.Config)       { c.FoodKinds, c.Foods = nil, nil }
-func single(c *engine.Config)       { shared(c); c.Species = c.Species[:1]; c.FoodCap /= 2 }
+func single(c *engine.Config)       { shared(c); c.Species = c.Species[:1] }
 func unventured(c *engine.Config)   { single(c); c.AllotVenture = false }
 func unsized(c *engine.Config)      { unventured(c); c.AllotBudget = false }
 func unmixed(c *engine.Config)      { unsized(c); c.AllotMix = false }
