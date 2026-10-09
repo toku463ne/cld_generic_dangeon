@@ -92,8 +92,9 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 func TestFingerprint(t *testing.T) {
 	// Re-pinned at stage 9-7b-2a (a first body's species is drawn before
 	// its tile, since the tile is drawn among its species' home regions)
-	// and 9-7b-2b (settlements closed to other species).
-	const want = uint64(0x48a3323e7fc3fffd)
+	// and 9-7b-2b (settlements closed to other species), and 9-7b-2c
+	// (bodies may wade into water).
+	const want = uint64(0x9eeeb0abb5782a77)
 	w, err := NewWorld(testConfig(1), tempMap())
 	if err != nil {
 		t.Fatal(err)
@@ -112,6 +113,7 @@ func TestExactIsStage95b(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
@@ -131,6 +133,7 @@ func TestOpenIsStage97b2a(t *testing.T) {
 	const want = uint64(0x8433ad19c82fd3a5)
 	cfg := testConfig(1)
 	cfg.ClosedPlaces = false
+	cfg.Wade = false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
 		t.Fatal(err)
@@ -145,6 +148,7 @@ func TestSingleIsStage96a(t *testing.T) {
 	const want = uint64(0xeca10aba5b721dd9)
 	cfg := testConfig(1)
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
 		t.Fatal(err)
@@ -162,6 +166,7 @@ func TestUnventuredIsStage95b(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
 		t.Fatal(err)
@@ -180,6 +185,7 @@ func TestUnsizedIsStage95a(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
@@ -199,6 +205,7 @@ func TestUnmixedIsStage94(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.AllotMix = false
 	w, err := NewWorld(cfg, tempMap())
@@ -219,6 +226,7 @@ func TestUnfertileIsStage93b(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.AllotMix, cfg.AllotFertility = false, false
 	w, err := NewWorld(cfg, tempMap())
@@ -241,6 +249,7 @@ func TestSleeplessIsStage73a(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -267,6 +276,7 @@ func TestSightblindIsStage71b(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -371,6 +381,7 @@ func TestDaylongIsStage44(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -397,6 +408,7 @@ func TestUnrecalledIsStage51(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -428,6 +440,7 @@ func TestHalflifeIsStage41(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -460,6 +473,7 @@ func TestUnheldIsStage40(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -493,6 +507,7 @@ func TestRestblindIsStage38(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -527,6 +542,7 @@ func TestUnaskedIsStage37(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -562,6 +578,7 @@ func TestUnagedIsStage36(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -599,6 +616,7 @@ func TestSlowgrowIsStage35b(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -636,6 +654,7 @@ func TestAgelessIsStage34(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -674,6 +693,7 @@ func TestBusyIsStage33d(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -712,6 +732,7 @@ func TestDoubledIsStage33c(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -751,6 +772,7 @@ func TestLeanIsStage33b(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -790,6 +812,7 @@ func TestPerunitIsStage33(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -829,6 +852,7 @@ func TestUnfedIsStage32(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -868,6 +892,7 @@ func TestEvenIsStage31(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -907,6 +932,7 @@ func TestSexlessIsStage24(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -945,6 +971,7 @@ func TestAgedIsStage23(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -984,6 +1011,7 @@ func TestKinIsStage22(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -1023,6 +1051,7 @@ func TestNearIsThird21(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -1062,6 +1091,7 @@ func TestMixedIsSecond21(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -1101,6 +1131,7 @@ func TestUndecayedIsFirst21(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -1140,6 +1171,7 @@ func TestUntoldIsStage20(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -1179,6 +1211,7 @@ func TestTruthIsBeforeStage16(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -1216,6 +1249,7 @@ func TestBounceIsStage15(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -1255,6 +1289,7 @@ func TestDrawnIsCollisions(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -1293,6 +1328,7 @@ func TestOverlapIsStage14(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -1333,6 +1369,7 @@ func TestFixedIsStage13(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -1373,6 +1410,7 @@ func TestNoBreedIsStage12e(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -1413,6 +1451,7 @@ func TestEverytickIsStage12r(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -1453,6 +1492,7 @@ func TestStraightbackIsStage12q(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -1493,6 +1533,7 @@ func TestNoHeadingIsStage12p(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -1533,6 +1574,7 @@ func TestNoSightIsFirstStage12(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -1573,6 +1615,7 @@ func TestNoWindowIsStage11(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false

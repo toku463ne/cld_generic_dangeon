@@ -453,6 +453,15 @@ func (v *View) Render(dst *image.RGBA) {
 			}
 		}
 		c := bodyColor(b, now, b.Energy/full)
+		if b.Species >= 2 {
+			// The third species (fish) is a flat bar (stage 9-7b-2c).
+			if b.Asleep {
+				strokeRect(dst, px(b.X)-rad-1, px(b.Y)-rad/2, 2*rad+3, rad+1, c)
+			} else {
+				fillRect(dst, px(b.X)-rad-1, px(b.Y)-rad/2, 2*rad+3, rad+1, c)
+			}
+			continue
+		}
 		if b.Species != 0 {
 			// Any species but the first is a square (stage 9-7a); a
 			// sleeper is hollow either way.

@@ -474,7 +474,7 @@ func (w *World) stepped(b *Body, from, to int) {
 	}
 	for y := ty - s; y <= ty+s; y++ {
 		for x := tx - s; x <= tx+s; x++ {
-			if !w.m.InBounds(x, y) || w.m.TerrainAt(x, y) != TerrainLand {
+			if !w.m.InBounds(x, y) || !w.mayEnter(b, w.m.index(x, y)) {
 				continue
 			}
 			if abs(x-fx) <= s && abs(y-fy) <= s {
@@ -617,7 +617,7 @@ func (w *World) keepReading(b *Body, rs *rates, dir int, x, y float64, win, afte
 		*ry = ray{start: start, noneRegion: 1, noneAll: 1}
 		for i := 1; i <= w.cfg.PathAhead; i++ {
 			ax, ay := tx+sx*i, ty+sy*i
-			if !w.m.InBounds(ax, ay) || w.m.TerrainAt(ax, ay) != TerrainLand {
+			if !w.m.InBounds(ax, ay) || !w.mayEnter(b, w.m.index(ax, ay)) {
 				break
 			}
 			rate := p

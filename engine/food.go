@@ -54,6 +54,8 @@ type FoodSpec struct {
 	Kind   int
 	Share  float64
 	Return float64
+	// Terrain is where its units lie (stage 9-7b-2c): land unless said.
+	Terrain Terrain `json:",omitempty"`
 }
 
 // Food is one unit of food on a tile, of pool ID.
@@ -126,10 +128,11 @@ func (l FoodLedger) Balanced() bool {
 
 // pool is the state of one pool of food.
 type pool struct {
-	name string
-	kind int
-	cap  int
-	ret  float64
+	name    string
+	kind    int
+	cap     int
+	ret     float64
+	terrain Terrain
 	// owed is, per region, the fraction of a unit that region has been
 	// promised by the return rate and not yet received. Returning food as
 	// whole units from a running fraction draws nothing from the random
@@ -161,9 +164,10 @@ type foodState struct {
 	// pool's kind.
 	eats [][]bool
 
-	// regionLand lists each region's land tiles, which is where its food can
-	// appear.
-	regionLand [][]int
+	// regionTiles lists, per terrain and region, the region's tiles of
+	// that terrain: where a pool of that terrain's food can appear, and
+	// what a body that may enter it walks over.
+	regionTiles [TerrainWater + 1][][]int
 
 	scratch []int
 }
@@ -193,6 +197,9 @@ func validFood(kinds []FoodKind, pools []FoodSpec) error {
 		if p.Kind < 0 || p.Kind >= len(kinds) {
 			return fmt.Errorf("food pool %s is of kind %d, have %d kinds", p.Name, p.Kind, len(kinds))
 		}
+		if p.Terrain > TerrainWater {
+			return fmt.Errorf("food pool %s lies on unknown terrain %d", p.Name, p.Terrain)
+		}
 		if !(p.Share >= 0) || !(p.Return >= 0) {
 			return fmt.Errorf("food pool %s has share %v and return %v", p.Name, p.Share, p.Return)
 		}
@@ -207,12 +214,12 @@ func validFood(kinds []FoodKind, pools []FoodSpec) error {
 func (w *World) initFood() {
 	f := &w.food
 	f.foodAt = make([]int32, len(w.m.Terrain))
-	f.regionLand = make([][]int, len(w.m.RegionFood))
+	for t := range f.regionTiles {
+		f.regionTiles[t] = make([][]int, len(w.m.RegionFood))
+	}
 	for i, t := range w.m.Terrain {
-		if t == TerrainLand {
-			r := w.m.Region[i]
-			f.regionLand[r] = append(f.regionLand[r], i)
-		}
+		r := w.m.Region[i]
+		f.regionTiles[t][r] = append(f.regionTiles[t][r], i)
 	}
 	kinds, specs := w.cfg.FoodKinds, w.cfg.Foods
 	if len(specs) == 0 {
@@ -231,7 +238,7 @@ func (w *World) initFood() {
 		cum += s.Share / sum
 		cap := int(cum*float64(w.cfg.FoodCap)+0.5) - given
 		given += cap
-		f.pools[i] = pool{name: s.Name, kind: s.Kind, cap: cap, ret: s.Return,
+		f.pools[i] = pool{name: s.Name, kind: s.Kind, cap: cap, ret: s.Return, terrain: s.Terrain,
 			owed: make([]float64, len(w.m.RegionFood)), onGround: make([]int, len(w.m.RegionFood))}
 		if f.pools[i].ret == 0 {
 			f.pools[i].ret = w.cfg.FoodReturn
@@ -259,15 +266,32 @@ func tagged(tags []string, name string) bool {
 // eats reports whether body b may eat the food of pool p.
 func (w *World) eats(b *Body, p int) bool { return w.food.eats[b.Species][p] }
 
-// shareSum is the sum of the shares, now, of the regions with land.
-func (w *World) shareSum(shares []float64) float64 {
+// shareSum is the sum of the shares, now, of the regions with tiles of
+// terrain t.
+func (w *World) shareSum(shares []float64, t Terrain) float64 {
 	sum := 0.0
 	for r, s := range shares {
-		if len(w.food.regionLand[r]) > 0 {
+		if len(w.food.regionTiles[t][r]) > 0 {
 			sum += s
 		}
 	}
 	return sum
+}
+
+// regionLand is region r's land tiles.
+func (w *World) regionLand(r RegionID) []int { return w.food.regionTiles[TerrainLand][r] }
+
+// areaOf is the tiles of region r a body of species s lives on: its own
+// terrains, not water it could wade into (the tables read the ground it
+// walks, not the ground it could drown on).
+func (w *World) areaOf(s int, r RegionID) int {
+	n := 0
+	for t := range w.food.regionTiles {
+		if w.specOf(s).enters(Terrain(t)) {
+			n += len(w.food.regionTiles[t][r])
+		}
+	}
+	return n
 }
 
 // poolShares is the regions' shares of pool p's food that comes back now:
@@ -284,21 +308,21 @@ func (w *World) poolShares(p int) []float64 {
 func (w *World) fillFood() {
 	for p := range w.food.pools {
 		for w.food.pools[p].count < w.food.pools[p].cap {
-			if !w.placeFood(w.drawRegion(w.poolShares(p)), p) {
+			if !w.placeFood(w.drawRegion(w.poolShares(p), w.food.pools[p].terrain), p) {
 				break
 			}
 		}
 	}
 }
 
-// drawRegion picks a region with land, with chance proportional to its
-// share.
-func (w *World) drawRegion(shares []float64) RegionID {
+// drawRegion picks a region with tiles of terrain t, with chance
+// proportional to its share.
+func (w *World) drawRegion(shares []float64, t Terrain) RegionID {
 	f := &w.food
-	x := w.rng.Float64() * w.shareSum(shares)
+	x := w.rng.Float64() * w.shareSum(shares, t)
 	last := RegionID(0)
 	for r, s := range shares {
-		if len(f.regionLand[r]) == 0 || s == 0 {
+		if len(f.regionTiles[t][r]) == 0 || s == 0 {
 			continue
 		}
 		last = RegionID(r)
@@ -310,12 +334,12 @@ func (w *World) drawRegion(shares []float64) RegionID {
 	return last
 }
 
-// placeFood puts one unit of pool p on a free land tile of region r. A
-// region whose tiles are all taken gives up after a few tries; the unit
-// stays vacant and is owed again next tick.
+// placeFood puts one unit of pool p on a free tile of its terrain in
+// region r. A region whose tiles are all taken gives up after a few tries;
+// the unit stays vacant and is owed again next tick.
 func (w *World) placeFood(r RegionID, p int) bool {
 	f := &w.food
-	land := f.regionLand[r]
+	land := f.regionTiles[f.pools[p].terrain][r]
 	if len(land) == 0 {
 		return false
 	}
@@ -349,7 +373,7 @@ func (w *World) returnFood() {
 		pl := &f.pools[p]
 		vacant := pl.cap - pl.count - pl.held
 		shares := w.poolShares(p)
-		sum := w.shareSum(shares)
+		sum := w.shareSum(shares, pl.terrain)
 		if vacant <= 0 || sum == 0 {
 			continue
 		}
@@ -358,7 +382,7 @@ func (w *World) returnFood() {
 			asked = true
 		}
 		for r, s := range shares {
-			if len(f.regionLand[r]) == 0 || s == 0 {
+			if len(f.regionTiles[pl.terrain][r]) == 0 || s == 0 {
 				continue
 			}
 			pl.owed[r] += pl.ret * float64(vacant) * s / sum
@@ -611,11 +635,11 @@ func (w *World) GroundFoodOf(s int) int {
 }
 
 // Home reports whether region r is home to species s: whether some food
-// it may eat comes back there now. The first bodies of a species start
-// in its home regions (placeBodies).
+// it may eat comes back there now, on terrain it may stand on. The first
+// bodies of a species start in its home regions (placeBodies).
 func (w *World) Home(s int, r RegionID) bool {
 	for p := range w.food.pools {
-		if w.food.eats[s][p] && w.poolShares(p)[r] > 0 {
+		if w.food.eats[s][p] && w.poolShares(p)[r] > 0 && w.canStand(s, w.food.pools[p].terrain) && len(w.food.regionTiles[w.food.pools[p].terrain][r]) > 0 {
 			return true
 		}
 	}

@@ -27,6 +27,13 @@ type Config struct {
 	// one kind every species eats in one pool of the whole cap.
 	FoodKinds []FoodKind
 	Foods     []FoodSpec
+	// Wade lets a body whose species does not list water among its
+	// terrains step into water all the same (stage 9-7b-2c, VISION: water
+	// is dangerous without the skill to swim): it burns WaterBurn times
+	// as fast there, and finds nothing of its own to eat. Off, water is a
+	// wall to it, as before the stage.
+	Wade      bool
+	WaterBurn float64
 	// PoolPlaces has each pool come back where the map says it does
 	// (Map.PoolFood, stage 9-7b-2); off, every pool follows the map's
 	// region shares, so species' pools lie over each other.
@@ -533,6 +540,8 @@ func DefaultConfig() Config {
 		FoodCap:            300,
 		FoodReturn:         0.002,
 		PoolPlaces:         true,
+		Wade:               true,
+		WaterBurn:          4,
 		ClosedPlaces:       true,
 		FoodKinds:          []FoodKind{{Name: "human food", Tags: []string{"human"}}, {Name: "beast food", Tags: []string{"beast"}}},
 		Foods:              []FoodSpec{{Name: "human food", Kind: 0, Share: 0.5}, {Name: "beast food", Kind: 1, Share: 0.5}},

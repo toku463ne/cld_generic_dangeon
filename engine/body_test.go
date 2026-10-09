@@ -7,6 +7,7 @@ import (
 
 func TestBodiesStayOnLand(t *testing.T) {
 	w := newTestWorld(t, 6)
+	w.cfg.Wade = false // water as a wall, before stage 9-7b-2c
 	for i := 0; i < 3000; i++ {
 		w.Step()
 		for _, b := range w.bodies {
@@ -23,6 +24,7 @@ func TestBodiesStayOnLand(t *testing.T) {
 // exact figure.
 func TestNoFoodStarvesEveryBody(t *testing.T) {
 	cfg := testConfig(1)
+	cfg.Wade = false // water as a wall, before stage 9-7b-2c
 	cfg.FoodCap = 0
 	cfg.Breed = false // no one is born to outlive the count
 	cfg.Allot = false // and everyone lasts as long
@@ -85,6 +87,7 @@ func TestEatingRestoresEnergyUpToMax(t *testing.T) {
 // A move onto water or off the map is not offered.
 func TestMovesOntoWaterAreNotOffered(t *testing.T) {
 	cfg := testConfig(1)
+	cfg.Wade = false // water as a wall, before stage 9-7b-2c
 	cfg.Bodies = 0
 	cfg.Speed = 1
 	w, err := NewWorld(cfg, testMap())

@@ -242,6 +242,9 @@ type Stats struct {
 	// SleptAbroad counts the sleeps begun on a settlement of another
 	// species (only with ClosedPlaces off; stage 9-7b-2b).
 	SleptAbroad int64 `json:",omitempty"`
+	// DiedOnWater counts the deaths of bodies standing in water (stage
+	// 9-7b-2c), whatever the cause.
+	DiedOnWater int64 `json:",omitempty"`
 	// Begun, Fetched and Abandoned count the settlements begun, the times
 	// a builder went for food in sight, and the sites given up (stage
 	// 8-2b).
@@ -295,13 +298,22 @@ func (w *World) placeBodies(genomes []Genome) {
 	}
 	homes := make([][]int, w.SpeciesCount())
 	for s := range homes {
-		for _, t := range land {
+		var can []int
+		for i, t := range w.m.Terrain {
+			if w.specOf(s).enters(t) { // its own terrains, not wading
+				can = append(can, i)
+			}
+		}
+		if len(can) == 0 {
+			can = land
+		}
+		for _, t := range can {
 			if w.Home(s, w.m.Region[t]) {
 				homes[s] = append(homes[s], t)
 			}
 		}
 		if len(homes[s]) == 0 {
-			homes[s] = land
+			homes[s] = can
 		}
 	}
 	n := w.cfg.Bodies
@@ -358,7 +370,7 @@ func (w *World) possibleActions(dst []Action, b *Body) []Action {
 	for d, v := range moveDirs {
 		x, y := b.X+v[0]*w.speedOf(b), b.Y+v[1]*w.speedOf(b)
 		t := w.tileOf(x, y)
-		if t >= 0 && w.m.Terrain[t] == TerrainLand && !w.blocks(b, x, y) {
+		if t >= 0 && w.mayEnter(b, t) && !w.blocks(b, x, y) {
 			dst = append(dst, Action{Kind: ActMove, Dir: d})
 		}
 	}
@@ -464,7 +476,7 @@ func (w *World) trod(b *Body, from, to int) {
 func (w *World) stepTowards(i int, b *Body, d int) {
 	v := moveDirs[d]
 	x, y := b.X+v[0]*w.speedOf(b), b.Y+v[1]*w.speedOf(b)
-	if t := w.tileOf(x, y); t >= 0 && w.m.Terrain[t] == TerrainLand && !w.blocks(b, x, y) {
+	if t := w.tileOf(x, y); t >= 0 && w.mayEnter(b, t) && !w.blocks(b, x, y) {
 		w.step(i, b, d)
 	}
 }

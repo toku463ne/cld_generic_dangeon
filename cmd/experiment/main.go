@@ -94,14 +94,20 @@ type result struct {
 	// sleptAbroad counts the sleeps begun on another species' settlement
 	// (stage 9-7b-2b).
 	sleptAbroad float64
-	series      []int32   // bodies at every tick from 0, up to the tick the seed stopped
-	food        []float64 // food on the ground at the same ticks
-	surviving   []bool    // whether the seed was above the floor at the same ticks
-	fellAt      int       // first tick at or below the floor, -1 if never
-	starved     float64
-	sleepless   float64
-	asleep      float64 // body-ticks asleep over all body-ticks
-	sheltered   float64 // sleeps begun on a place to rest over all sleeps begun
+	// inWater is the share of bodies standing in water over the samples
+	// of the adults, speciesInWater the same per species, and diedOnWater
+	// the deaths in water (stage 9-7b-2c).
+	inWater        float64
+	speciesInWater []float64
+	diedOnWater    float64
+	series         []int32   // bodies at every tick from 0, up to the tick the seed stopped
+	food           []float64 // food on the ground at the same ticks
+	surviving      []bool    // whether the seed was above the floor at the same ticks
+	fellAt         int       // first tick at or below the floor, -1 if never
+	starved        float64
+	sleepless      float64
+	asleep         float64 // body-ticks asleep over all body-ticks
+	sheltered      float64 // sleeps begun on a place to rest over all sleeps begun
 	// places built, sleeps begun on them after the building, and those by
 	// their builders (stage 8-1)
 	built, builtSleeps, returns float64
@@ -356,6 +362,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	spBudget, spN := make([]float64, species), make([]float64, species)
 	spFood, spFoodN := make([]float64, species), 0.0
 	spAway, spBodies, awaySum, awayN := make([]float64, species), make([]float64, species), 0.0, 0.0
+	spWet, wetSum := make([]float64, species), 0.0
 	var st5 engine.Stats           // the counts as of tick 5000
 	budgets := map[int64]float64{} // every body seen, for its children
 	var cN, cX, cY, cXX, cYY, cXY float64
@@ -457,15 +464,20 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 			}
 			spFoodN++
 			if len(bs) > 0 {
-				out := 0.0
+				out, wet := 0.0, 0.0
 				for _, b := range bs {
 					spBodies[b.Species]++
 					if !w.Home(b.Species, m.RegionAt(int(b.X), int(b.Y))) {
 						out++
 						spAway[b.Species]++
 					}
+					if m.TerrainAt(int(b.X), int(b.Y)) == engine.TerrainWater {
+						wet++
+						spWet[b.Species]++
+					}
 				}
 				awaySum += out / float64(len(bs))
+				wetSum += wet / float64(len(bs))
 				awayN++
 			}
 			for _, b := range bs {
@@ -608,11 +620,16 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.speciesGone, r.speciesBudget = make([]float64, species), make([]float64, species)
 	r.speciesFood = make([]float64, species)
 	r.speciesAway = make([]float64, species)
+	r.speciesInWater = make([]float64, species)
 	r.away = awaySum / math.Max(awayN, 1)
+	r.inWater = wetSum / math.Max(awayN, 1)
+	r.diedOnWater = float64(w.Stats().DiedOnWater)
 	for k := 0; k < species; k++ {
 		r.speciesAway[k] = math.NaN()
+		r.speciesInWater[k] = math.NaN()
 		if spBodies[k] > 0 {
 			r.speciesAway[k] = spAway[k] / spBodies[k]
+			r.speciesInWater[k] = spWet[k] / spBodies[k]
 		}
 		if r.speciesPop[k][len(r.speciesPop[k])-1] == 0 {
 			r.speciesGone[k] = 1
@@ -1224,16 +1241,24 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"人口（最終）", 2, func(r result) float64 { return r.pop[len(r.pop)-1] }},
 		{"人間の個体数（最終）", 2, speciesAt("human", func(r result, k int) float64 { return r.speciesPop[k][len(r.speciesPop[k])-1] })},
 		{"獣の個体数（最終）", 2, speciesAt("beast", func(r result, k int) float64 { return r.speciesPop[k][len(r.speciesPop[k])-1] })},
+		{"魚の個体数（最終）", 2, speciesAt("fish", func(r result, k int) float64 { return r.speciesPop[k][len(r.speciesPop[k])-1] })},
 		{"人間が絶滅したシードの割合", 4, speciesAt("human", func(r result, k int) float64 { return r.speciesGone[k] })},
 		{"獣が絶滅したシードの割合", 4, speciesAt("beast", func(r result, k int) float64 { return r.speciesGone[k] })},
+		{"魚が絶滅したシードの割合", 4, speciesAt("fish", func(r result, k int) float64 { return r.speciesGone[k] })},
 		{"人間の成人の平均予算", 4, speciesAt("human", func(r result, k int) float64 { return r.speciesBudget[k] })},
 		{"獣の成人の平均予算", 4, speciesAt("beast", func(r result, k int) float64 { return r.speciesBudget[k] })},
 		{"人間の食料（地面）", 1, speciesAt("human", func(r result, k int) float64 { return r.speciesFood[k] })},
 		{"獣の食料（地面）", 1, speciesAt("beast", func(r result, k int) float64 { return r.speciesFood[k] })},
+		{"魚の食料（地面）", 1, speciesAt("fish", func(r result, k int) float64 { return r.speciesFood[k] })},
 		{"よその地域にいる割合", 4, func(r result) float64 { return r.away }},
 		{"人間がよその地域にいる割合", 4, speciesAt("human", func(r result, k int) float64 { return r.speciesAway[k] })},
 		{"獣がよその地域にいる割合", 4, speciesAt("beast", func(r result, k int) float64 { return r.speciesAway[k] })},
 		{"他種族の定住場所で始まった眠り", 2, func(r result) float64 { return r.sleptAbroad }},
+		{"水にいる割合", 4, func(r result) float64 { return r.inWater }},
+		{"人間が水にいる割合", 4, speciesAt("human", func(r result, k int) float64 { return r.speciesInWater[k] })},
+		{"獣が水にいる割合", 4, speciesAt("beast", func(r result, k int) float64 { return r.speciesInWater[k] })},
+		{"魚が水にいる割合", 4, speciesAt("fish", func(r result, k int) float64 { return r.speciesInWater[k] })},
+		{"水で死んだ", 2, func(r result) float64 { return r.diedOnWater }},
 		{"崩壊したシードの割合", 4, func(r result) float64 {
 			if r.fellAt > 0 {
 				return 1

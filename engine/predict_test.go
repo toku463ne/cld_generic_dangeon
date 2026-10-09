@@ -71,7 +71,7 @@ func TestTruthTableReadsTheGround(t *testing.T) {
 		count[w.m.RegionAt(f.X, f.Y)]++
 	}
 	for r, q := range tab.Meet {
-		want := count[r] / float64(len(w.food.regionLand[r])) * w.cfg.Speed
+		want := count[r] / float64(len(w.regionLand(RegionID(r)))) * w.cfg.Speed
 		if math.Abs(q-want) > 1e-12 {
 			t.Fatalf("region %d: meet %v, want %v", r, q, want)
 		}
@@ -109,6 +109,7 @@ func TestEatingAgainstTheWindow(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Sight, cfg.DayTicks = -1, 0
@@ -206,6 +207,7 @@ func TestWalksToFoodInSight(t *testing.T) {
 // keeps moving that way and draws nothing; where they do not, it draws.
 func TestKeepsHeading(t *testing.T) {
 	cfg := testConfig(1)
+	cfg.Wade = false // water as a wall, before stage 9-7b-2c
 	cfg.Bodies, cfg.FoodCap = 0, 0
 	cfg.Bounce, cfg.Learn = true, false
 	w, err := NewWorld(cfg, testMap())
@@ -400,6 +402,7 @@ func TestTraceIsTheChoice(t *testing.T) {
 	cfg.Allot, cfg.Learn = false, false
 	cfg.ChildAbility = 1 // every body the config's build at every age
 	cfg.Sleep = false    // and at the config's burn: no sleep debt
+	cfg.Wade = false     // and never in water, which multiplies the burn
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -514,6 +517,7 @@ func BenchmarkSurvival1000(b *testing.B) {
 func TestDrawInsteadOfBounce(t *testing.T) {
 	for _, mode := range []string{"wall", "reverse"} {
 		cfg := testConfig(1)
+		cfg.Wade = false // water as a wall, before stage 9-7b-2c
 		cfg.Bodies, cfg.FoodCap = 0, 0
 		cfg.Bounce = mode == "reverse"
 		cfg.DrawOffReverse = mode == "reverse"

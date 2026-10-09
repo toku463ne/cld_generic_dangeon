@@ -90,7 +90,7 @@ func (w *World) ageFactor(b *Body) float64 {
 }
 
 func (w *World) burnOf(b *Body) float64 {
-	return w.ownBurn(b, false) * w.tempBurn(b)
+	return w.ownBurn(b, false) * w.tempBurn(b) * w.waterBurn(b)
 }
 
 // ownBurn is the burn body b knows of its own body: its build's, a resting
@@ -234,7 +234,7 @@ func (w *World) touched(b *Body) bool {
 // resting mother with RestAhead the burn she goes back to when her rest
 // ends (stage 4-0).
 func (w *World) planBurn(b *Body) float64 {
-	return w.ownBurn(b, true) * w.tempBurn(b)
+	return w.ownBurn(b, true) * w.tempBurn(b) * w.waterBurn(b)
 }
 
 // readBurn is the burn body b values its options at (stage 7-3a): planBurn

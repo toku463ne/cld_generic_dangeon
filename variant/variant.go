@@ -50,6 +50,17 @@ const Twin = "twin"
 // Open is stage 9-7b-2a: a settlement admits bodies of every species.
 const Open = "open"
 
+// Fish is stage 9-7b-2c: a third species that lives in the water and
+// eats a pool of food that comes back there, each species' pool 300
+// (the cap three times the default, as Roomy doubles it for two). Wade
+// is Fish with water costing the land species nothing extra, and Dry is
+// Fish with water a wall to them, as before the stage.
+const (
+	Fish = "fish"
+	Wade = "wade"
+	Dry  = "dry"
+)
+
 // Roomy gives the two species, each in its own regions, the food one
 // species had alone: twice the cap, so each pool is 300 (stage 9-7b-2;
 // on 150 each, the world settles under the collapse floor however it is
@@ -337,7 +348,24 @@ const Random = "random"
 
 // Each stage's variant is the next stage's with one more rule taken out,
 // so a rule added later is off in every earlier stage by construction.
-func shared(c *engine.Config)       { c.FoodKinds, c.Foods = nil, nil }
+func shared(c *engine.Config) { c.FoodKinds, c.Foods = nil, nil }
+
+// fish adds the fish to the species table, with their kind and pool of
+// food in the water, every species' pool 300.
+func fish(c *engine.Config) {
+	c.Species = append([]engine.SpeciesSpec(nil), c.Species...)
+	for i := range c.Species {
+		c.Species[i].Share = 1.0 / 3
+	}
+	c.Species = append(c.Species, engine.SpeciesSpec{Name: "fish", Share: 1.0 / 3, Terrains: []engine.Terrain{engine.TerrainWater}, Swims: true})
+	c.FoodKinds = append(append([]engine.FoodKind(nil), c.FoodKinds...), engine.FoodKind{Name: "fish food", Tags: []string{"fish"}})
+	c.Foods = append([]engine.FoodSpec(nil), c.Foods...)
+	for i := range c.Foods {
+		c.Foods[i].Share = 1.0 / 3
+	}
+	c.Foods = append(c.Foods, engine.FoodSpec{Name: "fish food", Kind: len(c.FoodKinds) - 1, Share: 1.0 / 3, Terrain: engine.TerrainWater})
+	c.FoodCap *= 3
+}
 func single(c *engine.Config)       { shared(c); c.Species = c.Species[:1] }
 func unventured(c *engine.Config)   { single(c); c.AllotVenture = false }
 func unsized(c *engine.Config)      { unventured(c); c.AllotBudget = false }
@@ -409,6 +437,9 @@ var rewrites = map[string]func(*engine.Config){
 	Together:   func(c *engine.Config) { c.PoolPlaces = false },
 	Open:       func(c *engine.Config) { c.ClosedPlaces = false },
 	Roomy:      func(c *engine.Config) { c.FoodCap *= 2 },
+	Fish:       fish,
+	Wade:       func(c *engine.Config) { fish(c); c.WaterBurn = 1 },
+	Dry:        func(c *engine.Config) { fish(c); c.Wade = false },
 	Roomytogether: func(c *engine.Config) {
 		c.FoodCap *= 2
 		c.PoolPlaces = false

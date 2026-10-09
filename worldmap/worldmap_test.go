@@ -152,3 +152,28 @@ func TestPoolsKeepApart(t *testing.T) {
 		t.Fatal("the seasons and flat maps should not place pools")
 	}
 }
+
+// The waters map is the constrained map with wide water that fish food
+// comes back in; its places to rest stay on land.
+func TestWaters(t *testing.T) {
+	m := Waters(64, 48)
+	water := 0
+	for i, tr := range m.Terrain {
+		if tr == engine.TerrainWater {
+			water++
+			if len(m.Shelter) > 0 && m.Shelter[i] {
+				t.Fatal("a place to rest in the water")
+			}
+		}
+	}
+	if water != WaterWidth*48 {
+		t.Fatalf("%d water tiles, want %d", water, WaterWidth*48)
+	}
+	f := m.PoolFood["fish food"]
+	if f == nil || f[0] != 0 || f[1] == 0 || f[2] != 0 || f[3] == 0 {
+		t.Fatalf("fish food shares %v", f)
+	}
+	if err := m.Validate(); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -88,11 +88,16 @@ func (w *World) meet(r RegionID, speed, burn float64) float64 {
 // the tiles entered per tick, times the ticks a grain lasts, no more than
 // 1: what a body burns per tile is what tells a fast or slow burner apart.
 func (w *World) meetAt(r RegionID, food int, speed, burn float64) float64 {
-	land := len(w.food.regionLand[r])
-	if land == 0 {
+	return w.meetOver(r, food, len(w.regionLand(r)), speed, burn)
+}
+
+// meetOver is meetAt over the given tiles of region r: a body's area is
+// the tiles it may stand on (areaOf), land for the config body.
+func (w *World) meetOver(r RegionID, food, area int, speed, burn float64) float64 {
+	if area == 0 {
 		return 0
 	}
-	return math.Min(float64(food)/float64(land)*w.factor(speed, burn), 1)
+	return math.Min(float64(food)/float64(area)*w.factor(speed, burn), 1)
 }
 
 // factor is how many tiles a body of the given speed and burn enters per
@@ -762,6 +767,9 @@ type table struct {
 // and speed are in the chance per grain, not the key.
 type survKey struct {
 	food, full, factor int
+	// area is the tiles of the region the body may stand on, where that
+	// is not the region's land (a species of the water, stage 9-7b-2c).
+	area int
 }
 
 // TableKey names one survival table, for a saved world to say which tables
@@ -840,7 +848,11 @@ func (w *World) survivalFor(b *Body, r RegionID, full, factor int) Survival {
 // tableFor finds or builds region r's table for the food now that body b
 // may eat, a most and a factor level.
 func (w *World) tableFor(b *Body, r RegionID, full, factor int) *table {
-	return w.tableAt(r, survKey{food: w.groundFood(b, r), full: full, factor: factor})
+	k := survKey{food: w.groundFood(b, r), full: full, factor: factor}
+	if area := w.areaOf(b.Species, r); area != len(w.regionLand(r)) {
+		k.area = area
+	}
+	return w.tableAt(r, k)
 }
 
 // tableAt finds or builds region r's table for key k.
@@ -850,7 +862,11 @@ func (w *World) tableAt(r RegionID, k survKey) *table {
 	t, ok := p.cache[r][k]
 	if !ok {
 		tt := TruthTable{Meal: p.meal, Full: k.full, Reach: w.grains(w.reach(w.maxSight(), w.slowest()), w.cfg.EnergyBurn), Over: w.cfg.Carry * p.meal}
-		meet := math.Min(w.meetAt(r, k.food, w.cfg.Speed, w.cfg.EnergyBurn)*w.factorOf(k.factor), 1)
+		area := len(w.regionLand(r))
+		if k.area != 0 {
+			area = k.area
+		}
+		meet := math.Min(w.meetOver(r, k.food, area, w.cfg.Speed, w.cfg.EnergyBurn)*w.factorOf(k.factor), 1)
 		t = &table{s: tt.NewSurvival(meet, p.windows), used: w.tick}
 		p.cache[r][k] = t
 	}

@@ -184,7 +184,7 @@ func (w *World) trigger(b *Body, under bool, saw, mates uint64) Trigger {
 		speed := w.speedOf(b)
 		nx, ny := b.X+d[0]*speed, b.Y+d[1]*speed
 		next := w.tileOf(nx, ny)
-		if next < 0 || w.m.Terrain[next] != TerrainLand || w.m.Region[next] != w.m.Region[w.tileOf(b.X, b.Y)] {
+		if next < 0 || !w.mayEnter(b, next) || w.m.Region[next] != w.m.Region[w.tileOf(b.X, b.Y)] {
 			return TriggerStep
 		}
 		if w.blocks(b, nx, ny) {

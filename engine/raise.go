@@ -87,7 +87,7 @@ func (w *World) canSettle(b *Body) bool {
 		return false
 	}
 	t := w.tileOf(b.X, b.Y)
-	return t >= 0 && !w.m.ShelterAt(t%w.m.Width, t/w.m.Width)
+	return t >= 0 && w.m.Terrain[t] == TerrainLand && !w.m.ShelterAt(t%w.m.Width, t/w.m.Width)
 }
 
 // settleInstead is what body b, falling asleep (a is ActSleep), does: it
@@ -195,7 +195,7 @@ func (w *World) toward(b *Body, t int) Action {
 	a := math.Atan2(ty-b.Y, tx-b.X)
 	d := (int(math.Round(a/(math.Pi/4))) + 8) % 8
 	x, y := b.X+moveDirs[d][0]*w.speedOf(b), b.Y+moveDirs[d][1]*w.speedOf(b)
-	if to := w.tileOf(x, y); to < 0 || w.m.Terrain[to] != TerrainLand || w.blocks(b, x, y) {
+	if to := w.tileOf(x, y); to < 0 || !w.mayEnter(b, to) || w.blocks(b, x, y) {
 		return Action{Kind: ActWait}
 	}
 	return Action{Kind: ActMove, Dir: d}

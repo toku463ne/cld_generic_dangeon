@@ -92,3 +92,102 @@ func TestSpecies(t *testing.T) {
 		}
 	}
 }
+
+// A body whose species does not list water may wade into it (Wade) and
+// burns WaterBurn times as fast there; its survival tables still read its
+// own land. A species of the water (fish) starts in it, never leaves it,
+// and eats a pool that comes back in it, which the land species do not
+// see (stage 9-7b-2c).
+func TestWadeAndFish(t *testing.T) {
+	w := newTestWorld(t, 8)
+	// A human beside the water (column 7 of testMap) may step in.
+	b := Body{X: 6.9, Y: 2.5, Energy: 60, Heading: -1, Goal: -1, Decided: -1}
+	into := false
+	for _, a := range w.possibleActions(nil, &b) {
+		if a.Kind == ActMove && w.m.Terrain[w.tileOf(b.X+float64(moveDirs[a.Dir][0])*w.speedOf(&b), b.Y)] == TerrainWater {
+			into = true
+		}
+	}
+	if !into {
+		t.Fatal("a wading species is not offered a step into water")
+	}
+	dry := w.burnOf(&b)
+	b.X = 7.5
+	if got := w.burnOf(&b); math.Abs(got-dry*w.cfg.WaterBurn) > 1e-12 {
+		t.Fatalf("burn in water %v, want %v (WaterBurn x %v)", got, dry*w.cfg.WaterBurn, dry)
+	}
+	if w.areaOf(0, 1) != len(w.regionLand(1)) {
+		t.Fatal("a wading species' area counts the water")
+	}
+	// Fish.
+	cfg := testConfig(9)
+	cfg.FoodKinds = []FoodKind{{Name: "land food", Tags: []string{"human", "beast"}}, {Name: "fish food", Tags: []string{"fish"}}}
+	cfg.Foods = []FoodSpec{{Name: "land food", Share: 0.5}, {Name: "fish food", Kind: 1, Share: 0.5, Terrain: TerrainWater}}
+	cfg.Species = append(cfg.Species, SpeciesSpec{Name: "fish", Share: 1, Terrains: []Terrain{TerrainWater}, Swims: true})
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	fishes := 0
+	for _, f := range w.Foods() {
+		if (f.ID == 1) != (w.m.Terrain[w.m.index(f.X, f.Y)] == TerrainWater) {
+			t.Fatalf("a unit of pool %d at (%d,%d)", f.ID, f.X, f.Y)
+		}
+	}
+	for _, b := range w.Bodies() {
+		if b.Species == 2 {
+			fishes++
+			if w.m.Terrain[w.tileOf(b.X, b.Y)] != TerrainWater {
+				t.Fatal("a fish starts on land")
+			}
+		}
+	}
+	if fishes == 0 {
+		t.Fatal("no fish drawn")
+	}
+	if !w.Home(2, 1) || w.Home(2, 0) || !w.Home(0, 0) {
+		t.Fatalf("homes: fish %v %v, human %v", w.Home(2, 1), w.Home(2, 0), w.Home(0, 0))
+	}
+	if w.areaOf(2, 1) != len(w.food.regionTiles[TerrainWater][1]) {
+		t.Fatal("a fish's area is not the water")
+	}
+	for i := 0; i < 1500; i++ {
+		w.Step()
+		checkFood(t, w)
+		for _, b := range w.bodies {
+			if tr := w.m.Terrain[w.tileOf(b.X, b.Y)]; b.Species == 2 && tr != TerrainWater {
+				t.Fatalf("tick %d: a fish on land", w.Tick())
+			}
+			for _, p := range b.HeldPool {
+				if (p == 1) != (b.Species == 2) {
+					t.Fatalf("tick %d: species %d holds a unit of pool %d", w.Tick(), b.Species, p)
+				}
+			}
+		}
+	}
+	if w.FoodLedger().Pools[1].Eaten == 0 {
+		t.Fatal("the fish never ate")
+	}
+	// A fish in water pays no WaterBurn.
+	f := Body{X: 7.5, Y: 2.5, Energy: 60, Species: 2}
+	if w.wading(&f) {
+		t.Fatal("a fish wades")
+	}
+	// Bad rows are refused.
+	for _, bad := range []SpeciesSpec{
+		{Name: "a", Share: 1, Swims: true},
+		{Name: "a", Share: 1, Terrains: []Terrain{9}},
+	} {
+		cfg := testConfig(1)
+		cfg.Species = []SpeciesSpec{bad}
+		if _, err := NewWorld(cfg, testMap()); err == nil {
+			t.Fatalf("row %+v was accepted", bad)
+		}
+	}
+	cfg = testConfig(1)
+	cfg.FoodKinds = []FoodKind{{Name: "a", Tags: []string{"human"}}}
+	cfg.Foods = []FoodSpec{{Name: "a", Share: 1, Terrain: 9}}
+	if _, err := NewWorld(cfg, testMap()); err == nil {
+		t.Fatal("a pool on unknown terrain was accepted")
+	}
+}

@@ -17,8 +17,8 @@ func checkFood(t *testing.T, w *World) {
 	seen := map[int]bool{}
 	for i, f := range w.food.foods {
 		tile := w.m.index(f.X, f.Y)
-		if w.m.Terrain[tile] != TerrainLand {
-			t.Fatalf("tick %d: food on water at (%d,%d)", w.Tick(), f.X, f.Y)
+		if w.m.Terrain[tile] != w.food.pools[f.ID].terrain {
+			t.Fatalf("tick %d: food of pool %d on terrain %d at (%d,%d)", w.Tick(), f.ID, w.m.Terrain[tile], f.X, f.Y)
 		}
 		if seen[tile] {
 			t.Fatalf("tick %d: two units on tile (%d,%d)", w.Tick(), f.X, f.Y)
@@ -420,6 +420,7 @@ func TestUnkeptIsStage82b3(t *testing.T) {
 	cfg.AllotBudget = false
 	cfg.AllotVenture = false
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.ShelterFoodLife = 0
@@ -517,6 +518,7 @@ func TestFoodKinds(t *testing.T) {
 	cfg = testConfig(4)
 	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
 	cfg.Species = cfg.Species[:1]
+	cfg.Wade = false
 	w, err = NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -564,7 +566,7 @@ func TestFoodKinds(t *testing.T) {
 // With the default tables (a human pool and a beast pool) the world is
 // stage 9-7b-1: its fingerprint is pinned here.
 func TestPooledIsStage97b1(t *testing.T) {
-	const want = uint64(0x5e4f54eeed949048)
+	const want = uint64(0x9e604303e0643f3a)
 	cfg := testConfig(1)
 	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
 	w, err := NewWorld(cfg, tempMap())

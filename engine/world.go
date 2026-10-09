@@ -223,6 +223,9 @@ func (w *World) removeDead() {
 			w.dropTent(&b)
 			w.release(b.ID)
 			w.stats.Deaths[cause]++
+			if t := w.tileOf(b.X, b.Y); t >= 0 && w.m.Terrain[t] == TerrainWater {
+				w.stats.DiedOnWater++
+			}
 			w.stats.BudgetOut += b.Budget
 			if w.tick < b.Mature {
 				w.stats.DiedYoung++

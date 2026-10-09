@@ -12,7 +12,7 @@ import (
 )
 
 // Names lists the maps Build knows.
-var Names = []string{"flat", "constrained", "seasons", "patches"}
+var Names = []string{"flat", "constrained", "seasons", "patches", "waters"}
 
 // Build returns the named map at the given size.
 func Build(name string, width, height int) (engine.Map, error) {
@@ -23,6 +23,8 @@ func Build(name string, width, height int) (engine.Map, error) {
 		return Constrained(width, height), nil
 	case "seasons":
 		return Seasons(width, height), nil
+	case "waters":
+		return Waters(width, height), nil
 	case "patches":
 		return Patches(width, height), nil
 	}
@@ -113,6 +115,29 @@ func Constrained(width, height int) engine.Map {
 		"human food": {ConstrainedFood[0], ConstrainedFood[1], 0, 0},
 		"beast food": {0, 0, ConstrainedFood[2], ConstrainedFood[3]},
 	}
+	shelters(&m)
+	return m
+}
+
+// WaterWidth is the width of the water on the waters map (stage 9-7b-2c):
+// wide enough for a species of the water to live in, where the
+// constrained map's two tiles are a wall to cross.
+const WaterWidth = 8
+
+// Waters is the constrained map with its water WaterWidth tiles wide, and
+// a pool of fish food that comes back in the water (regions 1 and 3,
+// which the water runs through). The land species keep apart as on the
+// constrained map.
+func Waters(width, height int) engine.Map {
+	m := Constrained(width, height)
+	water := width * 5 / 8
+	for y := 0; y < height; y++ {
+		for x := water; x < water+WaterWidth && x < width; x++ {
+			m.SetTerrain(x, y, engine.TerrainWater)
+		}
+	}
+	m.PoolFood["fish food"] = []float64{0, 1, 0, 1}
+	m.Shelter = nil
 	shelters(&m)
 	return m
 }
