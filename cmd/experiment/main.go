@@ -103,6 +103,9 @@ type result struct {
 	// refuge (stages 10-2c, 10-2d).
 	blowsBack, huntersSlain, sleptSafe float64
 	killedAsleep, killedAway           float64
+	// attackLow etc. are the mean shares of adults at the lowest and the
+	// highest attack and defense levels (stage 10-2j).
+	attackLow, attackHigh, defenseLow, defenseHigh float64
 	// inWater is the share of bodies standing in water over the samples
 	// of the adults, speciesInWater the same per species, and diedOnWater
 	// the deaths in water (stage 9-7b-2c).
@@ -384,6 +387,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	var zLow, zHigh, zN, bSum1, bN1, bSum2, bN2 float64
 	var uSum, uN float64
 	var vLow, vHigh, vN float64
+	var cALow, cAHigh, cDLow, cDHigh, cbN float64
 	spBudget, spN := make([]float64, species), make([]float64, species)
 	spFood, spFoodN := make([]float64, species), 0.0
 	spAway, spBodies, awaySum, awayN := make([]float64, species), make([]float64, species), 0.0, 0.0
@@ -489,6 +493,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 			sizeLow, sizeHigh, budget := 0.0, 0.0, 0.0
 			unk := 0.0
 			boldLow, boldHigh := 0.0, 0.0
+			attackLow, attackHigh, defenseLow, defenseHigh := 0.0, 0.0, 0.0, 0.0
 			for k := 0; k < species; k++ {
 				spFood[k] += float64(w.GroundFoodOf(k))
 			}
@@ -526,6 +531,18 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 						boldLow++
 					case cfg.VentureMost:
 						boldHigh++
+					}
+					switch w.BodyAttack(b) {
+					case 0:
+						attackLow++
+					case cfg.CombatMost:
+						attackHigh++
+					}
+					switch w.BodyDefense(b) {
+					case 0:
+						defenseLow++
+					case cfg.CombatMost:
+						defenseHigh++
 					}
 					if w.RegionEvidence(b, m.RegionAt(int(b.X), int(b.Y))) < cfg.RegionWeight {
 						unk++
@@ -572,6 +589,13 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 					vLow += boldLow / adults
 					vHigh += boldHigh / adults
 					vN++
+				}
+				if cfg.AllotCombat && adults > 0 {
+					cALow += attackLow / adults
+					cAHigh += attackHigh / adults
+					cDLow += defenseLow / adults
+					cDHigh += defenseHigh / adults
+					cbN++
 				}
 				if cfg.AllotBudget && adults > 0 {
 					zLow += sizeLow / adults
@@ -676,6 +700,8 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.fertLow, r.fertHigh = fLow/math.Max(fN, 1), fHigh/math.Max(fN, 1)
 	r.sizeLow, r.sizeHigh = zLow/math.Max(zN, 1), zHigh/math.Max(zN, 1)
 	r.boldLow, r.boldHigh = vLow/math.Max(vN, 1), vHigh/math.Max(vN, 1)
+	r.attackLow, r.attackHigh = cALow/math.Max(cbN, 1), cAHigh/math.Max(cbN, 1)
+	r.defenseLow, r.defenseHigh = cDLow/math.Max(cbN, 1), cDHigh/math.Max(cbN, 1)
 	r.speciesGone, r.speciesBudget = make([]float64, species), make([]float64, species)
 	r.speciesFood = make([]float64, species)
 	r.speciesAway = make([]float64, species)
@@ -1400,6 +1426,10 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"真後ろへの手（決定のうち）", 4, func(r result) float64 { return r.back }},
 		{"決定の割合", 4, func(r result) float64 { return r.decided }},
 		{"成人の割合", 4, func(r result) float64 { return r.adults }},
+		{"攻撃0の成人の割合", 4, func(r result) float64 { return r.attackLow }},
+		{"攻撃が最大の成人の割合", 4, func(r result) float64 { return r.attackHigh }},
+		{"防御0の成人の割合", 4, func(r result) float64 { return r.defenseLow }},
+		{"防御が最大の成人の割合", 4, func(r result) float64 { return r.defenseHigh }},
 		{"視野0の成人の割合", 4, func(r result) float64 { return r.sightLow }},
 		{"視野が最大の成人の割合", 4, func(r result) float64 { return r.sightHigh }},
 		{"交配（成立）", 2, func(r result) float64 { return r.matings }},

@@ -79,6 +79,13 @@ const (
 // twenty seeds a unit every 5 to 25 ticks and is grazed faster.)
 const PlantSeedRate = 0.005
 
+// Priced and Priced2 are Warmed with a price on the combat levels
+// (CombatTrade 0.1 and 0.2 a level above the neutral; stage 10-2j).
+const (
+	Priced  = "priced"
+	Priced2 = "priced2"
+)
+
 // Ravenous is Warmed with hunting at any hunger (stage 10-2f). Commons is
 // Warmed with the map's places to rest open to every species (stage
 // 10-2h).
@@ -505,6 +512,16 @@ var rewrites = map[string]func(*engine.Config){
 	Warmed: func(c *engine.Config) {
 		c.FoodCap *= 2
 		c.HuntFrom = 5000
+	},
+	Priced: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.HuntFrom = 5000
+		c.CombatTrade = 0.1
+	},
+	Priced2: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.HuntFrom = 5000
+		c.CombatTrade = 0.2
 	},
 	Commons: func(c *engine.Config) {
 		c.FoodCap *= 2
