@@ -245,3 +245,100 @@ func TestDeepWater(t *testing.T) {
 		}
 	}
 }
+
+// A beast hunts humans (Hunt, stage 10-2a): it sees a prey, walks up to
+// it and strikes once a tick, four blows at even strength killing a body
+// at EnergyMax; the prey dies of CausePreyed and leaves MeatUnits units
+// of raw meat owned by the hunter, which no human sees and the hunter
+// eats. Humans attack nothing; with Hunt off nothing is attacked.
+func TestHunt(t *testing.T) {
+	cfg := testConfig(14)
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
+	cfg.Bodies = 0
+	cfg.AllotCombat = false // even strength
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A beast two tiles west of a human on land.
+	beast := Body{ID: 0, X: 2.5, Y: 2.5, Energy: 90, Species: 1, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 4}
+	human := Body{ID: 1, X: 4.5, Y: 2.5, Energy: 100, Species: 0, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Male, Sight: 2}
+	w.bodies = append(w.bodies, beast, human)
+	w.nextID = 2
+	w.buildGrid()
+	b, h := &w.bodies[0], &w.bodies[1]
+	attack := false
+	for _, a := range w.possibleActions(nil, b) {
+		attack = attack || a == Action{Kind: ActAttack, Mate: 1}
+	}
+	if !attack {
+		t.Fatal("the beast is not offered the attack")
+	}
+	if k := w.huntTicks(1); k != 4+int(math.Ceil(1/w.speedOf(b))) {
+		t.Fatalf("hunt ticks %d, want the walk of a tile plus four blows", k)
+	}
+	for _, a := range w.possibleActions(nil, h) {
+		if a.Kind == ActAttack {
+			t.Fatal("a human is offered an attack")
+		}
+	}
+	// Walk up, then four blows.
+	for i := 0; i < 20 && !adjacent(b, h); i++ {
+		w.act(0, b, Action{Kind: ActAttack, Mate: 1})
+	}
+	if !adjacent(b, h) {
+		t.Fatal("the beast never reached the human")
+	}
+	for i := 0; i < 3; i++ {
+		w.act(0, b, Action{Kind: ActAttack, Mate: 1})
+	}
+	if h.Slain || h.Energy <= 0 || math.Abs(h.Energy-25) > 1e-9 {
+		t.Fatalf("after three blows the human has %v energy, slain %v", h.Energy, h.Slain)
+	}
+	w.act(0, b, Action{Kind: ActAttack, Mate: 1})
+	if !h.Slain || h.Slayer != 0 {
+		t.Fatalf("after four blows: slain %v by %d", h.Slain, h.Slayer)
+	}
+	ht := w.tileOf(h.X, h.Y)
+	w.removeDead()
+	if len(w.bodies) != 1 || w.stats.Deaths[CausePreyed] != 1 || w.stats.Kills != 1 || w.stats.Blows != 4 {
+		t.Fatalf("bodies %d, preyed %d, kills %d, blows %d", len(w.bodies), w.stats.Deaths[CausePreyed], w.stats.Kills, w.stats.Blows)
+	}
+	meat := 0
+	for i, f := range w.food.foods {
+		if f.ID == 2 {
+			meat++
+			if w.food.owner[i] != 0 {
+				t.Fatalf("meat owned by %d, want the hunter 0", w.food.owner[i])
+			}
+			if abs(w.m.index(f.X, f.Y)%w.m.Width-ht%w.m.Width) > 1 || abs(w.m.index(f.X, f.Y)/w.m.Width-ht/w.m.Width) > 1 {
+				t.Fatal("meat lies away from the kill")
+			}
+		}
+	}
+	if meat != cfg.MeatUnits {
+		t.Fatalf("%d units of meat, want %d", meat, cfg.MeatUnits)
+	}
+	checkFood(t, w)
+	if !w.FoodLedger().Balanced() {
+		t.Fatalf("ledger: %+v", w.FoodLedger())
+	}
+	// The hunter eats it; a human would not see it.
+	b = &w.bodies[0]
+	other := Body{ID: 5, X: b.X, Y: b.Y, Species: 0}
+	if w.foodFor(&other, ht) >= 0 {
+		t.Fatal("a human sees the beast's meat")
+	}
+	if w.foodOn(ht) >= 0 && w.foodFor(b, ht) < 0 {
+		t.Fatal("the hunter does not see its meat")
+	}
+	// Hunt off: no attack offered.
+	w.cfg.Hunt = false
+	w.bodies = append(w.bodies, human)
+	w.buildGrid()
+	for _, a := range w.possibleActions(nil, &w.bodies[0]) {
+		if a.Kind == ActAttack {
+			t.Fatal("with Hunt off the beast is offered an attack")
+		}
+	}
+}

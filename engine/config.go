@@ -539,6 +539,14 @@ type Config struct {
 	CombatStep  float64
 	CombatTrade float64
 
+	// Hunt lets a body attack the species its row preys on (stage 10-2a,
+	// hunt.go): a blow a tick at HitEnergy times attack over attack plus
+	// defense, and MeatUnits units of the kill pool (Foods with Kill) left
+	// to the hunter by a prey struck down.
+	Hunt      bool
+	HitEnergy float64
+	MeatUnits int
+
 	// Collide keeps a body from stepping into a tile another body stands
 	// on (breed.go keeps who stands where): the move is not among its
 	// options, and a body whose intent would take it there decides again
@@ -560,8 +568,8 @@ func DefaultConfig() Config {
 		WaterBurn:          4,
 		DeepWater:          true,
 		ClosedPlaces:       true,
-		FoodKinds:          []FoodKind{{Name: "human food", Tags: []string{"human"}}, {Name: "beast food", Tags: []string{"beast"}}},
-		Foods:              []FoodSpec{{Name: "human food", Kind: 0, Share: 0.5}, {Name: "beast food", Kind: 1, Share: 0.5}},
+		FoodKinds:          []FoodKind{{Name: "human food", Tags: []string{"human"}}, {Name: "beast food", Tags: []string{"beast"}}, {Name: "raw meat", Tags: []string{"beast"}}},
+		Foods:              []FoodSpec{{Name: "human food", Kind: 0, Share: 0.5}, {Name: "beast food", Kind: 1, Share: 0.5}, {Name: "raw meat", Kind: 2, Kill: true}},
 		FoodEnergy:         30,
 		Grain:              0.1,
 		FoodLife:           1000,
@@ -651,7 +659,7 @@ func DefaultConfig() Config {
 		PriorWeight:        50,
 		RegionWeight:       50,
 		Venture:            1,
-		Species:            []SpeciesSpec{{Name: "human", Share: 0.5}, {Name: "beast", Share: 0.5, Size: 1, NoSkills: true}},
+		Species:            []SpeciesSpec{{Name: "human", Share: 0.5}, {Name: "beast", Share: 0.5, Size: 1, NoSkills: true, Preys: []string{"human"}}},
 		AllotVenture:       true,
 		VentureMost:        2,
 		VentureStep:        1.5,
@@ -696,6 +704,9 @@ func DefaultConfig() Config {
 		Requests:           true,
 		RequestRange:       5,
 		RequestTicks:       100,
+		Hunt:               true,
+		HitEnergy:          50,
+		MeatUnits:          2,
 		AllotCombat:        true,
 		CombatMost:         2,
 		CombatStep:         1.5,

@@ -34,6 +34,8 @@ type SpeciesSpec struct {
 	// (stage 9-7b-4, VISION: only humans acquire and use skills). The
 	// zero row is skilled, so a world without a table is as before.
 	NoSkills bool `json:",omitempty"`
+	// Preys names the species its bodies hunt (stage 10-2a, hunt.go).
+	Preys []string `json:",omitempty"`
 }
 
 // enters reports whether species s may be on terrain t by its row alone.

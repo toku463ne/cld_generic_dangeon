@@ -72,6 +72,10 @@ type FoodSpec struct {
 	Seed     int     `json:",omitempty"`
 	SeedRate float64 `json:",omitempty"`
 	Start    int     `json:",omitempty"`
+	// Kill makes the pool the meat of the hunt (stage 10-2a, hunt.go):
+	// its units come only from prey struck down, so it never fills nor
+	// returns and takes no share; its cap is FoodCap.
+	Kill bool `json:",omitempty"`
 }
 
 // Food is one unit of food on a tile, of pool ID.
@@ -152,6 +156,7 @@ type pool struct {
 	seed     int
 	seedRate float64
 	start    int
+	kill     bool
 	// sown is the fraction of a seed a plant pool's units have dropped
 	// and not yet grown; bed the fraction of a unit its seedbed is owed
 	// (Start).
@@ -235,7 +240,12 @@ func validFood(kinds []FoodKind, pools []FoodSpec) error {
 		if !(p.Share >= 0) || !(p.Return >= 0) {
 			return fmt.Errorf("food pool %s has share %v and return %v", p.Name, p.Share, p.Return)
 		}
-		sum += p.Share
+		if p.Kill && (p.Share != 0 || p.Seed != 0) {
+			return fmt.Errorf("kill pool %s takes no share and does not spread", p.Name)
+		}
+		if !p.Kill {
+			sum += p.Share
+		}
 	}
 	if len(pools) > 0 && !(sum > 0) {
 		return fmt.Errorf("the food pools' shares sum to %v", sum)
@@ -261,16 +271,22 @@ func (w *World) initFood() {
 	}
 	sum := 0.0
 	for _, s := range specs {
-		sum += s.Share
+		if !s.Kill {
+			sum += s.Share
+		}
 	}
-	// Caps are the shares of FoodCap, rounded so that they add up to it.
+	// Caps are the shares of FoodCap, rounded so that they add up to it;
+	// a kill pool stands outside the split with FoodCap as its cap.
 	given, cum := 0, 0.0
 	f.pools = make([]pool, len(specs))
 	for i, s := range specs {
-		cum += s.Share / sum
-		cap := int(cum*float64(w.cfg.FoodCap)+0.5) - given
-		given += cap
-		f.pools[i] = pool{name: s.Name, kind: s.Kind, cap: cap, ret: s.Return, terrain: s.Terrain, seed: s.Seed, seedRate: s.SeedRate, start: s.Start,
+		cap := w.cfg.FoodCap
+		if !s.Kill {
+			cum += s.Share / sum
+			cap = int(cum*float64(w.cfg.FoodCap)+0.5) - given
+			given += cap
+		}
+		f.pools[i] = pool{name: s.Name, kind: s.Kind, cap: cap, ret: s.Return, terrain: s.Terrain, seed: s.Seed, seedRate: s.SeedRate, start: s.Start, kill: s.Kill,
 			owed: make([]float64, len(w.m.RegionFood)), onGround: make([]int, len(w.m.RegionFood))}
 		if f.pools[i].ret == 0 {
 			f.pools[i].ret = w.cfg.FoodReturn
@@ -339,6 +355,9 @@ func (w *World) poolShares(p int) []float64 {
 // unit in a region drawn by the pool's share. It is how a world starts.
 func (w *World) fillFood() {
 	for p := range w.food.pools {
+		if w.food.pools[p].kill {
+			continue // nothing but a kill lays it
+		}
 		want := w.food.pools[p].cap
 		if s := w.cfg.Foods; p < len(s) && s[p].Start > 0 {
 			want = min(s[p].Start, want)
@@ -471,7 +490,7 @@ func (w *World) returnFood() {
 	for p := range f.pools {
 		pl := &f.pools[p]
 		vacant := pl.cap - pl.count - pl.held
-		if vacant <= 0 {
+		if vacant <= 0 || pl.kill {
 			continue
 		}
 		if pl.seed > 0 {
@@ -762,6 +781,9 @@ func (w *World) GroundFoodOf(s int) int {
 // bodies of a species start in its home regions (placeBodies).
 func (w *World) Home(s int, r RegionID) bool {
 	for p := range w.food.pools {
+		if w.food.pools[p].kill {
+			continue // meat comes back nowhere
+		}
 		if w.food.eats[s][p] && w.poolShares(p)[r] > 0 && w.canStand(s, w.food.pools[p].terrain) && len(w.food.regionTiles[w.food.pools[p].terrain][r]) > 0 {
 			return true
 		}

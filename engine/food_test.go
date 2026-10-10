@@ -443,7 +443,7 @@ func TestUnkeptIsStage82b3(t *testing.T) {
 // human pool and a beast pool.
 func TestFoodKinds(t *testing.T) {
 	cfg := testConfig(3)
-	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds[:2], DefaultConfig().Foods[:2] // the two pools, without the meat
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -517,7 +517,7 @@ func TestFoodKinds(t *testing.T) {
 	// With no beasts, the beast pool is never touched: not eaten, not
 	// provisioned, not picked; only decay moves it.
 	cfg = testConfig(4)
-	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds[:2], DefaultConfig().Foods[:2] // the two pools, without the meat
 	cfg.Species = cfg.Species[:1]
 	cfg.Wade = false
 	cfg.AllotCombat = false
@@ -568,9 +568,9 @@ func TestFoodKinds(t *testing.T) {
 // With the default tables (a human pool and a beast pool) the world is
 // stage 9-7b-1: its fingerprint is pinned here.
 func TestPooledIsStage97b1(t *testing.T) {
-	const want = uint64(0x85ba661fe19544d2)
+	const want = uint64(0x4eed6d6dfac3ae3)
 	cfg := testConfig(1)
-	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds[:2], DefaultConfig().Foods[:2] // the two pools, without the meat
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
 		t.Fatal(err)
@@ -595,7 +595,7 @@ func TestPoolPlaces(t *testing.T) {
 	}
 	m.PoolFood = map[string][]float64{"human food": {1, 0}, "beast food": {0, 1}}
 	cfg := testConfig(6)
-	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds[:2], DefaultConfig().Foods[:2] // the two pools, without the meat
 	cfg.FoodCap, cfg.FoodReturn = 40, 1
 	w, err := NewWorld(cfg, m)
 	if err != nil {

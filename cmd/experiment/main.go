@@ -94,6 +94,10 @@ type result struct {
 	// sleptAbroad counts the sleeps begun on another species' settlement
 	// (stage 9-7b-2b).
 	sleptAbroad float64
+	// blows, kills, preyed and meat are the blows struck, the prey struck
+	// down, the deaths by a hunter and the units of raw meat eaten (stage
+	// 10-2a).
+	blows, kills, preyed, meat float64
 	// inWater is the share of bodies standing in water over the samples
 	// of the adults, speciesInWater the same per species, and diedOnWater
 	// the deaths in water (stage 9-7b-2c).
@@ -749,6 +753,12 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.sheltered = float64(st.SleptSheltered) / math.Max(float64(st.Slept), 1)
 	r.built, r.builtSleeps, r.returns = float64(st.Built), float64(st.BuiltSleeps), float64(st.Returns)
 	r.sleptAbroad = float64(st.SleptAbroad)
+	r.blows, r.kills, r.preyed = float64(st.Blows), float64(st.Kills), float64(st.Deaths[engine.CausePreyed])
+	for _, pl := range w.FoodLedger().Pools {
+		if pl.Name == "raw meat" {
+			r.meat = float64(pl.Eaten)
+		}
+	}
 	if n := len(st.GenBirths); n > 0 {
 		r.maxGen = float64(n - 1)
 		r.topGenBirths = float64(st.GenBirths[n-1])
@@ -1092,17 +1102,19 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	p("| 出来事 | 回数 |\n| --- | --- |\n")
 	births := fmtMeanSE(collect(rs, func(r result) float64 { return r.births }), 2)
 	p("| 交配 | %s |\n| 出生 | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.matings }), 2), births)
-	for _, e := range []string{"種族内の戦い", "種族間の戦い", "コインを拾った", "売買"} {
+	p("| 種族内の戦い | 0 |\n")
+	p("| 種族間の戦い（攻撃の回数） | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.blows }), 2))
+	for _, e := range []string{"コインを拾った", "売買"} {
 		p("| %s | 0 |\n", e)
 	}
 	p("| 休んでいる母に配られた食料 | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.provisioned }), 2))
 	p("| 交配要求 | %s |\n| 交配要求で成り立った出生 | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.requests }), 2), fmtMeanSE(collect(rs, func(r result) float64 { return r.requestBirths }), 2))
 	p("| 体力消耗（合計） | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.burned }), 1))
-	p("| 死亡 | %s |\n\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.starved + r.aged + r.sleepless }), 2))
+	p("| 死亡 | %s |\n\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.starved + r.aged + r.sleepless + r.preyed }), 2))
 
 	p("### 5. 行動の選択割合（%s）\n\n", base)
 	p("| 行動 | 割合 |\n| --- | --- |\n")
-	for k, name := range []string{"待つ", "食べる", "移動", "交配", "拾う"} {
+	for k, name := range []string{"待つ", "食べる", "移動", "交配", "拾う", "眠る", "建てる", "攻撃"} {
 		p("| %s | %s%% |\n", name, fmtMeanSE(collect(rs, func(r result) float64 { return 100 * r.actions[k] }), 2))
 	}
 	p("\n")
@@ -1333,6 +1345,10 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"獣が水にいる割合", 4, speciesAt("beast", func(r result, k int) float64 { return r.speciesInWater[k] })},
 		{"魚が水にいる割合", 4, speciesAt("fish", func(r result, k int) float64 { return r.speciesInWater[k] })},
 		{"水で死んだ", 2, func(r result) float64 { return r.diedOnWater }},
+		{"攻撃の回数", 2, func(r result) float64 { return r.blows }},
+		{"倒した数", 2, func(r result) float64 { return r.kills }},
+		{"捕食で死んだ", 2, func(r result) float64 { return r.preyed }},
+		{"肉を食べた", 2, func(r result) float64 { return r.meat }},
 		{"植物（地面）", 1, func(r result) float64 { return r.plants }},
 		{"植物のある地域数", 2, func(r result) float64 { return r.plantRegions }},
 		{"崩壊したシードの割合", 4, func(r result) float64 {

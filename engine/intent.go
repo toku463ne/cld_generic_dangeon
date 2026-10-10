@@ -176,7 +176,7 @@ func (w *World) trigger(b *Body, under bool, saw, mates uint64) Trigger {
 		return TriggerSight
 	case mates != b.Mates:
 		return TriggerPartner
-	case b.Intent.Kind == ActWait, b.Intent.Kind == ActMate, b.Intent.Kind == ActPick:
+	case b.Intent.Kind == ActWait, b.Intent.Kind == ActMate, b.Intent.Kind == ActPick, b.Intent.Kind == ActAttack:
 		return TriggerWaited
 	}
 	if a := b.Intent; a.Kind == ActMove {

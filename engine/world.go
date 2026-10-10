@@ -70,6 +70,11 @@ type World struct {
 
 	// trace, when set, is shown every decision as it is made.
 	trace func(Body, Valuation, Action)
+	// prey says, per species, which species it preys on (hunt.go); nil
+	// where none does. hunt holds, for the decision under way, the ticks
+	// to the kill of each prey among the options.
+	prey [][]bool
+	hunt map[int64]int
 	// asking lists the indices of the bodies with a request to mate open
 	// (breed.go), kept through a tick.
 	// far holds, for the decision under way, the ticks of walking to each
@@ -154,6 +159,7 @@ func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 	}
 	w.rng, w.draws = newCountingRand(cfg.Seed)
 	w.initFood()
+	w.initPrey()
 	w.initPredict()
 	w.fillFood()
 	w.placeBodies(genomes)
@@ -212,12 +218,17 @@ func (w *World) removeDead() {
 	for _, b := range w.bodies {
 		cause := CauseStarved
 		old := w.cfg.Lifespan > 0 && w.tick-b.Born >= int64(w.cfg.Lifespan)
-		if old && b.Energy > 0 {
+		if b.Slain {
+			cause = CausePreyed
+		} else if old && b.Energy > 0 {
 			cause = CauseAged
 		} else if w.cfg.Sleep && w.cfg.DebtBurn > 0 && b.Debt > w.cfg.DebtBurn/4 {
 			cause = CauseSleepless
 		}
 		if b.Energy <= 0 || old {
+			if b.Slain {
+				w.dropMeat(&b)
+			}
 			if w.died == nil {
 				w.died = map[int64]int64{}
 			}

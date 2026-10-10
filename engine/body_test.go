@@ -24,6 +24,7 @@ func TestBodiesStayOnLand(t *testing.T) {
 // exact figure.
 func TestNoFoodStarvesEveryBody(t *testing.T) {
 	cfg := testConfig(1)
+	cfg.Hunt = false // nothing dies but of hunger
 	cfg.Wade = false // water as a wall, before stage 9-7b-2c
 	cfg.FoodCap = 0
 	cfg.Breed = false // no one is born to outlive the count

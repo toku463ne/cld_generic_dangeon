@@ -811,6 +811,12 @@ func actionName(a engine.Action) string {
 		return "pick"
 	case engine.ActMate:
 		return fmt.Sprintf("mate #%d", a.Mate)
+	case engine.ActAttack:
+		return fmt.Sprintf("attack #%d", a.Mate)
+	case engine.ActSleep:
+		return "sleep"
+	case engine.ActBuild:
+		return "build"
 	}
 	return "move " + dirName(a.Dir)
 }

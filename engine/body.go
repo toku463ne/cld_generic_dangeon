@@ -128,6 +128,10 @@ type Body struct {
 	// stage 10-1); zero stands for the neutral level.
 	Attack  int `json:",omitempty"`
 	Defense int `json:",omitempty"`
+	// Slain says a hunter struck it down this tick, Slayer which (stage
+	// 10-2a): it dies at the end of the tick and leaves its meat.
+	Slain  bool  `json:",omitempty"`
+	Slayer int64 `json:",omitempty"`
 	// Build is its own speed, most energy and burn (build.go), and Share
 	// the share of its budget it was born with for speed (with Allot).
 	Build Build
@@ -155,11 +159,15 @@ const (
 	ActSleep
 	// ActBuild is a tick of work on a settlement (Building, stage 8-2b).
 	ActBuild
+	// ActAttack is a blow at, or a step towards, a prey (Hunt, stage
+	// 10-2a, hunt.go).
+	ActAttack
 	NumActionKinds
 )
 
 // Action is one choice a body can make. Dir is used by moves only, and
-// Mate, the ID of the body mated with, by ActMate only.
+// Mate, the ID of the other body, by ActMate (the mate) and ActAttack
+// (the prey).
 type Action struct {
 	Kind ActionKind
 	Dir  int
@@ -176,6 +184,8 @@ const (
 	// CauseSleepless is starving with a sleep debt above a quarter of
 	// DebtBurn: the burn the debt raised outran the food (stage 7-3b).
 	CauseSleepless
+	// CausePreyed is being struck down by a hunter (stage 10-2a).
+	CausePreyed
 	NumCauses
 )
 
@@ -250,6 +260,9 @@ type Stats struct {
 	// does not swim) standing in water, whatever the cause (stage
 	// 9-7b-2c).
 	DiedOnWater int64 `json:",omitempty"`
+	// Blows counts the blows struck and Kills the prey struck down (Hunt,
+	// stage 10-2a).
+	Blows, Kills int64 `json:",omitempty"`
 	// Begun, Fetched and Abandoned count the settlements begun, the times
 	// a builder went for food in sight, and the sites given up (stage
 	// 8-2b).
@@ -379,7 +392,7 @@ func (w *World) possibleActions(dst []Action, b *Body) []Action {
 			dst = append(dst, Action{Kind: ActMove, Dir: d})
 		}
 	}
-	return w.mateOptions(dst, b)
+	return w.huntOptions(w.mateOptions(dst, b), b)
 }
 
 // act carries out action a of body b, the i-th of the world's bodies; i is
@@ -416,6 +429,8 @@ func (w *World) act(i int, b *Body, a Action) {
 		w.eatHeld(b) // where a meal fits, picking it up is eating it
 	case ActMove:
 		w.step(i, b, a.Dir)
+	case ActAttack:
+		w.attack(i, b, a.Mate)
 	}
 }
 
