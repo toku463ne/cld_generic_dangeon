@@ -181,10 +181,12 @@ func (w *World) dropMeat(b *Body) {
 // Reading a threat (stage 10-2b, VISION: a node fights or flees a threat
 // as its state allows). A prey perceives the hunters in its sight: while
 // one is in sight, or when a blow lands, it decides every tick (the
-// threat trigger, intent.go), and its valuation reads a blow's worth of
-// energy off every option that leaves it within a hunter's reach after
-// the hunter's own step (valueInto). There is no move of fleeing: with
-// the blow read, stepping away is what comes out best. The hunter, for
+// threat trigger, intent.go), and its valuation reads off every option
+// the blows the hunters would land on it over the window from where the
+// option leaves it (threatLoss): within reach, a blow a tick until it is
+// dead; farther off, from when a faster hunter catches up; none from one
+// it can outrun. There is no move of fleeing: with the blows read, the
+// step that keeps the hunter off longest comes out best. The hunter, for
 // its part, chases only a prey it can outrun, and keeps the chase up
 // only while the kill still reads as a meal worth its ticks.
 
@@ -217,16 +219,33 @@ func (w *World) sawThreats(b *Body) uint64 {
 	return h
 }
 
-// threatAt is the worst blow body b would take at (x, y) from the
-// hunters it sees now (the list threats, filled by valueInto): a hunter
-// within reach of (x, y) after a step of its own; zero with none.
-func (w *World) threatAt(b *Body, x, y float64) float64 {
+// threatLoss is the energy body b, left at (x, y) by an option, would
+// lose to the hunters it sees now (the list threats, filled by valueInto)
+// over the next ticks: a hunter within reach of (x, y) after a step of
+// its own strikes every tick from now; one farther off, faster than b,
+// catches up at the closing speed and strikes from then; one b can
+// outrun never does. The blows stop at what kills b. The worst hunter
+// counts: within reach of one, the option reads as dying there unless
+// the window ends first.
+func (w *World) threatLoss(b *Body, x, y float64, ticks int) float64 {
 	worst := 0.0
 	for _, h := range w.threats {
 		reach := 1 + w.speedOf(h)
-		if math.Abs(h.X-x) <= reach && math.Abs(h.Y-y) <= reach {
-			worst = math.Max(worst, w.damage(h, b))
+		d := math.Max(math.Abs(h.X-x), math.Abs(h.Y-y))
+		catch := 0.0
+		if d > reach {
+			closing := w.speedOf(h) - w.speedOf(b)
+			if closing <= 0 {
+				continue
+			}
+			catch = (d - reach) / closing
 		}
+		blows := float64(ticks) - catch
+		if blows <= 0 {
+			continue
+		}
+		blow := w.damage(h, b)
+		worst = math.Max(worst, math.Min(blows, math.Ceil(b.Energy/blow))*blow)
 	}
 	return worst
 }

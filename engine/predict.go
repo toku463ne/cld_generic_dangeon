@@ -614,8 +614,10 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			after = w.units(b.Energy-w.birthShare(b)) + reserve - 1 - grainsOf(w.farTicks(a.Mate))
 		}
 		if len(w.threats) > 0 && a.Kind != ActAttack {
-			if blow := w.threatAt(b, x, y); blow > 0 {
-				after -= w.units(blow)
+			// The blows the hunters in sight would land over the window
+			// (stage 10-2b): within reach, every tick until dead.
+			if loss := w.threatLoss(b, x, y, w.cfg.Window); loss > 0 {
+				after -= w.units(loss)
 			}
 		}
 		c := 0.0
