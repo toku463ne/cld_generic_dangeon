@@ -211,6 +211,7 @@ func (w *World) Step() {
 		b.Energy -= burn
 		w.feelBurn(b)
 		w.feelWarm(b)
+		w.noteHaunt(b)
 		w.sleepTick(b)
 		w.foldTent(b)
 		w.pickTent(b)

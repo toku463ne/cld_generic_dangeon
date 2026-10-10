@@ -393,6 +393,10 @@ type Valuation struct {
 	// (stage 6-1b), if any, and then the nearest settlement of its own if
 	// that is another (8-2b); a Plan past Recalled points to them.
 	Shelter []Food
+	// ShelterBurn is the burn a sleep at each of them reads at: the
+	// warmth learned of a place to rest, the ground's for a haunt
+	// (Homing, stage 10-5).
+	ShelterBurn []float64
 	// Spend is, for each option, the energy the plan its risk was read
 	// from spends over Window ticks (stage 6-3a): what TieSpend breaks
 	// ties by.
@@ -463,14 +467,19 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 	}
 	// A place to rest to walk to and sleep at (stage 6-1b): the sleep
 	// there burns warm, and the body wakes to its burn as from any sleep.
-	v.Shelter = v.Shelter[:0]
-	var warm, woken float64
+	v.Shelter, v.ShelterBurn = v.Shelter[:0], v.ShelterBurn[:0]
+	var woken float64
 	if rs != nil {
+		woken = w.wokenBurn(b)
 		if f, burn, ok := w.shelterAhead(b); ok {
-			v.Shelter, warm, woken = append(v.Shelter, f), burn, w.wokenBurn(b)
+			v.Shelter, v.ShelterBurn = append(v.Shelter, f), append(v.ShelterBurn, burn)
 			if o, ok := w.ownAhead(b); ok && !b.Memory.Own[f.Y*w.m.Width+f.X] {
-				v.Shelter = append(v.Shelter, o)
+				v.Shelter, v.ShelterBurn = append(v.Shelter, o), append(v.ShelterBurn, burn)
 			}
+		}
+		// And the ground it likes, to go back to (Homing, stage 10-5).
+		if f, burn, ok := w.hauntAhead(b); ok {
+			v.Shelter, v.ShelterBurn = append(v.Shelter, f), append(v.ShelterBurn, burn)
 		}
 	}
 	// What a plan spends over Window ticks (stage 6-3a): searching burns
@@ -579,10 +588,11 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 		// ticks of walking, SleepTicks asleep at the warm burn, then on
 		// the move from there at the burn woken to.
 		for f, place := range v.Shelter {
+			warm := v.ShelterBurn[f]
 			r, k := w.shelterRisk(b, rs, place, x, y, whole, wholeWin, full, warm, woken, speed, burn)
 			// With TieSpend, a risk no worse that spends less is taken
 			// (stage 6-3a).
-			if r < risk || w.cfg.TieSpend && r == risk && sleepSpend(k, warm, w.wokenBurn(b)) < spendNow {
+			if r < risk || w.cfg.TieSpend && r == risk && sleepSpend(k, warm, woken) < spendNow {
 				risk, plan, arrive = r, len(v.Seen)+len(v.Recalled)+f, k
 			}
 		}
@@ -613,11 +623,12 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			// k ticks of walking (Requests).
 			after = w.units(b.Energy-w.birthShare(b)) + reserve - 1 - grainsOf(w.farTicks(a.Mate))
 		}
+		lost := 0.0
 		if len(w.threats) > 0 && a.Kind != ActAttack {
 			// The blows the hunters in sight would land over the window
 			// (stage 10-2b): within reach, every tick until dead.
-			if loss := w.threatLoss(b, x, y, w.cfg.Window); loss > 0 {
-				after -= w.units(loss)
+			if lost = w.threatLoss(b, x, y, w.cfg.Window); lost > 0 {
+				after -= w.units(lost)
 			}
 		}
 		c := 0.0
@@ -666,7 +677,9 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 				continue
 			}
 			if a.Kind == ActSleep {
-				v.Risk[i] = append(v.Risk[i], w.sleepRisk(b, rs, win, reserve))
+				// Asleep it takes the blows too: it sleeps on what they
+				// leave (beside a hunter, nothing).
+				v.Risk[i] = append(v.Risk[i], w.sleepRiskLess(b, rs, win, reserve, lost))
 				if i == 0 {
 					v.Plan = append(v.Plan, -1)
 					v.Arrive = append(v.Arrive, 0)
@@ -690,7 +703,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 				v.Arrive = append(v.Arrive, arrive)
 				sp := spendNow
 				if s := len(v.Seen) + len(v.Recalled); plan >= s && plan < s+len(v.Shelter) {
-					sp = sleepSpend(arrive, warm, woken)
+					sp = sleepSpend(arrive, v.ShelterBurn[plan-s], woken)
 				}
 				v.Spend = append(v.Spend, sp)
 			}
@@ -706,11 +719,17 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 // keeps on the move through the region it is in for the rest of the
 // window. reserve is what it holds and any rest left (valueInto).
 func (w *World) sleepRisk(b *Body, rs *rates, win, reserve int) float64 {
+	return w.sleepRiskLess(b, rs, win, reserve, 0)
+}
+
+// sleepRiskLess is sleepRisk from the energy left after lost: what the
+// hunters in sight take from a sleeper (stage 10-2b).
+func (w *World) sleepRiskLess(b *Body, rs *rates, win, reserve int, lost float64) float64 {
 	now := w.planBurn(b)
 	if w.cfg.Tents && b.Tent.Has && rs != nil {
 		now = w.tentWarm(b) // tonight in its tent (stage 8-2a)
 	}
-	return w.sleepRiskAt(b, rs, win, reserve, now, b.Energy)
+	return w.sleepRiskAt(b, rs, win, reserve, now, b.Energy-lost)
 }
 
 // sleepRiskAt is sleepRisk for a sleep at burn now, from energy.

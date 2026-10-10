@@ -545,6 +545,7 @@ func TestBlowWakes(t *testing.T) {
 	w.nextID = 2
 	w.buildGrid()
 	b, h := &w.bodies[0], &w.bodies[1]
+	h.Pressure, h.Debt = 0.5, 100
 	w.sleepTick(h)
 	if !h.Asleep {
 		t.Fatal("it woke untouched")
@@ -553,6 +554,16 @@ func TestBlowWakes(t *testing.T) {
 	w.sleepTick(h)
 	if h.Asleep {
 		t.Fatal("struck, it sleeps on")
+	}
+	// Woken after two ticks it has slept two ticks' worth, no more: the
+	// pressure fell twice by its PressureAsleep-th, the debt by 2 DebtRepay
+	// (no full recovery for a sleep cut short).
+	p := 0.5 * math.Pow(1-1/w.cfg.PressureAsleep, 2)
+	if math.Abs(h.Pressure-p) > 1e-12 || h.Debt != 100-2*w.cfg.DebtRepay {
+		t.Fatalf("woken, pressure %v debt %v, want %v and %v", h.Pressure, h.Debt, p, 100-2*w.cfg.DebtRepay)
+	}
+	if h.Energy >= 100 {
+		t.Fatal("the blow cost it nothing")
 	}
 	if why := w.trigger(h, h.Under, h.Saw, h.Mates, h.Threats); why != TriggerThreat {
 		t.Fatalf("struck awake, trigger %v", TriggerNames[why])
@@ -814,5 +825,46 @@ func TestCalls(t *testing.T) {
 	w.act(0, b, Action{Kind: ActAttack, Mate: 1})
 	if n.Called || w.Alarms(*n, 0) != 1 {
 		t.Fatal("a call was heard with Calls off")
+	}
+}
+
+// Past ForceMax sleep is forced - but not beside a hunter (stage 10-5):
+// with one in sight the comparison of risks alone decides, and a body
+// whose sleeping next to a hunter reads as death stays awake. Without
+// Fear it does not see the hunter and sleeps.
+func TestForcedSleepUnderThreat(t *testing.T) {
+	cfg := testConfig(23)
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, append([]FoodSpec(nil), DefaultConfig().Foods...)
+	cfg.Foods[1].Terrain = TerrainLand // the test map has no forest
+	cfg.Bodies, cfg.AllotCombat = 0, false
+	cfg.HuntHunger = 1 // hunger is not the question here
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	beast := Body{ID: 0, X: 2.5, Y: 2.5, Energy: 90, Species: 1, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 3}
+	human := Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100, Species: 0, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Male, Sight: 3, Pressure: 0.95}
+	w.bodies = append(w.bodies, beast, human)
+	w.nextID = 2
+	w.buildGrid()
+	h := &w.bodies[1]
+	if !w.threatened(h) {
+		t.Fatal("the hunter beside it is no threat")
+	}
+	if !w.sleepDue(h) {
+		t.Fatal("sleep is not due at 0.95")
+	}
+	away := Action{Kind: ActMove, Dir: 2}
+	w.decide(h)
+	if a := w.dueSleep(h, away); a != away {
+		t.Fatalf("beside a hunter past ForceMax it did %v, want to move away", a)
+	}
+	w.cfg.Fear = false
+	if w.threatened(h) {
+		t.Fatal("without Fear it reads a threat")
+	}
+	w.decide(h)
+	if a := w.dueSleep(h, away); a.Kind != ActSleep {
+		t.Fatalf("not seeing the hunter past ForceMax it did %v, want sleep", a)
 	}
 }

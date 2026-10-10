@@ -480,3 +480,10 @@ func (w *World) Liking(b Body, id int64) float64 { return b.Memory.Liking[id] }
 
 // Alarms is how many times body b has heard its kind struck in region r.
 func (w *World) Alarms(b Body, r RegionID) int64 { return b.Memory.Alarms[int(r)] }
+
+// threatened reports whether body b has a hunter in sight now.
+func (w *World) threatened(b *Body) bool {
+	seen := false
+	w.hunters(b, func(*Body) { seen = true })
+	return seen
+}

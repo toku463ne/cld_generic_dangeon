@@ -115,3 +115,96 @@ func TestShelterblindIsStage61a(t *testing.T) {
 		t.Fatalf("fingerprint = %#x, want %#x", got, want)
 	}
 }
+
+// A body remembers the last tile it stood on of the ground its species
+// likes (Homing, stage 10-5), and with sleep near, off such ground, reads
+// it as a place to rest at its own burn: sleeping there is less risky
+// than sleeping where it stands at TerrainBurn times its burn, so the
+// valuation offers the walk back. A species without preferences keeps no
+// such tile, and without Homing none is kept or read.
+func TestHoming(t *testing.T) {
+	cfg := testConfig(24)
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, append([]FoodSpec(nil), DefaultConfig().Foods...)
+	cfg.Foods[1].Terrain = TerrainLand
+	cfg.Bodies, cfg.Hunt = 0, false
+	m := testMap()
+	for y := 1; y <= 3; y++ {
+		m.SetTerrain(5, y, TerrainForest)
+	}
+	w, err := NewWorld(cfg, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.bodies = append(w.bodies, Body{ID: 0, X: 5.5, Y: 2.5, Energy: 60, Species: 1, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 3})
+	w.nextID = 1
+	w.buildGrid()
+	b := &w.bodies[0]
+	home := w.m.index(5, 2)
+	w.noteHaunt(b)
+	if b.Memory.Haunt != home+1 {
+		t.Fatalf("on forest a beast remembers %d, want tile %d", b.Memory.Haunt-1, home)
+	}
+	b.X = 2.5 // off onto land
+	w.buildGrid()
+	w.noteHaunt(b)
+	if b.Memory.Haunt != home+1 {
+		t.Fatal("on land it forgot the forest")
+	}
+	if _, _, ok := w.hauntAhead(b); ok {
+		t.Fatal("a body that may not sleep reads its haunt")
+	}
+	b.Pressure = 0.5
+	f, burn, ok := w.hauntAhead(b)
+	if !ok || f.X != 5 || f.Y != 2 || math.Abs(burn-w.ownBurn(b, true)*w.tempBurn(b)) > 1e-12 || !(burn < w.planBurn(b)) {
+		t.Fatalf("haunt ahead %v at burn %v (%v), burn here %v", f, burn, ok, w.planBurn(b))
+	}
+	w.decide(b)
+	v := w.valuation
+	if len(v.Shelter) != 1 || v.Shelter[0] != f || v.ShelterBurn[0] != burn {
+		t.Fatalf("valuation offers %v at %v, want %v at %v", v.Shelter, v.ShelterBurn, f, burn)
+	}
+	var rs rates
+	w.ratesOf(b, &rs)
+	win, full := w.windowGrains(), w.units(w.maxOf(b))
+	n := w.units(b.Energy)
+	there, _ := w.shelterRisk(b, &rs, f, b.X, b.Y, n-1, win, full, burn, w.wokenBurn(b), w.speedOf(b), w.readBurn(b))
+	if here := w.sleepRisk(b, &rs, win, 0); !(there < here) {
+		t.Fatalf("sleeping at the haunt %v, where it stands %v", there, here)
+	}
+	// Back on the forest it reads nothing to go to.
+	b.X = 5.5
+	w.buildGrid()
+	if _, _, ok := w.hauntAhead(b); ok {
+		t.Fatal("standing on its haunt it reads it")
+	}
+	// A human, liking land, standing on land keeps the land tile and reads
+	// nothing: it is home.
+	b.X = 2.5
+	w.buildGrid()
+	h := Body{ID: 1, X: 2.5, Y: 2.5, Energy: 60, Species: 0, Pressure: 0.5}
+	w.noteHaunt(&h)
+	if h.Memory.Haunt != w.m.index(2, 2)+1 {
+		t.Fatal("a human on land remembers no haunt")
+	}
+	if _, _, ok := w.hauntAhead(&h); ok {
+		t.Fatal("at home it reads a walk home")
+	}
+	// Without Homing nothing is kept or read.
+	w.cfg.Homing = false
+	if _, _, ok := w.hauntAhead(b); ok {
+		t.Fatal("read without Homing")
+	}
+	c := Body{ID: 2, X: 5.5, Y: 2.5, Species: 1}
+	w.noteHaunt(&c)
+	if c.Memory.Haunt != 0 {
+		t.Fatal("kept without Homing")
+	}
+	// A row without preferences keeps none.
+	w.cfg.Homing = true
+	w.cfg.Species = append([]SpeciesSpec(nil), w.cfg.Species...)
+	w.cfg.Species[1].Likes = nil
+	w.noteHaunt(&c)
+	if c.Memory.Haunt != 0 {
+		t.Fatal("a species at home everywhere keeps a haunt")
+	}
+}

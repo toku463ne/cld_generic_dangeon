@@ -42,7 +42,7 @@
 - [睡眠](docs/node/body.md#睡眠): 睡眠圧と睡眠負債（`Sleep`）。負債は消耗を上げ能力を下げ、死は餓死として来る。寝る手は `WakeAt` を超えたら候補に出て `SleepTicks` 眠る。順位は門で入れる（`ForceAt`・`ForceMax`・`StayAwake`: 生命 > 睡眠 > 子孫）。強制される眠りを先読みする（`SleepAhead`）。
 - [気温と持ち主](docs/node/body.md#気温と持ち主): 平温から離れるほど消耗が上がる（`Temperature`・`TempBurn`）。持ち主のある物は持ち主だけが取れる（`Ownership`）。
 - [スキルとテントと定住場所](docs/node/body.md#スキルとテントと定住場所): スキルは記憶とは別の欄。テント（`Tents`）と定住場所（`Building`）は「どう眠るか」だけを変える——建てずに眠る一番良い形と比べ（`SeekBed`）、戻る夜の見込みは毎晩の体感から学ぶ（`ReuseNights`）。残されたテントは拾える（`DropTents`）。消えた場所は忘れる。
-- [休める場所と眠りの読み](docs/node/body.md#休める場所と眠りの読み): 休める場所は見れば覚え、暖かさは感じて学ぶ（`ShelterRead`）。親は子に休める場所を渡す（`PassShelters`）。寝る手は生理として知る結果で読み、消耗とその上がり方をリスクとして読む（`BurnRead`）。
+- [休める場所と眠りの読み](docs/node/body.md#休める場所と眠りの読み): 休める場所は見れば覚え、暖かさは感じて学ぶ（`ShelterRead`）。親は子に休める場所を渡す（`PassShelters`）。寝る手は生理として知る結果で読み、消耗とその上がり方をリスクとして読む（`BurnRead`）。好む地形の上に立った最後のタイルを覚え、眠りが近くその外にいれば、そこへ帰って眠る手を休める場所と同じ形で読む（`Homing`）。眠る手も視界の狩る側の打撃を読み、狩る側が見えるあいだは `ForceMax` でも眠りを強制しない。
 - [繁殖](docs/node/body.md#繁殖): 年齢で能力が動き（`ChildAbility`・`MatureAge`・`OldAge`）、寿命（`Lifespan`）で死ぬ。交配できるのは老人でない成人だけ。性別（`Sexes`）、雌雄で違う代金（`FemaleBears`）、産後の回復と配分（`RecoverTicks`・`Provision`）、交配要求（`Requests`）。出生は両者の合意で、両親の繁殖の見込みの積の確率で起きる。子は遺伝子を親から継ぐ。
 
 ## 記憶と意思決定

@@ -282,6 +282,9 @@ type Stats struct {
 	Blows, Kills            int64 `json:",omitempty"`
 	BlowsBack, HuntersSlain int64 `json:",omitempty"`
 	SleptSafe               int64 `json:",omitempty"`
+	// SleptAfield counts the sleeps begun on ground the sleeper's
+	// species does not like (stage 10-5).
+	SleptAfield int64 `json:",omitempty"`
 	// KilledAsleep and KilledAway count the prey struck down while
 	// asleep, and while standing where none of its food returns (stage
 	// 10-2e, to read where the hunting bites).
@@ -473,6 +476,9 @@ func (w *World) fallAsleep(b *Body) {
 	}
 	if t := w.tileOf(b.X, b.Y); t >= 0 && w.placeSp != nil && w.placeSp[t] != 0 && int(w.placeSp[t])-1 != b.Species {
 		w.stats.SleptAbroad++
+	}
+	if w.groundBurn(b) > 1 {
+		w.stats.SleptAfield++
 	}
 }
 

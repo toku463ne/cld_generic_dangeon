@@ -191,10 +191,12 @@ func (w *World) sleepDue(b *Body) bool {
 // dueSleep is what body b, its sleep due, does instead of a: it sleeps,
 // unless its pressure is below ForceMax and sleeping now would raise its
 // chance of dying within the window by more than StayAwake over its best
-// waking option (life first), read from the decision just made.
+// waking option (life first), read from the decision just made. With a
+// hunter in sight ForceMax does not force it either: sleeping beside one
+// reads as death, and the comparison alone decides (stage 10-5).
 func (w *World) dueSleep(b *Body, a Action) Action {
 	sleep := Action{Kind: ActSleep}
-	if b.Pressure >= w.cfg.ForceMax {
+	if b.Pressure >= w.cfg.ForceMax && !w.threatened(b) {
 		return sleep
 	}
 	v := &w.valuation

@@ -137,6 +137,9 @@ type Memory struct {
 	// read by a rule yet.
 	Alarms map[int]int64     `json:",omitempty"`
 	Liking map[int64]float64 `json:",omitempty"`
+	// Haunt is one past the index of the last tile it stood on of the
+	// ground its species likes, zero for none (Homing, stage 10-5).
+	Haunt int `json:",omitempty"`
 }
 
 // Belief is what a body's memory makes of the world now, as the trace shows

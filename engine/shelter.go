@@ -168,3 +168,35 @@ func (w *World) shelterRisk(b *Body, rs *rates, place Food, x, y float64, after,
 	s := w.learnedTable(rs.region[reg]*rs.slept*w.factor(speed, woken), full)
 	return s.deadAtLeast(win-ku-ts, after-ku-ts), k
 }
+
+// noteHaunt has body b remember the tile it stands on when that is ground
+// its species likes (Homing, stage 10-5): the last such tile is where it
+// goes back to sleep. A species without preferences is at home everywhere
+// and keeps none.
+func (w *World) noteHaunt(b *Body) {
+	if !w.cfg.Homing || len(w.specOf(b.Species).Likes) == 0 {
+		return
+	}
+	t := w.tileOf(b.X, b.Y)
+	if t < 0 || !w.m.Terrain[t].Ground() || w.terrainBurn(b.Species, w.m.Terrain[t]) != 1 {
+		return
+	}
+	b.Memory.Haunt = t + 1
+}
+
+// hauntAhead returns the tile body b remembers of the ground its species
+// likes and the burn it would sleep there at (its own, with the cold it
+// feels now), as a place to rest off any map's; ok is false where it may
+// not sleep now, remembers none, stands on it, or stands on ground it
+// burns no more on. The body feels the ground's burn, so nothing has to
+// be learned of the place.
+func (w *World) hauntAhead(b *Body) (f Food, burn float64, ok bool) {
+	if !w.cfg.Homing || !w.cfg.Sleep || b.Pressure <= w.cfg.WakeAt || b.Memory.Haunt == 0 {
+		return Food{}, 0, false
+	}
+	t := b.Memory.Haunt - 1
+	if t == w.tileOf(b.X, b.Y) || w.groundBurn(b) <= 1 {
+		return Food{}, 0, false
+	}
+	return Food{X: t % w.m.Width, Y: t / w.m.Width}, w.ownBurn(b, true) * w.tempBurn(b), true
+}

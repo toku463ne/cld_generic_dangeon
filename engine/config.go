@@ -591,10 +591,14 @@ type Config struct {
 	// hunt.go); Refuge has a
 	// hunted body walk to sleep in a settlement of its own species, which
 	// its hunters may not enter, before any other place to rest (stage
-	// 10-2d, shelter.go).
+	// 10-2d, shelter.go). Homing has a body remember the last tile it
+	// stood on of the ground its species likes, and read it, when its
+	// sleep is near and it stands off such ground, as a place to rest at
+	// its own burn (stage 10-5, VISION: 好む地形に回帰する傾向).
 	Fight      bool
 	FightTicks int
 	Refuge     bool
+	Homing     bool
 	// Fear has a prey read the hunters it sees (stage 10-2b, hunt.go):
 	// a hunter coming into sight or a blow landing makes it decide, and
 	// every option that leaves it next to a hunter reads a blow's worth
@@ -775,6 +779,7 @@ func DefaultConfig() Config {
 		Fight:              true,
 		FightTicks:         5,
 		Refuge:             true,
+		Homing:             true,
 		AllotCombat:        true,
 		CombatMost:         2,
 		CombatStep:         1.5,

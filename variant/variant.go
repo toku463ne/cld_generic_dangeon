@@ -113,6 +113,10 @@ const (
 	Exposed  = "exposed"
 )
 
+// Roaming is Warmed with no homing (stage 10-5): a body keeps no tile of
+// the ground it likes and sleeps where its sleep finds it.
+const Roaming = "roaming"
+
 // Skilled is stage 9-7b-3: every species is born with skills as humans
 // are; Shallow is stage 9-7b-3 too: bodies block each other in water as
 // on land. Both are the controls of stage 9-7b-4 on Roomy's cap.
@@ -553,6 +557,11 @@ var rewrites = map[string]func(*engine.Config){
 	Exposed: func(c *engine.Config) {
 		c.FoodCap *= 2
 		c.Refuge = false
+	},
+	Roaming: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.HuntFrom = 5000
+		c.Homing = false
 	},
 	Skilled: func(c *engine.Config) {
 		c.FoodCap *= 2
