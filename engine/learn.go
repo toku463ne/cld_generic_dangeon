@@ -131,6 +131,12 @@ type Memory struct {
 	// each child, Ver when it last passed them to it (tell.go, with Kin).
 	Ver  int64           `json:",omitempty"`
 	Told map[int64]int64 `json:",omitempty"`
+	// Alarms counts, per region, the calls of its kind struck it has
+	// heard, and Liking holds, per body, how well it thinks of it for the
+	// hunters it heard it strike down (stage 10-4, hunt.go). Neither is
+	// read by a rule yet.
+	Alarms map[int]int64     `json:",omitempty"`
+	Liking map[int64]float64 `json:",omitempty"`
 }
 
 // Belief is what a body's memory makes of the world now, as the trace shows

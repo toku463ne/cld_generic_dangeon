@@ -103,6 +103,9 @@ type result struct {
 	// refuge (stages 10-2c, 10-2d).
 	blowsBack, huntersSlain, sleptSafe float64
 	killedAsleep, killedAway           float64
+	// callsAttacked, callsDefeated and callsHeard count the calls of a
+	// body struck, of a hunter struck down, and the hearers (stage 10-4).
+	callsAttacked, callsDefeated, callsHeard float64
 	// attackLow etc. are the mean shares of adults at the lowest and the
 	// highest attack and defense levels (stage 10-2j).
 	attackLow, attackHigh, defenseLow, defenseHigh float64
@@ -787,6 +790,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.blows, r.kills, r.preyed = float64(st.Blows), float64(st.Kills), float64(st.Deaths[engine.CausePreyed])
 	r.blowsBack, r.huntersSlain, r.sleptSafe = float64(st.BlowsBack), float64(st.HuntersSlain), float64(st.SleptSafe)
 	r.killedAsleep, r.killedAway = float64(st.KilledAsleep), float64(st.KilledAway)
+	r.callsAttacked, r.callsDefeated, r.callsHeard = float64(st.Calls[engine.CallAttacked]), float64(st.Calls[engine.CallDefeated]), float64(st.CallsHeard)
 	for _, pl := range w.FoodLedger().Pools {
 		if pl.Name == "raw meat" {
 			r.meat = float64(pl.Eaten)
@@ -1387,6 +1391,9 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"避難所で始まった眠り", 2, func(r result) float64 { return r.sleptSafe }},
 		{"眠っているところを倒された", 2, func(r result) float64 { return r.killedAsleep }},
 		{"よその地域で倒された", 2, func(r result) float64 { return r.killedAway }},
+		{"発信（攻撃されている）", 2, func(r result) float64 { return r.callsAttacked }},
+		{"発信（倒した）", 2, func(r result) float64 { return r.callsDefeated }},
+		{"発信を受け取った", 2, func(r result) float64 { return r.callsHeard }},
 		{"植物（地面）", 1, func(r result) float64 { return r.plants }},
 		{"植物のある地域数", 2, func(r result) float64 { return r.plantRegions }},
 		{"崩壊したシードの割合", 4, func(r result) float64 {

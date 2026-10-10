@@ -100,9 +100,9 @@ func TestFingerprint(t *testing.T) {
 	// hunted body sleeps in a settlement of its own), 10-2e (its kind
 	// within reach strikes with it), 10-2f (a blow wakes a sleeper), 10-2g
 	// (a hunter hunts only when hungry), 10-2h (a beast burns more on
-	// land, which it does not like) and 10-3 (the aggressive level drawn;
-	// a hunter reads the odds).
-	const want = uint64(0xa7bb021d0b11c2fe)
+	// land, which it does not like), 10-3 (the aggressive level drawn; a
+	// hunter reads the odds) and 10-4 (a body struck calls its kind).
+	const want = uint64(0xdb87859fc3b0e6e0)
 	w, err := NewWorld(testConfig(1), tempMap())
 	if err != nil {
 		t.Fatal(err)

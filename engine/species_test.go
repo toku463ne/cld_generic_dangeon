@@ -758,3 +758,61 @@ func TestOdds(t *testing.T) {
 		}
 	}
 }
+
+// A body struck calls out to its kind within CallRange (Calls, stage
+// 10-4): the hearers remember the alarm against the region and decide;
+// a body that struck down a hunter calls out, and the hearers think
+// better of it. Other species hear nothing; beyond the range nothing is
+// heard.
+func TestCalls(t *testing.T) {
+	cfg := testConfig(26)
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, append([]FoodSpec(nil), DefaultConfig().Foods...)
+	cfg.Foods[1].Terrain = TerrainLand
+	cfg.Bodies, cfg.AllotCombat, cfg.HuntHunger, cfg.CallRange = 0, false, 1, 3
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	beast := Body{ID: 0, X: 2.5, Y: 2.5, Energy: 40, Species: 1, Heading: -1, Goal: -1, Decided: 0, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 3}
+	human := Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100, Species: 0, Heading: -1, Goal: -1, Decided: 0, Parents: [2]int64{-1, -1}, Sex: Male, Sight: 3}
+	near := Body{ID: 2, X: 5.5, Y: 2.5, Energy: 100, Species: 0, Heading: -1, Goal: -1, Decided: 0, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 3}
+	far := Body{ID: 3, X: 11.5, Y: 8.5, Energy: 100, Species: 0, Heading: -1, Goal: -1, Decided: 0, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 3}
+	other := Body{ID: 4, X: 3.5, Y: 4.5, Energy: 100, Species: 1, Heading: -1, Goal: -1, Decided: 0, Parents: [2]int64{-1, -1}, Sex: Male, Sight: 3}
+	w.bodies = append(w.bodies, beast, human, near, far, other)
+	w.nextID = 5
+	w.buildGrid()
+	b, h := &w.bodies[0], &w.bodies[1]
+	w.act(0, b, Action{Kind: ActAttack, Mate: 1})
+	n, f, o := &w.bodies[2], &w.bodies[3], &w.bodies[4]
+	if w.Alarms(*n, 0) != 1 || !n.Called {
+		t.Fatalf("the near human heard %d alarms, called %v", w.Alarms(*n, 0), n.Called)
+	}
+	if w.Alarms(*f, 0) != 0 || f.Called || o.Called || w.Alarms(*o, 0) != 0 {
+		t.Fatal("a far human or a beast heard the call")
+	}
+	if why := w.trigger(n, n.Under, n.Saw, n.Mates, n.Threats); why != TriggerCall {
+		t.Fatalf("the hearer's trigger is %v", TriggerNames[why])
+	}
+	if w.stats.Calls[CallAttacked] != 1 || w.stats.CallsHeard != 1 {
+		t.Fatalf("calls %v, heard %d", w.stats.Calls, w.stats.CallsHeard)
+	}
+	// The human strikes the beast of 40 down in two blows and calls out:
+	// the near human thinks better of it.
+	w.act(1, h, Action{Kind: ActAttack, Mate: 0})
+	w.act(1, h, Action{Kind: ActAttack, Mate: 0})
+	if !b.Slain {
+		t.Fatal("the beast is not down")
+	}
+	if w.Liking(*n, 1) != 1 || w.Liking(*f, 1) != 0 || w.stats.Calls[CallDefeated] != 1 {
+		t.Fatalf("liking near %v far %v, calls %v", w.Liking(*n, 1), w.Liking(*f, 1), w.stats.Calls)
+	}
+	// Without Calls nothing is heard.
+	w.cfg.Calls = false
+	n.Called = false
+	h.Energy = 100
+	w.bodies[0].Slain, w.bodies[0].Energy = false, 40
+	w.act(0, b, Action{Kind: ActAttack, Mate: 1})
+	if n.Called || w.Alarms(*n, 0) != 1 {
+		t.Fatal("a call was heard with Calls off")
+	}
+}

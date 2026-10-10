@@ -564,6 +564,12 @@ type Config struct {
 	FierceMost  int
 	FierceStep  float64
 	Odds        bool
+	// Calls has a body struck call out to its kind within CallRange tiles,
+	// and one that struck down a hunter call out that it did (stage 10-4,
+	// VISION "発信"): hearers remember the alarm and think better of the
+	// slayer.
+	Calls     bool
+	CallRange int
 	// Hunt lets a body attack the species its row preys on (stage 10-2a,
 	// hunt.go): a blow a tick at HitEnergy times attack over attack plus
 	// defense, and MeatUnits units of the kill pool (Foods with Kill) left
@@ -759,6 +765,8 @@ func DefaultConfig() Config {
 		FierceMost:         2,
 		FierceStep:         1.5,
 		Odds:               true,
+		Calls:              true,
+		CallRange:          5,
 		Hunt:               true,
 		HitEnergy:          50,
 		HuntHunger:         0.5,

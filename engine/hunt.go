@@ -180,10 +180,14 @@ func (w *World) attack(i int, b *Body, id int64) {
 	if back {
 		w.stats.BlowsBack++
 	}
+	if !back {
+		w.call(o, CallAttacked, b.ID) // the prey calls out (stage 10-4)
+	}
 	if o.Energy <= 0 {
 		o.Slain, o.Slayer = true, b.ID
 		if back {
 			w.stats.HuntersSlain++
+			w.call(b, CallDefeated, o.ID) // the slayer calls out (stage 10-4)
 		}
 		if o.Asleep {
 			w.stats.KilledAsleep++
@@ -411,3 +415,68 @@ func (w *World) safe(b *Body, t int) bool {
 	}
 	return w.ownerOf(t) == b.Species
 }
+
+// Calls (stage 10-4, VISION "発信"): a body struck calls out, and a body
+// that has struck down a hunter calls out that it did. A call reaches
+// the bodies of its species within CallRange tiles. One who hears a
+// body struck remembers the alarm against the region (Memory.Alarms)
+// and decides this tick (the call trigger, intent.go); one who hears a
+// hunter struck down thinks better of the body that did it
+// (Memory.Liking), which is read off the knowledge, not acted on yet -
+// cooperation, trade and mating will read it. Nothing comes to help:
+// a hearer within reach of the hunter fights it as its band anyway.
+
+// CallKind is what a call tells.
+type CallKind int
+
+const (
+	CallAttacked CallKind = iota
+	CallDefeated
+	NumCallKinds
+)
+
+// call has body b call out k; from is the body the call is about (the
+// hunter struck down, for CallDefeated).
+func (w *World) call(b *Body, k CallKind, about int64) {
+	if !w.cfg.Calls || w.grid == nil {
+		return
+	}
+	w.stats.Calls[k]++
+	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
+	r := w.m.Region[w.tileOf(b.X, b.Y)]
+	n := w.cfg.CallRange
+	for y := by - n; y <= by+n; y++ {
+		for x := bx - n; x <= bx+n; x++ {
+			if !w.m.InBounds(x, y) {
+				continue
+			}
+			for _, j := range w.grid[w.m.index(x, y)] {
+				o := &w.bodies[j]
+				if o.ID == b.ID || o.Species != b.Species {
+					continue
+				}
+				w.stats.CallsHeard++
+				switch k {
+				case CallAttacked:
+					if o.Memory.Alarms == nil {
+						o.Memory.Alarms = map[int]int64{}
+					}
+					o.Memory.Alarms[int(r)]++
+					o.Called = true
+				case CallDefeated:
+					if o.Memory.Liking == nil {
+						o.Memory.Liking = map[int64]float64{}
+					}
+					o.Memory.Liking[b.ID]++
+				}
+			}
+		}
+	}
+}
+
+// Liking is how well body b thinks of the body id, read off what it
+// has heard: zero for a stranger.
+func (w *World) Liking(b Body, id int64) float64 { return b.Memory.Liking[id] }
+
+// Alarms is how many times body b has heard its kind struck in region r.
+func (w *World) Alarms(b Body, r RegionID) int64 { return b.Memory.Alarms[int(r)] }

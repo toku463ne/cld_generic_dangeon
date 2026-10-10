@@ -564,6 +564,9 @@ func (w *World) Fingerprint() uint64 {
 			if b.Struck {
 				put(1)
 			}
+			if b.Called {
+				put(2)
+			}
 		}
 		// And the age of coming of age, where bodies breed.
 		if w.cfg.Allot && w.cfg.AllotInherit {

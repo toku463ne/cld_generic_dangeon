@@ -38,6 +38,9 @@ type Body struct {
 	// Struck whether a blow landed on it since (stage 10-2b).
 	Threats uint64 `json:",omitempty"`
 	Struck  bool   `json:",omitempty"`
+	// Called says it heard a call of its kind struck since it last decided
+	// (stage 10-4).
+	Called bool `json:",omitempty"`
 
 	// Mature is the tick the body becomes an adult (breed.go); the first
 	// bodies are adults from the start. Mates is a hash of the adults in
@@ -283,6 +286,10 @@ type Stats struct {
 	// asleep, and while standing where none of its food returns (stage
 	// 10-2e, to read where the hunting bites).
 	KilledAsleep, KilledAway int64 `json:",omitempty"`
+	// Calls counts the calls made, by kind, and CallsHeard the bodies
+	// that heard one (stage 10-4).
+	Calls      [NumCallKinds]int64 `json:",omitempty"`
+	CallsHeard int64               `json:",omitempty"`
 	// Begun, Fetched and Abandoned count the settlements begun, the times
 	// a builder went for food in sight, and the sites given up (stage
 	// 8-2b).

@@ -56,6 +56,8 @@ const (
 	// TriggerThreat is a hunter in sight (every tick it is), one going
 	// out of sight, or a blow landing (Fear, stage 10-2b).
 	TriggerThreat
+	// TriggerCall is a call of its kind struck heard (Calls, stage 10-4).
+	TriggerCall
 	NumTriggers
 
 	// noTrigger is a tick the body follows its intent.
@@ -63,7 +65,7 @@ const (
 )
 
 // TriggerNames name the triggers for reports, in order.
-var TriggerNames = [NumTriggers]string{"everytick", "first", "underfoot", "sight", "partner", "step", "blocked", "path", "recheck", "waited", "sleepy", "outside", "threat"}
+var TriggerNames = [NumTriggers]string{"everytick", "first", "underfoot", "sight", "partner", "step", "blocked", "path", "recheck", "waited", "sleepy", "outside", "threat", "call"}
 
 // turn returns the action body b takes this tick: its intent, or a new
 // decision when a trigger is true.
@@ -95,7 +97,7 @@ func (w *World) turn(b *Body) Action {
 		}
 	}
 	w.stats.Decisions[why]++
-	b.Struck = false
+	b.Struck, b.Called = false, false
 	w.noteSpots(b)
 	w.noteShelters(b)
 	w.valuation.Why = why
@@ -177,6 +179,8 @@ func (w *World) trigger(b *Body, under bool, saw, mates, threats uint64) Trigger
 		return TriggerFirst
 	case b.Struck, threats != 0, threats != b.Threats:
 		return TriggerThreat // a hunter in sight: decide every tick
+	case b.Called:
+		return TriggerCall
 	case under != b.Under:
 		return TriggerUnderfoot
 	case saw != b.Saw:
