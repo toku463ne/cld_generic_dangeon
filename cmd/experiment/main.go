@@ -295,6 +295,15 @@ func run(out, log io.Writer, o options, command string) error {
 	if i := strings.Index(rep, "### 9. 対の差"); i >= 0 {
 		fmt.Fprint(out, rep[i:])
 	}
+	// And the species' shares of bodies per region (stage 9-7b-3): a
+	// species instrument, read in every size of measurement.
+	if i := strings.Index(rep, "### 補助の表: 種族ごとの地域別人口比"); i >= 0 {
+		end := strings.Index(rep[i:], "### 補助の表: 動き方")
+		if end < 0 {
+			end = len(rep) - i
+		}
+		fmt.Fprint(out, "\n"+rep[i:i+end])
+	}
 	return nil
 }
 
