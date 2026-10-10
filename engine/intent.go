@@ -53,8 +53,8 @@ const (
 	// TriggerOutside is a tick a chooser decides for the body (chooser.go)
 	// and nothing else made it decide.
 	TriggerOutside
-	// TriggerThreat is a hunter coming into or out of sight, or a blow
-	// landing (Fear, stage 10-2b).
+	// TriggerThreat is a hunter in sight (every tick it is), one going
+	// out of sight, or a blow landing (Fear, stage 10-2b).
 	TriggerThreat
 	NumTriggers
 
@@ -175,8 +175,8 @@ func (w *World) trigger(b *Body, under bool, saw, mates, threats uint64) Trigger
 	switch {
 	case b.Decided < 0:
 		return TriggerFirst
-	case b.Struck, threats != b.Threats:
-		return TriggerThreat
+	case b.Struck, threats != 0, threats != b.Threats:
+		return TriggerThreat // a hunter in sight: decide every tick
 	case under != b.Under:
 		return TriggerUnderfoot
 	case saw != b.Saw:

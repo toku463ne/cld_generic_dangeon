@@ -260,8 +260,9 @@ func TestHunt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A beast two tiles west of a human on land.
-	beast := Body{ID: 0, X: 2.5, Y: 2.5, Energy: 90, Species: 1, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 4}
+	// A beast two tiles west of a human on land, twice as fast as it: a
+	// hunter no faster than an awake prey is offered no chase.
+	beast := Body{ID: 0, X: 2.5, Y: 2.5, Energy: 90, Species: 1, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 4, Build: Build{Speed: 0.5}}
 	human := Body{ID: 1, X: 4.5, Y: 2.5, Energy: 100, Species: 0, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Male, Sight: 2}
 	w.bodies = append(w.bodies, beast, human)
 	w.nextID = 2
@@ -274,8 +275,15 @@ func TestHunt(t *testing.T) {
 	if !attack {
 		t.Fatal("the beast is not offered the attack")
 	}
-	if k := w.huntTicks(1); k != 4+int(math.Ceil(1/w.speedOf(b))) {
-		t.Fatalf("hunt ticks %d, want the walk of a tile plus four blows", k)
+	if k := w.huntTicks(1); k != 4+int(math.Ceil(1/(w.speedOf(b)-w.speedOf(h)))) {
+		t.Fatalf("hunt ticks %d, want the chase of a tile at the closing speed plus four blows", k)
+	}
+	slow := *b
+	slow.Build.Speed = 0
+	for _, a := range w.possibleActions(nil, &slow) {
+		if a.Kind == ActAttack {
+			t.Fatal("a hunter no faster than its prey is offered the chase")
+		}
 	}
 	for _, a := range w.possibleActions(nil, h) {
 		if a.Kind == ActAttack {
@@ -360,7 +368,9 @@ func TestFear(t *testing.T) {
 			w.eatFood(0) // no food to confound the reading
 		}
 		beast := Body{ID: 0, X: 2.5, Y: 2.5, Energy: 90, Species: 1, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 3}
-		human := Body{ID: 1, X: 3.5, Y: 2.5, Energy: 60, Species: 0, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Male, Sight: 3}
+		// The human is the faster: a step away takes it out of the beast's
+		// reach, which is what the reading must tell apart.
+		human := Body{ID: 1, X: 3.5, Y: 2.5, Energy: 60, Species: 0, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Male, Sight: 3, Build: Build{Speed: 0.5}}
 		w.bodies = append(w.bodies, beast, human)
 		w.nextID = 2
 		w.buildGrid()

@@ -82,18 +82,31 @@ func adjacent(b, o *Body) bool {
 	return math.Abs(b.X-o.X) <= 1 && math.Abs(b.Y-o.Y) <= 1
 }
 
-// huntOptions appends an attack on every prey body b sees, and works out
-// for each the ticks to the kill: the walk to a tile next to it, then
-// a blow a tick until its energy is gone.
+// huntOptions appends an attack on every prey body b sees that it can
+// catch, and works out for each the ticks to the kill: the chase to
+// within reach - the prey read as fleeing at its own speed, so the gap
+// closes at the hunter's speed over the prey's (a sleeping prey does not
+// flee) - then a blow a tick until its energy is gone. A prey out of
+// reach that b cannot outrun is no option (stage 10-2b).
 func (w *World) huntOptions(dst []Action, b *Body) []Action {
 	clear(w.hunt)
 	w.preyIn(b, func(o *Body) {
+		gap := math.Max(math.Abs(o.X-b.X), math.Abs(o.Y-b.Y)) - 1
+		walk := 0
+		if gap > 0 {
+			closing := w.speedOf(b)
+			if !o.Asleep {
+				closing -= w.speedOf(o)
+			}
+			if closing <= 0 {
+				return
+			}
+			walk = int(math.Ceil(gap / closing))
+		}
 		dst = append(dst, Action{Kind: ActAttack, Mate: o.ID})
 		if w.hunt == nil {
 			w.hunt = map[int64]int{}
 		}
-		gap := math.Max(math.Abs(o.X-b.X), math.Abs(o.Y-b.Y)) - 1
-		walk := int(math.Ceil(math.Max(gap, 0) / w.speedOf(b)))
 		blows := int(math.Ceil(o.Energy / w.damage(b, o)))
 		w.hunt[o.ID] = walk + max(blows, 1)
 	})
@@ -166,13 +179,14 @@ func (w *World) dropMeat(b *Body) {
 }
 
 // Reading a threat (stage 10-2b, VISION: a node fights or flees a threat
-// as its state allows). A prey perceives the hunters in its sight: a
-// hunter coming into sight, or a blow landing, makes it decide (the
+// as its state allows). A prey perceives the hunters in its sight: while
+// one is in sight, or when a blow lands, it decides every tick (the
 // threat trigger, intent.go), and its valuation reads a blow's worth of
-// energy off every option that leaves it next to a hunter (valueInto).
-// There is no move of fleeing: with the blow read, stepping away is what
-// comes out best. The hunter, for its part, keeps the chase up only
-// while the kill still reads as a meal worth its ticks.
+// energy off every option that leaves it within a hunter's reach after
+// the hunter's own step (valueInto). There is no move of fleeing: with
+// the blow read, stepping away is what comes out best. The hunter, for
+// its part, chases only a prey it can outrun, and keeps the chase up
+// only while the kill still reads as a meal worth its ticks.
 
 // hunters calls f with every body within body b's sight whose species
 // preys on b's.
@@ -203,13 +217,14 @@ func (w *World) sawThreats(b *Body) uint64 {
 	return h
 }
 
-// threatAt is the worst blow body b would take from a hunter next to
-// tile (x, y), among the hunters it sees now (the list threats, filled
-// by valueInto); zero with none.
+// threatAt is the worst blow body b would take at (x, y) from the
+// hunters it sees now (the list threats, filled by valueInto): a hunter
+// within reach of (x, y) after a step of its own; zero with none.
 func (w *World) threatAt(b *Body, x, y float64) float64 {
 	worst := 0.0
 	for _, h := range w.threats {
-		if math.Abs(h.X-x) <= 1 && math.Abs(h.Y-y) <= 1 {
+		reach := 1 + w.speedOf(h)
+		if math.Abs(h.X-x) <= reach && math.Abs(h.Y-y) <= reach {
 			worst = math.Max(worst, w.damage(h, b))
 		}
 	}
