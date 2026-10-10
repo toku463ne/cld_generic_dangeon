@@ -56,15 +56,21 @@ type FoodSpec struct {
 	Return float64
 	// Terrain is where its units lie (stage 9-7b-2c): land unless said.
 	Terrain Terrain `json:",omitempty"`
-	// Seed makes the pool a plant (stage 9-7b-3, VISION "植物"): a vacancy
-	// comes back within Seed tiles of a unit on the ground, on the pool's
-	// terrain in a region of its shares, so the pool spreads from where
-	// it grows; with no unit left it comes back by its shares, as any
-	// pool does. Zero for a pool that comes back by its shares alone.
-	// Start is how many units the world starts with, the rest vacant
-	// (zero: the whole cap), so that a plant can be seen to spread.
-	Seed  int `json:",omitempty"`
-	Start int `json:",omitempty"`
+	// Seed and SeedRate make the pool a plant (stage 9-7b-3, VISION
+	// "植物", the user's choice of form A): every unit on the ground drops
+	// a seed with chance SeedRate a tick, and the seed grows into a unit
+	// on a free tile within Seed tiles of it, on the pool's terrain in a
+	// region of the pool's shares - so the pool spreads from where it
+	// grows, as fast as it is large. A seed that falls on no such tile is
+	// lost, and no seed grows past the cap: the total stays conserved.
+	// With no unit left the pool comes back by its shares at its return
+	// rate, as any pool does. Seed zero for a pool that comes back by its
+	// shares alone. Start is how many units the world starts with, the
+	// rest vacant (zero: the whole cap), so that a plant can be seen to
+	// spread.
+	Seed     int     `json:",omitempty"`
+	SeedRate float64 `json:",omitempty"`
+	Start    int     `json:",omitempty"`
 }
 
 // Food is one unit of food on a tile, of pool ID.
@@ -137,14 +143,16 @@ func (l FoodLedger) Balanced() bool {
 
 // pool is the state of one pool of food.
 type pool struct {
-	name    string
-	kind    int
-	cap     int
-	ret     float64
-	terrain Terrain
-	seed    int
-	// sown is the fraction of a unit a plant pool has been promised and
-	// not yet grown (its owed, over the whole map).
+	name     string
+	kind     int
+	cap      int
+	ret      float64
+	terrain  Terrain
+	seed     int
+	seedRate float64
+	// sown is the fraction of a seed a plant pool's units have dropped
+	// and not yet grown (or, with none on the ground, its owed over the
+	// whole map).
 	sown float64
 	// owed is, per region, the fraction of a unit that region has been
 	// promised by the return rate and not yet received. Returning food as
@@ -213,8 +221,11 @@ func validFood(kinds []FoodKind, pools []FoodSpec) error {
 		if p.Terrain > TerrainWater {
 			return fmt.Errorf("food pool %s lies on unknown terrain %d", p.Name, p.Terrain)
 		}
-		if p.Seed < 0 || p.Start < 0 {
-			return fmt.Errorf("food pool %s has seed %d and start %d", p.Name, p.Seed, p.Start)
+		if p.Seed < 0 || p.Start < 0 || !(p.SeedRate >= 0) {
+			return fmt.Errorf("food pool %s has seed %d, seed rate %v and start %d", p.Name, p.Seed, p.SeedRate, p.Start)
+		}
+		if (p.Seed > 0) != (p.SeedRate > 0) {
+			return fmt.Errorf("food pool %s needs both Seed and SeedRate, or neither, got %d and %v", p.Name, p.Seed, p.SeedRate)
 		}
 		if !(p.Share >= 0) || !(p.Return >= 0) {
 			return fmt.Errorf("food pool %s has share %v and return %v", p.Name, p.Share, p.Return)
@@ -254,7 +265,7 @@ func (w *World) initFood() {
 		cum += s.Share / sum
 		cap := int(cum*float64(w.cfg.FoodCap)+0.5) - given
 		given += cap
-		f.pools[i] = pool{name: s.Name, kind: s.Kind, cap: cap, ret: s.Return, terrain: s.Terrain, seed: s.Seed,
+		f.pools[i] = pool{name: s.Name, kind: s.Kind, cap: cap, ret: s.Return, terrain: s.Terrain, seed: s.Seed, seedRate: s.SeedRate,
 			owed: make([]float64, len(w.m.RegionFood)), onGround: make([]int, len(w.m.RegionFood))}
 		if f.pools[i].ret == 0 {
 			f.pools[i].ret = w.cfg.FoodReturn
@@ -386,13 +397,14 @@ func (w *World) putFood(t, p int) {
 	w.foodMoved(w.m.Region[t], p, +1)
 }
 
-// spreadFood grows pool p, a plant, by its vacancies: each is owed ret
-// per tick, and comes back as a whole unit within seed tiles of a unit
-// on the ground, drawn at random, on the pool's terrain, free, and in a
-// region of the pool's shares. A unit that finds no room where it is
-// drawn stays owed. With no unit on the ground the pool comes back by
-// its shares, as any pool does (VISION: it grows where it is told to,
-// and spreads from there). Plants are not handed to resting mothers.
+// spreadFood grows pool p, a plant: its units on the ground drop
+// seedRate seeds a tick between them (a running fraction, sown), and
+// each seed grows into a unit on a tile within seed tiles of a unit drawn
+// at random, if that tile is free, of the pool's terrain and in a region
+// of the pool's shares - else the seed is lost. No seed grows past the
+// cap. With no unit on the ground the pool comes back by its shares at
+// its return rate, as any pool does (VISION: it grows where it is told
+// to, and spreads from there). Plants are not handed to resting mothers.
 func (w *World) spreadFood(p int, vacant int) {
 	f := &w.food
 	pl := &f.pools[p]
@@ -410,33 +422,34 @@ func (w *World) spreadFood(p int, vacant int) {
 		}
 		return
 	}
-	pl.sown += pl.ret * float64(vacant)
+	pl.sown += pl.seedRate * float64(pl.count)
 	shares := w.poolShares(p)
 	const tries = 8
-	for pl.sown >= 1 && pl.count+pl.held < pl.cap {
-		grown := false
-		for i := 0; i < tries && !grown; i++ {
-			// A unit of the pool, by rejection among all units.
-			u := w.rng.Intn(len(f.foods))
-			if f.foods[u].ID != p {
-				continue
-			}
-			x := f.foods[u].X + w.rng.Intn(2*pl.seed+1) - pl.seed
-			y := f.foods[u].Y + w.rng.Intn(2*pl.seed+1) - pl.seed
-			if !w.m.InBounds(x, y) {
-				continue
-			}
-			t := w.m.index(x, y)
-			if f.foodAt[t] != 0 || w.m.Terrain[t] != pl.terrain || shares[w.m.Region[t]] == 0 {
-				continue
-			}
-			w.putFood(t, p)
-			grown = true
-		}
-		if !grown {
-			break
-		}
+	for pl.sown >= 1 {
 		pl.sown--
+		if pl.count+pl.held >= pl.cap {
+			continue // a seed past the cap does not grow
+		}
+		// The unit that dropped it, by rejection among all units.
+		u := -1
+		for i := 0; i < tries && u < 0; i++ {
+			if k := w.rng.Intn(len(f.foods)); f.foods[k].ID == p {
+				u = k
+			}
+		}
+		if u < 0 {
+			continue
+		}
+		x := f.foods[u].X + w.rng.Intn(2*pl.seed+1) - pl.seed
+		y := f.foods[u].Y + w.rng.Intn(2*pl.seed+1) - pl.seed
+		if !w.m.InBounds(x, y) {
+			continue
+		}
+		t := w.m.index(x, y)
+		if f.foodAt[t] != 0 || w.m.Terrain[t] != pl.terrain || shares[w.m.Region[t]] == 0 {
+			continue // the seed is lost
+		}
+		w.putFood(t, p)
 	}
 }
 

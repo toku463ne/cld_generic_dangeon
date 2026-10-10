@@ -653,17 +653,18 @@ func TestPoolPlaces(t *testing.T) {
 	}
 }
 
-// A plant (a pool with Seed) starts from Start units and comes back only
-// within Seed tiles of a unit on the ground, on its terrain, in a region
-// of its shares; eaten out, it comes back by its shares (stage 9-7b-3).
+// A plant (a pool with Seed and SeedRate) starts from Start units, and
+// its units drop seeds that grow only within Seed tiles of a unit on the
+// ground, on its terrain, in a region of its shares; it grows as fast as
+// it is large; eaten out, it comes back by its shares (stage 9-7b-3).
 func TestPlants(t *testing.T) {
 	m := testMap()                                            // regions 0..3, water in column 7
 	m.PoolFood = map[string][]float64{"plants": {1, 0, 1, 0}} // the left half
 	cfg := testConfig(7)
 	cfg.Bodies = 0
 	cfg.FoodKinds = []FoodKind{{Name: "plants", Tags: []string{"human"}}}
-	cfg.Foods = []FoodSpec{{Name: "plants", Share: 1, Seed: 1, Start: 3}}
-	cfg.FoodCap, cfg.FoodReturn = 40, 0.02 // under one unit a tick: each grows beside one that was there
+	cfg.Foods = []FoodSpec{{Name: "plants", Share: 1, Seed: 1, SeedRate: 0.05, Start: 3}}
+	cfg.FoodCap, cfg.FoodReturn = 40, 0.02
 	w, err := NewWorld(cfg, m)
 	if err != nil {
 		t.Fatal(err)
@@ -679,6 +680,7 @@ func TestPlants(t *testing.T) {
 		}
 		return false
 	}
+	grew := []int{}
 	for i := 0; i < 800; i++ {
 		were := w.Foods()
 		w.Step()
@@ -687,11 +689,20 @@ func TestPlants(t *testing.T) {
 		for _, f := range were {
 			was[m.index(f.X, f.Y)] = true
 		}
-		for _, f := range w.Foods() {
+		now := w.Foods()
+		grew = append(grew, len(now)-len(were))
+		for _, f := range now {
 			if was[m.index(f.X, f.Y)] {
 				continue
 			}
-			if !near(f, were) {
+			// Beside a unit that was there, or one that grew this tick.
+			others := append([]Food(nil), were...)
+			for _, g := range now {
+				if g != f {
+					others = append(others, g)
+				}
+			}
+			if !near(f, others) {
 				t.Fatalf("tick %d: a plant grew at (%d,%d), beside none", w.Tick(), f.X, f.Y)
 			}
 			if r := m.RegionAt(f.X, f.Y); r == 1 || r == 3 {
@@ -701,6 +712,19 @@ func TestPlants(t *testing.T) {
 	}
 	if l := w.FoodLedger(); l.OnGround != l.Cap {
 		t.Fatalf("did not grow to the cap in 800 ticks: %+v", l)
+	}
+	// It grows as fast as it is large: more in the second hundred ticks
+	// than in the first.
+	first, second := 0, 0
+	for i, g := range grew {
+		if i < 100 {
+			first += g
+		} else if i < 200 {
+			second += g
+		}
+	}
+	if second <= first {
+		t.Fatalf("grew %d then %d: not as fast as it is large", first, second)
 	}
 	// Eaten out, it comes back by its shares.
 	for len(w.food.foods) > 0 {
@@ -730,5 +754,9 @@ func TestPlants(t *testing.T) {
 	cfg.Foods[0].Seed = -1
 	if _, err := NewWorld(cfg, m); err == nil {
 		t.Fatal("a negative seed was accepted")
+	}
+	cfg.Foods[0].Seed, cfg.Foods[0].SeedRate = 1, 0
+	if _, err := NewWorld(cfg, m); err == nil {
+		t.Fatal("a seed without a rate was accepted")
 	}
 }

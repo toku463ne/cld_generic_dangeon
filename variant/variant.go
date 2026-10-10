@@ -62,13 +62,21 @@ const (
 )
 
 // Planted is stage 9-7b-3: on Roomy's cap, a third of the food is a plant
-// both land species eat, which comes back beside its living units and
-// starts from a few; Strewn has the same plant come back by the map's
-// shares instead (no spreading).
+// both land species eat, whose units each drop a seed with chance
+// PlantSeedRate a tick that grows beside them, starting from a few units;
+// Planted5 and Planted10 seed two and a half and five times as often;
+// Strewn has the same plant come back by the map's shares instead (no
+// spreading).
 const (
-	Planted = "planted"
-	Strewn  = "strewn"
+	Planted   = "planted"
+	Planted5  = "planted5"
+	Planted10 = "planted10"
+	Strewn    = "strewn"
 )
+
+// PlantSeedRate is the seeding chance per unit per tick of Planted: what
+// the pool's return rate (0.002 a vacancy) comes to at a hundred units.
+const PlantSeedRate = 0.002
 
 // Roomy gives the two species, each in its own regions, the food one
 // species had alone: twice the cap, so each pool is 300 (stage 9-7b-2;
@@ -367,7 +375,7 @@ func planted(c *engine.Config) {
 	for i := range c.Foods {
 		c.Foods[i].Share = 1.0 / 3
 	}
-	c.Foods = append(c.Foods, engine.FoodSpec{Name: "plants", Kind: len(c.FoodKinds) - 1, Share: 1.0 / 3, Seed: 1, Start: 20})
+	c.Foods = append(c.Foods, engine.FoodSpec{Name: "plants", Kind: len(c.FoodKinds) - 1, Share: 1.0 / 3, Seed: 1, SeedRate: PlantSeedRate, Start: 20})
 	c.FoodCap *= 2
 }
 
@@ -460,9 +468,11 @@ var rewrites = map[string]func(*engine.Config){
 	Roomy:      func(c *engine.Config) { c.FoodCap *= 2 },
 	Fish:       fish,
 	Planted:    planted,
+	Planted5:   func(c *engine.Config) { planted(c); c.Foods[len(c.Foods)-1].SeedRate = 2.5 * PlantSeedRate },
+	Planted10:  func(c *engine.Config) { planted(c); c.Foods[len(c.Foods)-1].SeedRate = 5 * PlantSeedRate },
 	Strewn: func(c *engine.Config) {
 		planted(c)
-		c.Foods[len(c.Foods)-1].Seed, c.Foods[len(c.Foods)-1].Start = 0, 0
+		c.Foods[len(c.Foods)-1].Seed, c.Foods[len(c.Foods)-1].SeedRate, c.Foods[len(c.Foods)-1].Start = 0, 0, 0
 	},
 	Wade: func(c *engine.Config) { fish(c); c.WaterBurn = 1 },
 	Dry:  func(c *engine.Config) { fish(c); c.Wade = false },
