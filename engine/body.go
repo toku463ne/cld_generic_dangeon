@@ -133,12 +133,13 @@ type Body struct {
 	Attack  int `json:",omitempty"`
 	Defense int `json:",omitempty"`
 	// Slain says a hunter struck it down this tick, Slayer which (stage
-	// 10-2a): it dies at the end of the tick and leaves its meat. Foe is
-	// the ID plus one of the body that struck it last (stage 10-2c),
-	// which it may strike back; zero for none.
-	Slain  bool  `json:",omitempty"`
-	Slayer int64 `json:",omitempty"`
-	Foe    int64 `json:",omitempty"`
+	// 10-2a): it dies at the end of the tick and leaves its meat.
+	// Striking is the tick plus one it last struck a blow (stage 10-2c):
+	// a hunter that has just struck may be struck back by the prey it
+	// struck and by that prey's kind within reach.
+	Slain    bool  `json:",omitempty"`
+	Slayer   int64 `json:",omitempty"`
+	Striking int64 `json:",omitempty"`
 	// Build is its own speed, most energy and burn (build.go), and Share
 	// the share of its budget it was born with for speed (with Allot).
 	Build Build

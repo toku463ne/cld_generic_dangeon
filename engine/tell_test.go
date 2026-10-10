@@ -83,6 +83,7 @@ func TestEvidenceOutlivesObservers(t *testing.T) {
 	cfg := testConfig(4)
 	cfg.PassPath = true // the path row passes (2-3); by default nothing does
 	cfg.AgeBand = 0     // the half-life world (before stage 5-1)
+	cfg.Hunt = false    // evidence, not hunting, is what is counted here
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)

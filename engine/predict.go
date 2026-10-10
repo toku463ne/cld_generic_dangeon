@@ -639,12 +639,12 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 					left, wn = left-rs.lump, wn-rs.lump
 				}
 				gain := meal
-				if foe := w.foeOf(b); foe != nil && foe.ID == a.Mate && !w.preysOn(b, foe) {
+				if foe := w.foeOf(b, a.Mate); foe != nil && !w.preysOn(b, foe) {
 					gain = 0
-					if mine := w.fightTicks(foe, b); mine <= k {
+					if _, loss, down := w.fightLoss(b, foe); down {
 						left = 0 // down first
 					} else {
-						left -= w.units(float64(k) * w.damage(foe, b))
+						left -= w.units(loss)
 					}
 				}
 				risk := 1.0

@@ -408,10 +408,11 @@ func TestFear(t *testing.T) {
 	}
 }
 
-// A body struck strikes back at the body that struck it while it stands
-// within reach (Fight, stage 10-2c): the blows land as a hunter's do, a
-// hunter struck down counts as such, and a foe out of sight is forgotten.
-// Without Fight no body strikes back.
+// A hunter that has just struck may be struck back by the prey and by
+// the prey's kind within its reach (Fight, stages 10-2c and 10-2e): the
+// blows land as a hunter's do, a hunter struck down counts as such, and
+// the fight reads as the hunter's blows shared among the band. Without
+// Fight no body strikes back.
 func TestFight(t *testing.T) {
 	for _, fight := range []bool{true, false} {
 		cfg := testConfig(16)
@@ -421,43 +422,51 @@ func TestFight(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		beast := Body{ID: 0, X: 2.5, Y: 2.5, Energy: 30, Species: 1, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 3}
+		beast := Body{ID: 0, X: 2.5, Y: 2.5, Energy: 50, Species: 1, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 3}
 		human := Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100, Species: 0, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Male, Sight: 3}
-		w.bodies = append(w.bodies, beast, human)
-		w.nextID = 2
+		ally := Body{ID: 2, X: 2.5, Y: 3.5, Energy: 100, Species: 0, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 3}
+		w.bodies = append(w.bodies, beast, human, ally)
+		w.nextID = 3
 		w.buildGrid()
-		b, h := &w.bodies[0], &w.bodies[1]
-		w.act(0, b, Action{Kind: ActAttack, Mate: 1}) // the beast strikes first
-		if h.Foe != 1 {
-			t.Fatal("the human does not remember who struck it")
-		}
-		back := false
+		b, h, al := &w.bodies[0], &w.bodies[1], &w.bodies[2]
 		for _, a := range w.possibleActions(nil, h) {
-			back = back || a == Action{Kind: ActAttack, Mate: 0}
+			if a.Kind == ActAttack {
+				t.Fatal("a human attacks a beast that has not struck")
+			}
 		}
-		if back != fight {
-			t.Fatalf("fight %v: striking back offered %v", fight, back)
+		w.act(0, b, Action{Kind: ActAttack, Mate: 1}) // the beast strikes first
+		if b.Striking != w.tick+1 {
+			t.Fatal("the beast's blow is not written down")
+		}
+		for _, x := range []*Body{h, al} {
+			back := false
+			for _, a := range w.possibleActions(nil, x) {
+				back = back || a == Action{Kind: ActAttack, Mate: 0}
+			}
+			if back != fight {
+				t.Fatalf("fight %v: body %d striking back offered %v", fight, x.ID, back)
+			}
 		}
 		if !fight {
 			continue
 		}
-		// Two blows down a beast of 30 at even strength; it dies at the
-		// tick's end and counts as a hunter slain.
+		// Two humans within reach: the beast of 50 is down in one tick
+		// of their blows (2 x 25), and each reads half a blow of loss.
+		if n := w.band(h, b); n != 2 {
+			t.Fatalf("band of %d, want 2", n)
+		}
+		if ticks, loss, down := w.fightLoss(h, b); ticks != 1 || down || math.Abs(loss-12.5) > 1e-9 {
+			t.Fatalf("fight reads %d ticks, loss %v, down %v", ticks, loss, down)
+		}
 		w.act(1, h, Action{Kind: ActAttack, Mate: 0})
-		w.act(1, h, Action{Kind: ActAttack, Mate: 0})
-		if !b.Slain || b.Slayer != 1 || w.stats.BlowsBack != 2 || w.stats.HuntersSlain != 1 {
-			t.Fatalf("beast slain %v by %d; blows back %d, hunters slain %d", b.Slain, b.Slayer, w.stats.BlowsBack, w.stats.HuntersSlain)
+		w.act(2, al, Action{Kind: ActAttack, Mate: 0})
+		if !b.Slain || w.stats.BlowsBack != 2 || w.stats.HuntersSlain != 1 {
+			t.Fatalf("beast slain %v; blows back %d, hunters slain %d", b.Slain, w.stats.BlowsBack, w.stats.HuntersSlain)
 		}
 		w.removeDead()
 		w.buildGrid()
-		if len(w.bodies) != 1 || w.bodies[0].Species != 0 {
+		if len(w.bodies) != 2 {
 			t.Fatal("the beast did not die")
-		}
-		// The foe gone, it is forgotten.
-		h = &w.bodies[0]
-		w.huntOptions(nil, h)
-		if h.Foe != 0 {
-			t.Fatal("a dead foe is remembered")
 		}
 	}
 }
