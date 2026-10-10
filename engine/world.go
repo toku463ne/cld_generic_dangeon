@@ -223,8 +223,8 @@ func (w *World) removeDead() {
 			w.dropTent(&b)
 			w.release(b.ID)
 			w.stats.Deaths[cause]++
-			if t := w.tileOf(b.X, b.Y); t >= 0 && w.m.Terrain[t] == TerrainWater {
-				w.stats.DiedOnWater++
+			if t := w.tileOf(b.X, b.Y); t >= 0 && w.m.Terrain[t] == TerrainWater && !w.spec(&b).Swims {
+				w.stats.DiedOnWater++ // a wader, not a fish at home
 			}
 			w.stats.BudgetOut += b.Budget
 			if w.tick < b.Mature {

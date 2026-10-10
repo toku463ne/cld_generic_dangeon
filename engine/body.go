@@ -242,8 +242,9 @@ type Stats struct {
 	// SleptAbroad counts the sleeps begun on a settlement of another
 	// species (only with ClosedPlaces off; stage 9-7b-2b).
 	SleptAbroad int64 `json:",omitempty"`
-	// DiedOnWater counts the deaths of bodies standing in water (stage
-	// 9-7b-2c), whatever the cause.
+	// DiedOnWater counts the deaths of bodies that wade (their species
+	// does not swim) standing in water, whatever the cause (stage
+	// 9-7b-2c).
 	DiedOnWater int64 `json:",omitempty"`
 	// Begun, Fetched and Abandoned count the settlements begun, the times
 	// a builder went for food in sight, and the sites given up (stage
