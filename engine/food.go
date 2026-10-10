@@ -63,11 +63,12 @@ type FoodSpec struct {
 	// region of the pool's shares - so the pool spreads from where it
 	// grows, as fast as it is large. A seed that falls on no such tile is
 	// lost, and no seed grows past the cap: the total stays conserved.
-	// With no unit left the pool comes back by its shares at its return
-	// rate, as any pool does. Seed zero for a pool that comes back by its
-	// shares alone. Start is how many units the world starts with, the
-	// rest vacant (zero: the whole cap), so that a plant can be seen to
-	// spread.
+	// Start is the plant's seedbed, where the map says it grows: while
+	// fewer than Start units stand, the pool also comes back by its
+	// shares at its return rate, as any pool does (a plant grazed to a
+	// few units does not die out with them); the first fill is Start
+	// units too, the rest vacant, so that the plant can be seen to spread.
+	// Seed zero for a pool that comes back by its shares alone.
 	Seed     int     `json:",omitempty"`
 	SeedRate float64 `json:",omitempty"`
 	Start    int     `json:",omitempty"`
@@ -150,10 +151,11 @@ type pool struct {
 	terrain  Terrain
 	seed     int
 	seedRate float64
+	start    int
 	// sown is the fraction of a seed a plant pool's units have dropped
-	// and not yet grown (or, with none on the ground, its owed over the
-	// whole map).
-	sown float64
+	// and not yet grown; bed the fraction of a unit its seedbed is owed
+	// (Start).
+	sown, bed float64
 	// owed is, per region, the fraction of a unit that region has been
 	// promised by the return rate and not yet received. Returning food as
 	// whole units from a running fraction draws nothing from the random
@@ -227,6 +229,9 @@ func validFood(kinds []FoodKind, pools []FoodSpec) error {
 		if (p.Seed > 0) != (p.SeedRate > 0) {
 			return fmt.Errorf("food pool %s needs both Seed and SeedRate, or neither, got %d and %v", p.Name, p.Seed, p.SeedRate)
 		}
+		if p.Seed > 0 && p.Start <= 0 {
+			return fmt.Errorf("food pool %s is a plant and needs a seedbed (Start above zero)", p.Name)
+		}
 		if !(p.Share >= 0) || !(p.Return >= 0) {
 			return fmt.Errorf("food pool %s has share %v and return %v", p.Name, p.Share, p.Return)
 		}
@@ -265,7 +270,7 @@ func (w *World) initFood() {
 		cum += s.Share / sum
 		cap := int(cum*float64(w.cfg.FoodCap)+0.5) - given
 		given += cap
-		f.pools[i] = pool{name: s.Name, kind: s.Kind, cap: cap, ret: s.Return, terrain: s.Terrain, seed: s.Seed, seedRate: s.SeedRate,
+		f.pools[i] = pool{name: s.Name, kind: s.Kind, cap: cap, ret: s.Return, terrain: s.Terrain, seed: s.Seed, seedRate: s.SeedRate, start: s.Start,
 			owed: make([]float64, len(w.m.RegionFood)), onGround: make([]int, len(w.m.RegionFood))}
 		if f.pools[i].ret == 0 {
 			f.pools[i].ret = w.cfg.FoodReturn
@@ -402,28 +407,29 @@ func (w *World) putFood(t, p int) {
 // each seed grows into a unit on a tile within seed tiles of a unit drawn
 // at random, if that tile is free, of the pool's terrain and in a region
 // of the pool's shares - else the seed is lost. No seed grows past the
-// cap. With no unit on the ground the pool comes back by its shares at
-// its return rate, as any pool does (VISION: it grows where it is told
-// to, and spreads from there). Plants are not handed to resting mothers.
+// cap. While fewer than start units stand, the pool also comes back by
+// its shares at its return rate, as any pool does: the seedbed, where the
+// map says it grows (VISION: it grows where it is told to, and spreads
+// from there). Plants are not handed to resting mothers.
 func (w *World) spreadFood(p int, vacant int) {
 	f := &w.food
 	pl := &f.pools[p]
-	if pl.count == 0 {
-		shares := w.poolShares(p)
-		if w.shareSum(shares, pl.terrain) == 0 {
+	shares := w.poolShares(p)
+	if pl.count < pl.start {
+		if w.shareSum(shares, pl.terrain) > 0 {
+			pl.bed += pl.ret * float64(vacant)
+			for pl.bed >= 1 && pl.count < pl.start && pl.count+pl.held < pl.cap {
+				if !w.placeFood(w.drawRegion(shares, pl.terrain), p) {
+					break
+				}
+				pl.bed--
+			}
+		}
+		if pl.count == 0 {
 			return
 		}
-		pl.sown += pl.ret * float64(vacant)
-		for pl.sown >= 1 && pl.count+pl.held < pl.cap {
-			if !w.placeFood(w.drawRegion(shares, pl.terrain), p) {
-				break
-			}
-			pl.sown--
-		}
-		return
 	}
 	pl.sown += pl.seedRate * float64(pl.count)
-	shares := w.poolShares(p)
 	const tries = 8
 	for pl.sown >= 1 {
 		pl.sown--

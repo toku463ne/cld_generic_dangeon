@@ -695,6 +695,9 @@ func TestPlants(t *testing.T) {
 			if was[m.index(f.X, f.Y)] {
 				continue
 			}
+			if len(were) < 3 {
+				continue // the seedbed comes back by share
+			}
 			// Beside a unit that was there, or one that grew this tick.
 			others := append([]Food(nil), were...)
 			for _, g := range now {
@@ -726,16 +729,16 @@ func TestPlants(t *testing.T) {
 	if second <= first {
 		t.Fatalf("grew %d then %d: not as fast as it is large", first, second)
 	}
-	// Eaten out, it comes back by its shares.
-	for len(w.food.foods) > 0 {
+	// Grazed under its seedbed, it comes back by its shares to it.
+	for len(w.food.foods) > 1 {
 		w.eatFood(0)
 	}
 	for i := 0; i < 300; i++ {
 		w.Step()
 		checkFood(t, w)
 	}
-	if len(w.Foods()) == 0 {
-		t.Fatal("eaten out, the plant never came back")
+	if len(w.Foods()) < 3 {
+		t.Fatalf("grazed out, the seedbed did not come back: %d units", len(w.Foods()))
 	}
 	// Saved and loaded, it grows on unchanged.
 	var buf bytes.Buffer
@@ -758,5 +761,9 @@ func TestPlants(t *testing.T) {
 	cfg.Foods[0].Seed, cfg.Foods[0].SeedRate = 1, 0
 	if _, err := NewWorld(cfg, m); err == nil {
 		t.Fatal("a seed without a rate was accepted")
+	}
+	cfg.Foods[0].Seed, cfg.Foods[0].SeedRate, cfg.Foods[0].Start = 1, 0.1, 0
+	if _, err := NewWorld(cfg, m); err == nil {
+		t.Fatal("a plant without a seedbed was accepted")
 	}
 }
