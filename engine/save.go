@@ -20,7 +20,7 @@ import (
 // saved, so that a loaded world can build them before play (World.Warm).
 
 // snapshotVersion changes whenever the format does.
-const snapshotVersion = 56
+const snapshotVersion = 57
 
 type snapshot struct {
 	Version int    `json:"version"`
@@ -57,6 +57,7 @@ type snapshot struct {
 // poolSnapshot is one pool's saved account (food.go).
 type poolSnapshot struct {
 	Owed        []float64 `json:"owed"`
+	Sown        float64   `json:"sown,omitempty"`
 	Appeared    int64     `json:"appeared"`
 	Eaten       int64     `json:"eaten"`
 	Provisioned int64     `json:"provisioned,omitempty"`
@@ -69,7 +70,7 @@ type poolSnapshot struct {
 func (w *World) Save(out io.Writer) error {
 	var pools []poolSnapshot
 	for _, p := range w.food.pools {
-		pools = append(pools, poolSnapshot{Owed: p.owed, Appeared: p.appeared, Eaten: p.eaten,
+		pools = append(pools, poolSnapshot{Owed: p.owed, Sown: p.sown, Appeared: p.appeared, Eaten: p.eaten,
 			Provisioned: p.provisioned, Picked: p.picked, Lost: p.lost, Decayed: p.decayed})
 	}
 	return json.NewEncoder(out).Encode(snapshot{
@@ -119,6 +120,7 @@ func Load(in io.Reader) (*World, error) {
 			return nil, fmt.Errorf("snapshot owes food to %d regions, map has %d", len(ps.Owed), len(p.owed))
 		}
 		copy(p.owed, ps.Owed)
+		p.sown = ps.Sown
 		p.appeared, p.eaten, p.provisioned = ps.Appeared, ps.Eaten, ps.Provisioned
 		p.picked, p.lost, p.decayed = ps.Picked, ps.Lost, ps.Decayed
 	}

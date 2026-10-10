@@ -652,3 +652,83 @@ func TestPoolPlaces(t *testing.T) {
 		t.Fatal("clone lost the pool shares")
 	}
 }
+
+// A plant (a pool with Seed) starts from Start units and comes back only
+// within Seed tiles of a unit on the ground, on its terrain, in a region
+// of its shares; eaten out, it comes back by its shares (stage 9-7b-3).
+func TestPlants(t *testing.T) {
+	m := testMap()                                            // regions 0..3, water in column 7
+	m.PoolFood = map[string][]float64{"plants": {1, 0, 1, 0}} // the left half
+	cfg := testConfig(7)
+	cfg.Bodies = 0
+	cfg.FoodKinds = []FoodKind{{Name: "plants", Tags: []string{"human"}}}
+	cfg.Foods = []FoodSpec{{Name: "plants", Share: 1, Seed: 1, Start: 3}}
+	cfg.FoodCap, cfg.FoodReturn = 40, 0.02 // under one unit a tick: each grows beside one that was there
+	w, err := NewWorld(cfg, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := len(w.Foods()); n != 3 {
+		t.Fatalf("starts with %d units, want 3", n)
+	}
+	near := func(f Food, were []Food) bool {
+		for _, g := range were {
+			if abs(f.X-g.X) <= 1 && abs(f.Y-g.Y) <= 1 {
+				return true
+			}
+		}
+		return false
+	}
+	for i := 0; i < 800; i++ {
+		were := w.Foods()
+		w.Step()
+		checkFood(t, w)
+		was := map[int]bool{}
+		for _, f := range were {
+			was[m.index(f.X, f.Y)] = true
+		}
+		for _, f := range w.Foods() {
+			if was[m.index(f.X, f.Y)] {
+				continue
+			}
+			if !near(f, were) {
+				t.Fatalf("tick %d: a plant grew at (%d,%d), beside none", w.Tick(), f.X, f.Y)
+			}
+			if r := m.RegionAt(f.X, f.Y); r == 1 || r == 3 {
+				t.Fatalf("tick %d: a plant grew in region %d, which has no share", w.Tick(), r)
+			}
+		}
+	}
+	if l := w.FoodLedger(); l.OnGround != l.Cap {
+		t.Fatalf("did not grow to the cap in 800 ticks: %+v", l)
+	}
+	// Eaten out, it comes back by its shares.
+	for len(w.food.foods) > 0 {
+		w.eatFood(0)
+	}
+	for i := 0; i < 300; i++ {
+		w.Step()
+		checkFood(t, w)
+	}
+	if len(w.Foods()) == 0 {
+		t.Fatal("eaten out, the plant never came back")
+	}
+	// Saved and loaded, it grows on unchanged.
+	var buf bytes.Buffer
+	if err := w.Save(&buf); err != nil {
+		t.Fatal(err)
+	}
+	w2, err := Load(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 100)
+	run(w2, 100)
+	if w.Fingerprint() != w2.Fingerprint() {
+		t.Fatal("loaded world diverged")
+	}
+	cfg.Foods[0].Seed = -1
+	if _, err := NewWorld(cfg, m); err == nil {
+		t.Fatal("a negative seed was accepted")
+	}
+}

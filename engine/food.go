@@ -56,6 +56,15 @@ type FoodSpec struct {
 	Return float64
 	// Terrain is where its units lie (stage 9-7b-2c): land unless said.
 	Terrain Terrain `json:",omitempty"`
+	// Seed makes the pool a plant (stage 9-7b-3, VISION "植物"): a vacancy
+	// comes back within Seed tiles of a unit on the ground, on the pool's
+	// terrain in a region of its shares, so the pool spreads from where
+	// it grows; with no unit left it comes back by its shares, as any
+	// pool does. Zero for a pool that comes back by its shares alone.
+	// Start is how many units the world starts with, the rest vacant
+	// (zero: the whole cap), so that a plant can be seen to spread.
+	Seed  int `json:",omitempty"`
+	Start int `json:",omitempty"`
 }
 
 // Food is one unit of food on a tile, of pool ID.
@@ -133,6 +142,10 @@ type pool struct {
 	cap     int
 	ret     float64
 	terrain Terrain
+	seed    int
+	// sown is the fraction of a unit a plant pool has been promised and
+	// not yet grown (its owed, over the whole map).
+	sown float64
 	// owed is, per region, the fraction of a unit that region has been
 	// promised by the return rate and not yet received. Returning food as
 	// whole units from a running fraction draws nothing from the random
@@ -200,6 +213,9 @@ func validFood(kinds []FoodKind, pools []FoodSpec) error {
 		if p.Terrain > TerrainWater {
 			return fmt.Errorf("food pool %s lies on unknown terrain %d", p.Name, p.Terrain)
 		}
+		if p.Seed < 0 || p.Start < 0 {
+			return fmt.Errorf("food pool %s has seed %d and start %d", p.Name, p.Seed, p.Start)
+		}
 		if !(p.Share >= 0) || !(p.Return >= 0) {
 			return fmt.Errorf("food pool %s has share %v and return %v", p.Name, p.Share, p.Return)
 		}
@@ -238,7 +254,7 @@ func (w *World) initFood() {
 		cum += s.Share / sum
 		cap := int(cum*float64(w.cfg.FoodCap)+0.5) - given
 		given += cap
-		f.pools[i] = pool{name: s.Name, kind: s.Kind, cap: cap, ret: s.Return, terrain: s.Terrain,
+		f.pools[i] = pool{name: s.Name, kind: s.Kind, cap: cap, ret: s.Return, terrain: s.Terrain, seed: s.Seed,
 			owed: make([]float64, len(w.m.RegionFood)), onGround: make([]int, len(w.m.RegionFood))}
 		if f.pools[i].ret == 0 {
 			f.pools[i].ret = w.cfg.FoodReturn
@@ -303,11 +319,15 @@ func (w *World) poolShares(p int) []float64 {
 	return w.m.FoodShares(w.tick)
 }
 
-// fillFood puts every pool's whole cap on the map, each unit in a region
-// drawn by the pool's share. It is how a world starts.
+// fillFood puts every pool's whole cap on the map (or its Start), each
+// unit in a region drawn by the pool's share. It is how a world starts.
 func (w *World) fillFood() {
 	for p := range w.food.pools {
-		for w.food.pools[p].count < w.food.pools[p].cap {
+		want := w.food.pools[p].cap
+		if s := w.cfg.Foods; p < len(s) && s[p].Start > 0 {
+			want = min(s[p].Start, want)
+		}
+		for w.food.pools[p].count < want {
 			if !w.placeFood(w.drawRegion(w.poolShares(p), w.food.pools[p].terrain), p) {
 				break
 			}
@@ -349,15 +369,75 @@ func (w *World) placeFood(r RegionID, p int) bool {
 		if f.foodAt[t] != 0 {
 			continue
 		}
-		f.foods = append(f.foods, Food{X: t % w.m.Width, Y: t / w.m.Width, ID: p})
-		f.born = append(f.born, w.tick)
-		f.owner = append(f.owner, noOwner)
-		f.foodAt[t] = int32(len(f.foods))
-		f.pools[p].appeared++
-		w.foodMoved(r, p, +1)
+		w.putFood(t, p)
 		return true
 	}
 	return false
+}
+
+// putFood puts one unit of pool p on free tile t.
+func (w *World) putFood(t, p int) {
+	f := &w.food
+	f.foods = append(f.foods, Food{X: t % w.m.Width, Y: t / w.m.Width, ID: p})
+	f.born = append(f.born, w.tick)
+	f.owner = append(f.owner, noOwner)
+	f.foodAt[t] = int32(len(f.foods))
+	f.pools[p].appeared++
+	w.foodMoved(w.m.Region[t], p, +1)
+}
+
+// spreadFood grows pool p, a plant, by its vacancies: each is owed ret
+// per tick, and comes back as a whole unit within seed tiles of a unit
+// on the ground, drawn at random, on the pool's terrain, free, and in a
+// region of the pool's shares. A unit that finds no room where it is
+// drawn stays owed. With no unit on the ground the pool comes back by
+// its shares, as any pool does (VISION: it grows where it is told to,
+// and spreads from there). Plants are not handed to resting mothers.
+func (w *World) spreadFood(p int, vacant int) {
+	f := &w.food
+	pl := &f.pools[p]
+	if pl.count == 0 {
+		shares := w.poolShares(p)
+		if w.shareSum(shares, pl.terrain) == 0 {
+			return
+		}
+		pl.sown += pl.ret * float64(vacant)
+		for pl.sown >= 1 && pl.count+pl.held < pl.cap {
+			if !w.placeFood(w.drawRegion(shares, pl.terrain), p) {
+				break
+			}
+			pl.sown--
+		}
+		return
+	}
+	pl.sown += pl.ret * float64(vacant)
+	shares := w.poolShares(p)
+	const tries = 8
+	for pl.sown >= 1 && pl.count+pl.held < pl.cap {
+		grown := false
+		for i := 0; i < tries && !grown; i++ {
+			// A unit of the pool, by rejection among all units.
+			u := w.rng.Intn(len(f.foods))
+			if f.foods[u].ID != p {
+				continue
+			}
+			x := f.foods[u].X + w.rng.Intn(2*pl.seed+1) - pl.seed
+			y := f.foods[u].Y + w.rng.Intn(2*pl.seed+1) - pl.seed
+			if !w.m.InBounds(x, y) {
+				continue
+			}
+			t := w.m.index(x, y)
+			if f.foodAt[t] != 0 || w.m.Terrain[t] != pl.terrain || shares[w.m.Region[t]] == 0 {
+				continue
+			}
+			w.putFood(t, p)
+			grown = true
+		}
+		if !grown {
+			break
+		}
+		pl.sown--
+	}
 }
 
 // returnFood brings vacancies back, pool by pool. Each region is owed its
@@ -372,9 +452,16 @@ func (w *World) returnFood() {
 	for p := range f.pools {
 		pl := &f.pools[p]
 		vacant := pl.cap - pl.count - pl.held
+		if vacant <= 0 {
+			continue
+		}
+		if pl.seed > 0 {
+			w.spreadFood(p, vacant)
+			continue
+		}
 		shares := w.poolShares(p)
 		sum := w.shareSum(shares, pl.terrain)
-		if vacant <= 0 || sum == 0 {
+		if sum == 0 {
 			continue
 		}
 		if !asked {
@@ -620,6 +707,23 @@ func (w *World) allGroundFood(r RegionID) int {
 		n += w.food.pools[p].onGround[r]
 	}
 	return n
+}
+
+// PoolGround returns the units of the named pool on the ground now, and
+// how many regions hold one; ok is false for no such pool.
+func (w *World) PoolGround(name string) (units, regions int, ok bool) {
+	for _, p := range w.food.pools {
+		if p.name != name {
+			continue
+		}
+		for _, n := range p.onGround {
+			if n > 0 {
+				regions++
+			}
+		}
+		return p.count, regions, true
+	}
+	return 0, 0, false
 }
 
 // GroundFoodOf returns the units on the ground now that species s may

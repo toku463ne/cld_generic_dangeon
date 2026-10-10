@@ -208,7 +208,14 @@ type result struct {
 	shareLive []shareStats
 	why       [engine.NumTriggers]float64 // share of the decisions by trigger
 	regionOf  []float64                   // share of the bodies in each region, averaged over the second half of the run
-	regionOK  bool                        // whether regionOf has any tick behind it
+	// speciesRegion is regionOf per species (stage 9-7b-3), NaN for a
+	// species with no body in the second half.
+	speciesRegion [][]float64
+	// plants and plantRegions are the units of the pool named "plants" on
+	// the ground and the regions holding one, over the samples of the
+	// adults (NaN without such a pool).
+	plants, plantRegions float64
+	regionOK             bool // whether regionOf has any tick behind it
 }
 
 func run(out, log io.Writer, o options, command string) error {
@@ -363,6 +370,11 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	spFood, spFoodN := make([]float64, species), 0.0
 	spAway, spBodies, awaySum, awayN := make([]float64, species), make([]float64, species), 0.0, 0.0
 	spWet, wetSum := make([]float64, species), 0.0
+	spRegion, spRegionN := make([][]float64, species), make([]float64, species)
+	for k := range spRegion {
+		spRegion[k] = make([]float64, len(m.RegionFood))
+	}
+	plantSum, plantRegionSum, plantN := 0.0, 0.0, 0.0
 	var st5 engine.Stats           // the counts as of tick 5000
 	budgets := map[int64]float64{} // every body seen, for its children
 	var cN, cX, cY, cXX, cYY, cXY float64
@@ -463,6 +475,11 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 				spFood[k] += float64(w.GroundFoodOf(k))
 			}
 			spFoodN++
+			if units, regions, ok := w.PoolGround("plants"); ok {
+				plantSum += float64(units)
+				plantRegionSum += float64(regions)
+				plantN++
+			}
 			if len(bs) > 0 {
 				out, wet := 0.0, 0.0
 				for _, b := range bs {
@@ -596,8 +613,18 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		if t > half {
 			bodies := w.Bodies()
 			if len(bodies) > 0 {
+				bySp := make([]float64, species)
 				for _, b := range bodies {
 					r.regionOf[m.RegionAt(int(b.X), int(b.Y))] += 1 / float64(len(bodies))
+					bySp[b.Species]++
+				}
+				for _, b := range bodies {
+					spRegion[b.Species][m.RegionAt(int(b.X), int(b.Y))] += 1 / bySp[b.Species]
+				}
+				for k := range bySp {
+					if bySp[k] > 0 {
+						spRegionN[k]++
+					}
 				}
 				sampled++
 			}
@@ -608,6 +635,20 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		for i := range r.regionOf {
 			r.regionOf[i] /= sampled
 		}
+	}
+	r.speciesRegion = make([][]float64, species)
+	for k := range spRegion {
+		r.speciesRegion[k] = make([]float64, len(m.RegionFood))
+		for i := range spRegion[k] {
+			r.speciesRegion[k][i] = math.NaN()
+			if spRegionN[k] > 0 {
+				r.speciesRegion[k][i] = spRegion[k][i] / spRegionN[k]
+			}
+		}
+	}
+	r.plants, r.plantRegions = math.NaN(), math.NaN()
+	if plantN > 0 {
+		r.plants, r.plantRegions = plantSum/plantN, plantRegionSum/plantN
 	}
 	r.displace, r.edge = dSum/math.Max(dN, 1), eSum/math.Max(eN, 1)
 	r.unknown = uSum / math.Max(uN, 1)
@@ -1209,6 +1250,30 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	}
 	p("\n")
 
+	if len(rs[0].speciesNames) > 1 {
+		for _, v := range o.variants {
+			vrs := results[v]
+			p("### 補助の表: 種族ごとの地域別人口比（%s・後半の平均）\n\n", v)
+			p("| 地域 |")
+			for _, n := range vrs[0].speciesNames {
+				p(" %s |", n)
+			}
+			p("\n| --- |")
+			for range vrs[0].speciesNames {
+				p(" --- |")
+			}
+			p("\n")
+			for reg := range area {
+				p("| %d |", reg)
+				for k := range vrs[0].speciesNames {
+					p(" %s |", fmtMeanSE(collectWhere(vrs, regionOK, func(r result) float64 { return r.speciesRegion[k][reg] }), 3))
+				}
+				p("\n")
+			}
+			p("\n")
+		}
+	}
+
 	p("### 補助の表: 動き方（%s）\n\n", base)
 	p("| 量 | 値 |\n| --- | --- |\n")
 	p("| 1000 tick の変位（タイル、tick 5000 より後） | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.displace }), 2))
@@ -1259,6 +1324,8 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"獣が水にいる割合", 4, speciesAt("beast", func(r result, k int) float64 { return r.speciesInWater[k] })},
 		{"魚が水にいる割合", 4, speciesAt("fish", func(r result, k int) float64 { return r.speciesInWater[k] })},
 		{"水で死んだ", 2, func(r result) float64 { return r.diedOnWater }},
+		{"植物（地面）", 1, func(r result) float64 { return r.plants }},
+		{"植物のある地域数", 2, func(r result) float64 { return r.plantRegions }},
 		{"崩壊したシードの割合", 4, func(r result) float64 {
 			if r.fellAt > 0 {
 				return 1

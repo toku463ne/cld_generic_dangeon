@@ -447,6 +447,9 @@ func (w *World) Fingerprint() uint64 {
 		for _, o := range p.owed {
 			putF(o)
 		}
+		if p.seed > 0 {
+			putF(p.sown)
+		}
 		put(uint64(p.appeared))
 		put(uint64(p.eaten))
 	}

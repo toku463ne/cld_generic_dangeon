@@ -61,6 +61,15 @@ const (
 	Dry  = "dry"
 )
 
+// Planted is stage 9-7b-3: on Roomy's cap, a third of the food is a plant
+// both land species eat, which comes back beside its living units and
+// starts from a few; Strewn has the same plant come back by the map's
+// shares instead (no spreading).
+const (
+	Planted = "planted"
+	Strewn  = "strewn"
+)
+
 // Roomy gives the two species, each in its own regions, the food one
 // species had alone: twice the cap, so each pool is 300 (stage 9-7b-2;
 // on 150 each, the world settles under the collapse floor however it is
@@ -350,6 +359,18 @@ const Random = "random"
 // so a rule added later is off in every earlier stage by construction.
 func shared(c *engine.Config) { c.FoodKinds, c.Foods = nil, nil }
 
+// planted adds a plant: a kind both land species eat, a pool of a third
+// of twice the cap that spreads from twenty units.
+func planted(c *engine.Config) {
+	c.FoodKinds = append(append([]engine.FoodKind(nil), c.FoodKinds...), engine.FoodKind{Name: "plants", Tags: []string{"human", "beast"}})
+	c.Foods = append([]engine.FoodSpec(nil), c.Foods...)
+	for i := range c.Foods {
+		c.Foods[i].Share = 1.0 / 3
+	}
+	c.Foods = append(c.Foods, engine.FoodSpec{Name: "plants", Kind: len(c.FoodKinds) - 1, Share: 1.0 / 3, Seed: 1, Start: 20})
+	c.FoodCap *= 2
+}
+
 // fish adds the fish to the species table, with their kind and pool of
 // food in the water, every species' pool 300.
 func fish(c *engine.Config) {
@@ -438,8 +459,13 @@ var rewrites = map[string]func(*engine.Config){
 	Open:       func(c *engine.Config) { c.ClosedPlaces = false },
 	Roomy:      func(c *engine.Config) { c.FoodCap *= 2 },
 	Fish:       fish,
-	Wade:       func(c *engine.Config) { fish(c); c.WaterBurn = 1 },
-	Dry:        func(c *engine.Config) { fish(c); c.Wade = false },
+	Planted:    planted,
+	Strewn: func(c *engine.Config) {
+		planted(c)
+		c.Foods[len(c.Foods)-1].Seed, c.Foods[len(c.Foods)-1].Start = 0, 0
+	},
+	Wade: func(c *engine.Config) { fish(c); c.WaterBurn = 1 },
+	Dry:  func(c *engine.Config) { fish(c); c.Wade = false },
 	Roomytogether: func(c *engine.Config) {
 		c.FoodCap *= 2
 		c.PoolPlaces = false
