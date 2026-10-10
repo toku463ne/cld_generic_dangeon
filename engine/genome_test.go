@@ -351,6 +351,7 @@ func TestCombatSlots(t *testing.T) {
 	// Without the slot every body is neutral.
 	cfg := testConfig(2)
 	cfg.AllotCombat = false
+	cfg.AllotFierce = false
 	w2, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)

@@ -552,6 +552,18 @@ type Config struct {
 	CombatStep  float64
 	CombatTrade float64
 
+	// AllotFierce puts an aggressive level in the genome, outside the
+	// budget (stage 10-3, VISION "攻撃的 = 戦いの勝ち目を高めに見込む"):
+	// 0 to FierceMost, the neutral level FierceMost/2, drawn, inherited
+	// and mutated as every slot is; the loss a body reads of a fight is
+	// divided by FierceStep for every level off the neutral. Odds has a
+	// hunter read, before it attacks, the blows the prey and its kind
+	// within reach would land on it, and let a prey go that would down
+	// it first.
+	AllotFierce bool
+	FierceMost  int
+	FierceStep  float64
+	Odds        bool
 	// Hunt lets a body attack the species its row preys on (stage 10-2a,
 	// hunt.go): a blow a tick at HitEnergy times attack over attack plus
 	// defense, and MeatUnits units of the kill pool (Foods with Kill) left
@@ -743,6 +755,10 @@ func DefaultConfig() Config {
 		Requests:           true,
 		RequestRange:       5,
 		RequestTicks:       100,
+		AllotFierce:        true,
+		FierceMost:         2,
+		FierceStep:         1.5,
+		Odds:               true,
 		Hunt:               true,
 		HitEnergy:          50,
 		HuntHunger:         0.5,

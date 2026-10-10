@@ -639,6 +639,11 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 					left, wn = left-rs.lump, wn-rs.lump
 				}
 				gain := meal
+				if prey := w.preyNamed(b, a.Mate); prey != nil {
+					if loss, _ := w.huntLoss(b, prey); loss > 0 {
+						left -= w.units(loss) // what the prey and its kind land on it (Odds)
+					}
+				}
 				if foe := w.foeOf(b, a.Mate); foe != nil && !w.preysOn(b, foe) {
 					gain = 0
 					if _, loss, down := w.fightLoss(b, foe); down {

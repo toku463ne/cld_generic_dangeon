@@ -139,6 +139,9 @@ func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 	if cfg.Hunt && !(cfg.HuntHunger > 0 && cfg.HuntHunger <= 1) {
 		return nil, fmt.Errorf("HuntHunger must be within (0, 1], got %v", cfg.HuntHunger)
 	}
+	if cfg.AllotFierce && (cfg.FierceMost < 1 || !(cfg.FierceStep > 0)) {
+		return nil, fmt.Errorf("AllotFierce needs FierceMost >= 1 and FierceStep above zero, got %d %v", cfg.FierceMost, cfg.FierceStep)
+	}
 	if cfg.AllotCombat && (cfg.CombatMost < 1 || !(cfg.CombatStep > 0) || !(cfg.CombatTrade >= 0)) {
 		return nil, fmt.Errorf("AllotCombat needs CombatMost >= 1, CombatStep above zero and CombatTrade at least zero, got %d %v %v", cfg.CombatMost, cfg.CombatStep, cfg.CombatTrade)
 	}
@@ -404,6 +407,27 @@ func (w *World) defensePower(b *Body) float64 {
 	return math.Pow(w.cfg.CombatStep, float64(w.defenseOf(b)-w.cfg.CombatMost/2))
 }
 
+// fierceOf is body b's aggressive level (AllotFierce, stage 10-3): its
+// own drawn level, or the neutral one. fierceness is what it does to
+// the loss a body reads of a fight: divides it by FierceStep per level
+// off the neutral (VISION: an aggressive node reads its odds higher).
+func (w *World) fierceOf(b *Body) int {
+	if b.Fierce > 0 {
+		return b.Fierce - 1
+	}
+	return w.cfg.FierceMost / 2
+}
+
+func (w *World) fierceness(b *Body) float64 {
+	if !w.cfg.AllotFierce {
+		return 1
+	}
+	return math.Pow(w.cfg.FierceStep, float64(w.fierceOf(b)-w.cfg.FierceMost/2))
+}
+
+// BodyFierce is fierceOf, for counts and clients.
+func (w *World) BodyFierce(b Body) int { return w.fierceOf(&b) }
+
 // BodyAttack and BodyDefense are attackOf and defenseOf, for counts and
 // clients.
 func (w *World) BodyAttack(b Body) int  { return w.attackOf(&b) }
@@ -558,6 +582,9 @@ func (w *World) Fingerprint() uint64 {
 		if b.Attack != 0 || b.Defense != 0 {
 			put(uint64(b.Attack))
 			put(uint64(b.Defense))
+		}
+		if b.Fierce != 0 {
+			put(uint64(b.Fierce))
 		}
 		if b.Species != 0 {
 			put(uint64(b.Species))

@@ -38,6 +38,11 @@ type Genome struct {
 	// CombatStep, and costs or refunds CombatTrade of the budget.
 	Attack  int
 	Defense int
+	// Fierce is its aggressive level (0 to FierceMost; the neutral level
+	// without AllotFierce; stage 10-3, VISION "攻撃的 = 戦いの勝ち目を
+	// 高めに見込む"): outside the budget, it scales the loss a body reads
+	// of a fight by FierceStep per level off the neutral.
+	Fierce int
 	// Species is the index of the body's species (stage 9-7a): born
 	// with and passed on, but not drawn or mutated - a child is of its
 	// parents' species.
@@ -48,7 +53,7 @@ type Genome struct {
 func (w *World) GenomeOf(b Body) Genome { return w.genomeOf(&b) }
 
 func (w *World) genomeOf(b *Body) Genome {
-	return Genome{Level: b.Level, Sight: w.sightOf(b), Fert: w.fertOf(b), Size: w.sizeOf(b), Bold: w.boldOf(b), Attack: w.attackOf(b), Defense: w.defenseOf(b), Species: b.Species}
+	return Genome{Level: b.Level, Sight: w.sightOf(b), Fert: w.fertOf(b), Size: w.sizeOf(b), Bold: w.boldOf(b), Attack: w.attackOf(b), Defense: w.defenseOf(b), Fierce: w.fierceOf(b), Species: b.Species}
 }
 
 // sizeNeutral is the budget level that buys Config.Budget.
@@ -91,6 +96,9 @@ func (w *World) validGenome(g Genome) error {
 	if w.cfg.AllotCombat && (g.Attack < 0 || g.Attack > w.cfg.CombatMost || g.Defense < 0 || g.Defense > w.cfg.CombatMost) {
 		return fmt.Errorf("genome attack %d / defense %d is not within 0..%d", g.Attack, g.Defense, w.cfg.CombatMost)
 	}
+	if w.cfg.AllotFierce && (g.Fierce < 0 || g.Fierce > w.cfg.FierceMost) {
+		return fmt.Errorf("genome fierceness %d is not within 0..%d", g.Fierce, w.cfg.FierceMost)
+	}
 	if g.Species < 0 || g.Species >= w.SpeciesCount() {
 		return fmt.Errorf("genome species %d is not within 0..%d", g.Species, w.SpeciesCount()-1)
 	}
@@ -128,6 +136,10 @@ func (w *World) drawGenome() Genome {
 		g.Attack = w.rng.Intn(w.cfg.CombatMost + 1)
 		g.Defense = w.rng.Intn(w.cfg.CombatMost + 1)
 	}
+	g.Fierce = w.cfg.FierceMost / 2
+	if w.cfg.AllotFierce {
+		g.Fierce = w.rng.Intn(w.cfg.FierceMost + 1)
+	}
 	return g
 }
 
@@ -144,7 +156,7 @@ func (w *World) inherit(a, b Genome) Genome {
 			from = &parents[w.rng.Intn(2)]
 		}
 	}
-	g := Genome{Sight: w.cfg.Sight, Fert: w.cfg.FertMost / 2, Size: w.sizeNeutral(), Bold: w.cfg.VentureMost / 2, Attack: w.cfg.CombatMost / 2, Defense: w.cfg.CombatMost / 2, Species: a.Species}
+	g := Genome{Sight: w.cfg.Sight, Fert: w.cfg.FertMost / 2, Size: w.sizeNeutral(), Bold: w.cfg.VentureMost / 2, Attack: w.cfg.CombatMost / 2, Defense: w.cfg.CombatMost / 2, Fierce: w.cfg.FierceMost / 2, Species: a.Species}
 	if n := w.cfg.AllotLevels; n > 1 {
 		pick()
 		g.Level = w.mutate(from.Level, n)
@@ -170,6 +182,10 @@ func (w *World) inherit(a, b Genome) Genome {
 		g.Attack = w.mutate(from.Attack, w.cfg.CombatMost+1)
 		pick()
 		g.Defense = w.mutate(from.Defense, w.cfg.CombatMost+1)
+	}
+	if w.cfg.AllotFierce {
+		pick()
+		g.Fierce = w.mutate(from.Fierce, w.cfg.FierceMost+1)
 	}
 	return g
 }
@@ -201,6 +217,9 @@ func (w *World) endow(b *Body, g Genome) {
 	}
 	if w.cfg.AllotVenture {
 		b.Bold = g.Bold + 1
+	}
+	if w.cfg.AllotFierce {
+		b.Fierce = g.Fierce + 1 // outside the budget, it buys nothing
 	}
 	n := w.cfg.AllotLevels
 	s := 0.5

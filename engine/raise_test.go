@@ -14,6 +14,7 @@ func TestUnbuiltIsStage65a(t *testing.T) {
 	cfg.Species = cfg.Species[:1]
 	cfg.Wade = false
 	cfg.AllotCombat = false
+	cfg.AllotFierce = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.ShelterFoodLife = 0
@@ -40,6 +41,7 @@ func TestUnsettledIsStage82a3(t *testing.T) {
 	cfg.Species = cfg.Species[:1]
 	cfg.Wade = false
 	cfg.AllotCombat = false
+	cfg.AllotFierce = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.ShelterFoodLife = 0
@@ -255,6 +257,7 @@ func TestHopefulIsStage93(t *testing.T) {
 	cfg.Species = cfg.Species[:1]
 	cfg.Wade = false
 	cfg.AllotCombat = false
+	cfg.AllotFierce = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.AllotMix, cfg.AllotFertility = false, false
 	cfg.ReuseNights, cfg.SeekBed = false, false

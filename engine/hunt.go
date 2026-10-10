@@ -110,6 +110,9 @@ func (w *World) huntOptions(dst []Action, b *Body) []Action {
 		w.hunt[h.ID] = ticks
 	})
 	w.preyIn(b, func(o *Body) {
+		if _, down := w.huntLoss(b, o); down {
+			return // the prey and its kind would down it first (Odds)
+		}
 		gap := math.Max(math.Abs(o.X-b.X), math.Abs(o.Y-b.Y)) - 1
 		walk := 0
 		if gap > 0 {
@@ -130,6 +133,17 @@ func (w *World) huntOptions(dst []Action, b *Body) []Action {
 		w.hunt[o.ID] = walk + max(blows, 1)
 	})
 	return dst
+}
+
+// preyNamed returns the prey id among those body b sees, or nil.
+func (w *World) preyNamed(b *Body, id int64) *Body {
+	var p *Body
+	w.preyIn(b, func(o *Body) {
+		if o.ID == id {
+			p = o
+		}
+	})
+	return p
 }
 
 // huntTicks is how many ticks the body whose options were last listed
@@ -362,13 +376,29 @@ func (w *World) fightTicks(b, o *Body) int {
 
 // fightLoss is what body b reads of fighting hunter h with its band: the
 // ticks until h is down under the band's blows, the energy h's blows
-// take off b meanwhile (shared among the band), and whether b is down
+// take off b meanwhile (shared among the band, and read smaller by an
+// aggressive body - fierceness, stage 10-3), and whether b is down
 // first.
 func (w *World) fightLoss(b, h *Body) (ticks int, loss float64, down bool) {
 	n := w.band(b, h)
 	ticks = max(int(math.Ceil(h.Energy/(float64(n)*w.damage(b, h)))), 1)
-	loss = float64(ticks) * w.damage(h, b) / float64(n)
+	loss = float64(ticks) * w.damage(h, b) / float64(n) / w.fierceness(b)
 	return ticks, loss, loss >= b.Energy
+}
+
+// huntLoss is what hunter b reads of attacking prey o (Odds, stage 10-3):
+// the blows o and its kind within reach of it would land on b over the
+// blows b needs to down o, once they strike back, read smaller by an
+// aggressive hunter; and whether that would down b first. Without Odds a
+// hunter reads nothing.
+func (w *World) huntLoss(b, o *Body) (loss float64, down bool) {
+	if !w.cfg.Odds || !w.cfg.Fight {
+		return 0, false
+	}
+	n := w.band(o, o) // o's kind within reach of o, o among them
+	blows := w.fightTicks(b, o)
+	loss = float64(n) * w.damage(o, b) * float64(max(blows-1, 0)) / w.fierceness(b)
+	return loss, loss >= b.Energy
 }
 
 // safe reports whether tile t is a refuge for body b: a settlement of

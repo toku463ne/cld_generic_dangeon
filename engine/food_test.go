@@ -426,6 +426,7 @@ func TestUnkeptIsStage82b3(t *testing.T) {
 	cfg.Species = cfg.Species[:1]
 	cfg.Wade = false
 	cfg.AllotCombat = false
+	cfg.AllotFierce = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.ShelterFoodLife = 0
@@ -527,6 +528,7 @@ func TestFoodKinds(t *testing.T) {
 	cfg.Species = cfg.Species[:1]
 	cfg.Wade = false
 	cfg.AllotCombat = false
+	cfg.AllotFierce = false
 	w, err = NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -574,7 +576,7 @@ func TestFoodKinds(t *testing.T) {
 // With the default tables (a human pool and a beast pool) the world is
 // stage 9-7b-1: its fingerprint is pinned here.
 func TestPooledIsStage97b1(t *testing.T) {
-	const want = uint64(0xe26bd4c724e318b2)
+	const want = uint64(0x8234a69c2b515377)
 	cfg := testConfig(1)
 	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds[:2], append([]FoodSpec(nil), DefaultConfig().Foods[:2]...) // the two pools, without the meat
 	cfg.Foods[1].Terrain = TerrainLand                                                                              // the test map has no forest

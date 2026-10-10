@@ -132,6 +132,9 @@ type Body struct {
 	// stage 10-1); zero stands for the neutral level.
 	Attack  int `json:",omitempty"`
 	Defense int `json:",omitempty"`
+	// Fierce is its aggressive level plus one (AllotFierce, stage 10-3);
+	// zero stands for the neutral level.
+	Fierce int `json:",omitempty"`
 	// Slain says a hunter struck it down this tick, Slayer which (stage
 	// 10-2a): it dies at the end of the tick and leaves its meat.
 	// Striking is the tick plus one it last struck a blow (stage 10-2c):

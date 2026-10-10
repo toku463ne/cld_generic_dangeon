@@ -566,6 +566,7 @@ func TestHuntHunger(t *testing.T) {
 	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, append([]FoodSpec(nil), DefaultConfig().Foods...)
 	cfg.Foods[1].Terrain = TerrainLand // the test map has no forest
 	cfg.Bodies, cfg.AllotCombat = 0, false
+	cfg.Odds = false // hunger, not the odds, is the question here
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -680,5 +681,80 @@ func TestClosedShelters(t *testing.T) {
 	}
 	if w.barred(&Body{Species: 1}, m.index(2, 1)) {
 		t.Fatal("a place in a region home to both is barred")
+	}
+}
+
+// A hunter reads the odds (Odds, stage 10-3): the blows the prey and its
+// kind within reach would land on it before it downs the prey; a prey
+// whose band would down it first is no option. An aggressive hunter
+// (Fierce at the top) reads the loss smaller and attacks where a neutral
+// one would not; the level is drawn within range, outside the budget.
+func TestOdds(t *testing.T) {
+	cfg := testConfig(24)
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, append([]FoodSpec(nil), DefaultConfig().Foods...)
+	cfg.Foods[1].Terrain = TerrainLand
+	cfg.Bodies, cfg.AllotCombat, cfg.HuntHunger = 0, false, 1
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A beast of 60 beside a human of 100 with two of its kind beside it:
+	// four blows to down the human, three ticks of three humans' blows
+	// (3 x 3 x 25 = 225) in return - a loss.
+	beast := Body{ID: 0, X: 2.5, Y: 2.5, Energy: 60, Species: 1, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 3}
+	human := Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100, Species: 0, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Male, Sight: 3}
+	a1 := Body{ID: 2, X: 4.5, Y: 2.5, Energy: 100, Species: 0, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 3}
+	a2 := Body{ID: 3, X: 3.5, Y: 3.5, Energy: 100, Species: 0, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 3}
+	w.bodies = append(w.bodies, beast, human, a1, a2)
+	w.nextID = 4
+	w.buildGrid()
+	b := &w.bodies[0]
+	offered := func() bool {
+		for _, a := range w.possibleActions(nil, b) {
+			if a.Kind == ActAttack {
+				return true
+			}
+		}
+		return false
+	}
+	if loss, down := w.huntLoss(b, &w.bodies[1]); !down || math.Abs(loss-225) > 1e-9 {
+		t.Fatalf("hunt loss %v, down %v; want 225 and down", loss, down)
+	}
+	if offered() {
+		t.Fatal("a beast attacks a band that would down it")
+	}
+	// Alone, the human is worth it: three blows of 25 = 75 lost... of 60:
+	// still down; with 90 energy, not.
+	w.bodies = w.bodies[:2]
+	w.buildGrid()
+	b = &w.bodies[0]
+	b.Energy = 90
+	if !offered() {
+		t.Fatal("a beast of 90 does not attack a lone human of 100")
+	}
+	// Fierce at the top reads the loss divided by FierceStep squared.
+	b.Energy = 60
+	if offered() {
+		t.Fatal("a beast of 60 attacks a lone human of 100")
+	}
+	b.Fierce = cfg.FierceMost + 1
+	if loss, _ := w.huntLoss(b, &w.bodies[1]); math.Abs(loss-75/math.Pow(cfg.FierceStep, float64(cfg.FierceMost-cfg.FierceMost/2))) > 1e-9 {
+		t.Fatalf("a fierce beast reads %v", loss)
+	}
+	if !offered() {
+		t.Fatal("a fierce beast of 60 does not attack a lone human of 100")
+	}
+	// Without Odds a hunter reads nothing.
+	w.cfg.Odds = false
+	b.Fierce, b.Energy = 0, 30
+	if !offered() {
+		t.Fatal("without Odds a beast of 30 holds back")
+	}
+	// The level is drawn in range and outside the budget.
+	w2 := newTestWorld(t, 25)
+	for _, x := range w2.Bodies() {
+		if f := w2.BodyFierce(x); f < 0 || f > w2.cfg.FierceMost {
+			t.Fatalf("fierce %d", f)
+		}
 	}
 }

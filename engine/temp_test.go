@@ -105,6 +105,7 @@ func TestTemplessIsStage73b(t *testing.T) {
 	cfg.Species = cfg.Species[:1]
 	cfg.Wade = false
 	cfg.AllotCombat = false
+	cfg.AllotFierce = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
@@ -163,6 +164,7 @@ func TestShelterlessIsStage72b(t *testing.T) {
 	cfg.Species = cfg.Species[:1]
 	cfg.Wade = false
 	cfg.AllotCombat = false
+	cfg.AllotFierce = false
 	cfg.FullStep = 0 // exact tables, as before 2026-10-07
 	cfg.ReuseNights, cfg.SeekBed = false, false
 	cfg.Building, cfg.Tents = false, false
