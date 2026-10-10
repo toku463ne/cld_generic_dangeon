@@ -73,10 +73,13 @@ func (w *World) preyIn(b *Body, f func(*Body)) {
 	}
 }
 
-// adjacent reports whether bodies b and o stand on the same tile or on
-// tiles next to each other.
+// adjacent reports whether bodies b and o stand within a tile of each
+// other, as the crow flies on each axis: within reach of a blow. It is
+// read on positions, not tiles, so that one step away is one step out of
+// reach - the prey's reading of a step (threatAt) and the hunter's blow
+// agree.
 func adjacent(b, o *Body) bool {
-	return math.Abs(math.Floor(b.X)-math.Floor(o.X)) <= 1 && math.Abs(math.Floor(b.Y)-math.Floor(o.Y)) <= 1
+	return math.Abs(b.X-o.X) <= 1 && math.Abs(b.Y-o.Y) <= 1
 }
 
 // huntOptions appends an attack on every prey body b sees, and works out
@@ -119,6 +122,7 @@ func (w *World) attack(i int, b *Body, id int64) {
 		return
 	}
 	o.Energy -= w.damage(b, o)
+	o.Struck = true
 	w.stats.Blows++
 	if o.Energy <= 0 {
 		o.Slain, o.Slayer = true, b.ID
@@ -159,4 +163,55 @@ func (w *World) dropMeat(b *Body) {
 		laid++
 	}
 	w.stats.Kills++
+}
+
+// Reading a threat (stage 10-2b, VISION: a node fights or flees a threat
+// as its state allows). A prey perceives the hunters in its sight: a
+// hunter coming into sight, or a blow landing, makes it decide (the
+// threat trigger, intent.go), and its valuation reads a blow's worth of
+// energy off every option that leaves it next to a hunter (valueInto).
+// There is no move of fleeing: with the blow read, stepping away is what
+// comes out best. The hunter, for its part, keeps the chase up only
+// while the kill still reads as a meal worth its ticks.
+
+// hunters calls f with every body within body b's sight whose species
+// preys on b's.
+func (w *World) hunters(b *Body, f func(*Body)) {
+	sight := w.sightOf(b)
+	if !w.cfg.Hunt || !w.cfg.Fear || w.prey == nil || sight < 0 || w.grid == nil {
+		return
+	}
+	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
+	for y := by - sight; y <= by+sight; y++ {
+		for x := bx - sight; x <= bx+sight; x++ {
+			if !w.m.InBounds(x, y) || !w.seesFrom(b, bx, by, x, y) {
+				continue
+			}
+			for _, j := range w.grid[w.m.index(x, y)] {
+				if o := &w.bodies[j]; o.ID != b.ID && w.preysOn(o, b) {
+					f(o)
+				}
+			}
+		}
+	}
+}
+
+// sawThreats hashes the hunters body b sees, as sawMates does the mates.
+func (w *World) sawThreats(b *Body) uint64 {
+	var h uint64
+	w.hunters(b, func(o *Body) { h += mix(uint64(o.ID)) })
+	return h
+}
+
+// threatAt is the worst blow body b would take from a hunter next to
+// tile (x, y), among the hunters it sees now (the list threats, filled
+// by valueInto); zero with none.
+func (w *World) threatAt(b *Body, x, y float64) float64 {
+	worst := 0.0
+	for _, h := range w.threats {
+		if math.Abs(h.X-x) <= 1 && math.Abs(h.Y-y) <= 1 {
+			worst = math.Max(worst, w.damage(h, b))
+		}
+	}
+	return worst
 }

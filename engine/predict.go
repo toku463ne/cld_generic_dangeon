@@ -452,6 +452,10 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 	// found full can still be held.
 	top, room := most, b.Held < w.cfg.Carry
 	v.Options = w.possibleActions(v.Options[:0], b)
+	// The hunters in sight (stage 10-2b): an option that leaves the body
+	// next to one reads a blow's worth of energy less.
+	w.threats = w.threats[:0]
+	w.hunters(b, func(o *Body) { w.threats = append(w.threats, o) })
 	v.Seen = w.inSight(v.Seen[:0], b)
 	v.Recalled = w.recalled(v.Recalled[:0], b)
 	if len(v.Recalled) > 0 {
@@ -608,6 +612,11 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			// spent as a wait. A requester out of sight is reached first,
 			// k ticks of walking (Requests).
 			after = w.units(b.Energy-w.birthShare(b)) + reserve - 1 - grainsOf(w.farTicks(a.Mate))
+		}
+		if len(w.threats) > 0 && a.Kind != ActAttack {
+			if blow := w.threatAt(b, x, y); blow > 0 {
+				after -= w.units(blow)
+			}
 		}
 		c := 0.0
 		if a.Kind == ActMate {

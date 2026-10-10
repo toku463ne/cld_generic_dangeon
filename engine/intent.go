@@ -53,6 +53,9 @@ const (
 	// TriggerOutside is a tick a chooser decides for the body (chooser.go)
 	// and nothing else made it decide.
 	TriggerOutside
+	// TriggerThreat is a hunter coming into or out of sight, or a blow
+	// landing (Fear, stage 10-2b).
+	TriggerThreat
 	NumTriggers
 
 	// noTrigger is a tick the body follows its intent.
@@ -60,7 +63,7 @@ const (
 )
 
 // TriggerNames name the triggers for reports, in order.
-var TriggerNames = [NumTriggers]string{"everytick", "first", "underfoot", "sight", "partner", "step", "blocked", "path", "recheck", "waited", "sleepy", "outside"}
+var TriggerNames = [NumTriggers]string{"everytick", "first", "underfoot", "sight", "partner", "step", "blocked", "path", "recheck", "waited", "sleepy", "outside", "threat"}
 
 // turn returns the action body b takes this tick: its intent, or a new
 // decision when a trigger is true.
@@ -78,8 +81,9 @@ func (w *World) turn(b *Body) Action {
 	if w.cfg.Recheck > 0 {
 		under, saw := w.perceive(b)
 		mates := w.sawMates(b)
-		why = w.trigger(b, under, saw, mates)
-		b.Under, b.Saw, b.Mates = under, saw, mates
+		threats := w.sawThreats(b)
+		why = w.trigger(b, under, saw, mates, threats)
+		b.Under, b.Saw, b.Mates, b.Threats = under, saw, mates, threats
 		if why == noTrigger && w.sleepDue(b) {
 			why = TriggerSleepy
 		}
@@ -91,6 +95,7 @@ func (w *World) turn(b *Body) Action {
 		}
 	}
 	w.stats.Decisions[why]++
+	b.Struck = false
 	w.noteSpots(b)
 	w.noteShelters(b)
 	w.valuation.Why = why
@@ -166,10 +171,12 @@ func (w *World) perceive(b *Body) (under bool, saw uint64) {
 
 // trigger returns the first trigger true of body b, which perceives under,
 // saw and mates now, or noTrigger.
-func (w *World) trigger(b *Body, under bool, saw, mates uint64) Trigger {
+func (w *World) trigger(b *Body, under bool, saw, mates, threats uint64) Trigger {
 	switch {
 	case b.Decided < 0:
 		return TriggerFirst
+	case b.Struck, threats != b.Threats:
+		return TriggerThreat
 	case under != b.Under:
 		return TriggerUnderfoot
 	case saw != b.Saw:

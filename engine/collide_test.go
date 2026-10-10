@@ -45,7 +45,7 @@ func TestBlockedIntentDecides(t *testing.T) {
 	b.Decided, b.Intent = w.tick, Action{Kind: ActMove, Dir: 0}
 	b.Under, b.Saw = w.perceive(b)
 	b.Mates = w.sawMates(b)
-	if got := w.trigger(b, b.Under, b.Saw, b.Mates); got != TriggerBlocked {
+	if got := w.trigger(b, b.Under, b.Saw, b.Mates, b.Threats); got != TriggerBlocked {
 		t.Fatalf("trigger %s, want blocked", TriggerNames[got])
 	}
 }

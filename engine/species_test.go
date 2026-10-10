@@ -342,3 +342,58 @@ func TestHunt(t *testing.T) {
 		}
 	}
 }
+
+// A prey reads the hunters it sees (Fear, stage 10-2b): a hunter coming
+// into sight or a blow landing makes it decide, and standing next to a
+// hunter reads a blow's worth less, so it steps away; without Fear it
+// takes no notice.
+func TestFear(t *testing.T) {
+	for _, fear := range []bool{true, false} {
+		cfg := testConfig(15)
+		cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
+		cfg.Bodies, cfg.AllotCombat, cfg.Fear = 0, false, fear
+		w, err := NewWorld(cfg, testMap())
+		if err != nil {
+			t.Fatal(err)
+		}
+		for len(w.food.foods) > 0 {
+			w.eatFood(0) // no food to confound the reading
+		}
+		beast := Body{ID: 0, X: 2.5, Y: 2.5, Energy: 90, Species: 1, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 3}
+		human := Body{ID: 1, X: 3.5, Y: 2.5, Energy: 60, Species: 0, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Male, Sight: 3}
+		w.bodies = append(w.bodies, beast, human)
+		w.nextID = 2
+		w.buildGrid()
+		h := &w.bodies[1]
+		if got := w.sawThreats(h) != 0; got != fear {
+			t.Fatalf("fear %v: sees a threat %v", fear, got)
+		}
+		a := w.decide(h)
+		v := w.valuation
+		// The option read best must leave it away from the beast with
+		// Fear; the stay option reads a blow worse than a step away.
+		var stay, away float64 = -1, -1
+		for j, o := range v.Options {
+			if o.Kind == ActWait {
+				stay = v.Risk[0][j]
+			}
+			if o.Kind == ActMove && o.Dir == 0 { // east, away
+				away = v.Risk[0][j]
+			}
+		}
+		if stay < 0 || away < 0 {
+			t.Fatalf("fear %v: options %v", fear, v.Options)
+		}
+		if fear && !(stay > away) {
+			t.Fatalf("fear: staying beside the beast reads %v, stepping away %v", stay, away)
+		}
+		if fear && a.Kind == ActWait {
+			t.Fatal("fear: it chose to stay beside the beast")
+		}
+		// A blow makes it decide again.
+		h.Decided, h.Struck = w.tick, true
+		if why := w.trigger(h, h.Under, h.Saw, h.Mates, h.Threats); fear && why != TriggerThreat {
+			t.Fatalf("fear: struck, trigger %v", TriggerNames[why])
+		}
+	}
+}

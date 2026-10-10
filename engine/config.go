@@ -546,6 +546,11 @@ type Config struct {
 	Hunt      bool
 	HitEnergy float64
 	MeatUnits int
+	// Fear has a prey read the hunters it sees (stage 10-2b, hunt.go):
+	// a hunter coming into sight or a blow landing makes it decide, and
+	// every option that leaves it next to a hunter reads a blow's worth
+	// of energy less. Off, a prey takes no notice of a hunter.
+	Fear bool
 
 	// Collide keeps a body from stepping into a tile another body stands
 	// on (breed.go keeps who stands where): the move is not among its
@@ -707,6 +712,7 @@ func DefaultConfig() Config {
 		Hunt:               true,
 		HitEnergy:          50,
 		MeatUnits:          2,
+		Fear:               true,
 		AllotCombat:        true,
 		CombatMost:         2,
 		CombatStep:         1.5,

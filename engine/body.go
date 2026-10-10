@@ -34,6 +34,10 @@ type Body struct {
 	Decided int64
 	Under   bool
 	Saw     uint64
+	// Threats is the hash of the hunters it saw when it last decided, and
+	// Struck whether a blow landed on it since (stage 10-2b).
+	Threats uint64 `json:",omitempty"`
+	Struck  bool   `json:",omitempty"`
 
 	// Mature is the tick the body becomes an adult (breed.go); the first
 	// bodies are adults from the start. Mates is a hash of the adults in

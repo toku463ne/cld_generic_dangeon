@@ -75,6 +75,9 @@ type World struct {
 	// to the kill of each prey among the options.
 	prey [][]bool
 	hunt map[int64]int
+	// threats are the hunters in sight of the body deciding now
+	// (hunt.go), for its valuation.
+	threats []*Body
 	// asking lists the indices of the bodies with a request to mate open
 	// (breed.go), kept through a tick.
 	// far holds, for the decision under way, the ticks of walking to each
@@ -527,6 +530,9 @@ func (w *World) Fingerprint() uint64 {
 				put(0)
 			}
 			put(b.Saw)
+			if b.Struck {
+				put(1)
+			}
 		}
 		// And the age of coming of age, where bodies breed.
 		if w.cfg.Allot && w.cfg.AllotInherit {

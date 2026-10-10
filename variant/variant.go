@@ -79,8 +79,12 @@ const (
 // twenty seeds a unit every 5 to 25 ticks and is grazed faster.)
 const PlantSeedRate = 0.005
 
-// Peaceful is stage 9-7b-4 on Roomy's cap: no species hunts.
-const Peaceful = "peaceful"
+// Peaceful is stage 9-7b-4 on Roomy's cap: no species hunts. Fearless is
+// stage 10-2a on it: the prey takes no notice of a hunter.
+const (
+	Peaceful = "peaceful"
+	Fearless = "fearless"
+)
 
 // Skilled is stage 9-7b-3: every species is born with skills as humans
 // are; Shallow is stage 9-7b-3 too: bodies block each other in water as
@@ -481,6 +485,10 @@ var rewrites = map[string]func(*engine.Config){
 	Peaceful: func(c *engine.Config) {
 		c.FoodCap *= 2
 		c.Hunt = false
+	},
+	Fearless: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.Fear = false
 	},
 	Skilled: func(c *engine.Config) {
 		c.FoodCap *= 2
