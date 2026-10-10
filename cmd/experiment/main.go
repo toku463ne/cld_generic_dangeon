@@ -102,6 +102,7 @@ type result struct {
 	// the hunters struck down by their prey and the sleeps begun in a
 	// refuge (stages 10-2c, 10-2d).
 	blowsBack, huntersSlain, sleptSafe float64
+	killedAsleep, killedAway           float64
 	// inWater is the share of bodies standing in water over the samples
 	// of the adults, speciesInWater the same per species, and diedOnWater
 	// the deaths in water (stage 9-7b-2c).
@@ -759,6 +760,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.sleptAbroad = float64(st.SleptAbroad)
 	r.blows, r.kills, r.preyed = float64(st.Blows), float64(st.Kills), float64(st.Deaths[engine.CausePreyed])
 	r.blowsBack, r.huntersSlain, r.sleptSafe = float64(st.BlowsBack), float64(st.HuntersSlain), float64(st.SleptSafe)
+	r.killedAsleep, r.killedAway = float64(st.KilledAsleep), float64(st.KilledAway)
 	for _, pl := range w.FoodLedger().Pools {
 		if pl.Name == "raw meat" {
 			r.meat = float64(pl.Eaten)
@@ -1357,6 +1359,8 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"打ち返した回数", 2, func(r result) float64 { return r.blowsBack }},
 		{"獲物に倒された狩る側", 2, func(r result) float64 { return r.huntersSlain }},
 		{"避難所で始まった眠り", 2, func(r result) float64 { return r.sleptSafe }},
+		{"眠っているところを倒された", 2, func(r result) float64 { return r.killedAsleep }},
+		{"よその地域で倒された", 2, func(r result) float64 { return r.killedAway }},
 		{"植物（地面）", 1, func(r result) float64 { return r.plants }},
 		{"植物のある地域数", 2, func(r result) float64 { return r.plantRegions }},
 		{"崩壊したシードの割合", 4, func(r result) float64 {

@@ -219,6 +219,9 @@ func (w *World) dueSleep(b *Body, a Action) Action {
 // body b's tile: the contact that wakes it (stage 7-3b; broadcasts and
 // threats will wake it too, once there are any).
 func (w *World) touched(b *Body) bool {
+	if b.Struck {
+		return true // a blow wakes it (stage 10-2f, VISION: 外敵からの接触)
+	}
 	if w.grid == nil {
 		return false
 	}

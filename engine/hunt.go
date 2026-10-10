@@ -165,6 +165,12 @@ func (w *World) attack(i int, b *Body, id int64) {
 		if back {
 			w.stats.HuntersSlain++
 		}
+		if o.Asleep {
+			w.stats.KilledAsleep++
+		}
+		if t := w.tileOf(o.X, o.Y); t >= 0 && !w.Home(o.Species, w.m.Region[t]) {
+			w.stats.KilledAway++
+		}
 	}
 }
 

@@ -97,9 +97,9 @@ func TestFingerprint(t *testing.T) {
 	// (only humans have skills; water has depth), 10-1 (attack and
 	// defense drawn), 10-2a (beasts hunt humans), 10-2b (prey read the
 	// hunters they see), 10-2c (a body struck strikes back), 10-2d (a
-	// hunted body sleeps in a settlement of its own) and 10-2e (its kind
-	// within reach strikes with it).
-	const want = uint64(0xb1e64407272ab51)
+	// hunted body sleeps in a settlement of its own), 10-2e (its kind
+	// within reach strikes with it) and 10-2f (a blow wakes a sleeper).
+	const want = uint64(0x25a93b1ec7603dbd)
 	w, err := NewWorld(testConfig(1), tempMap())
 	if err != nil {
 		t.Fatal(err)

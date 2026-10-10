@@ -519,3 +519,34 @@ func TestHuntFrom(t *testing.T) {
 		t.Fatal("not hunting at HuntFrom")
 	}
 }
+
+// A blow wakes a sleeper (stage 10-2f, VISION: a sleeper sleeps on
+// unless a foe touches it): struck in its sleep it is awake at the end
+// of the tick, and decides.
+func TestBlowWakes(t *testing.T) {
+	cfg := testConfig(19)
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
+	cfg.Bodies, cfg.AllotCombat = 0, false
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	beast := Body{ID: 0, X: 2.5, Y: 2.5, Energy: 90, Species: 1, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 3}
+	human := Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100, Species: 0, Heading: -1, Goal: -1, Decided: 0, Parents: [2]int64{-1, -1}, Sex: Male, Sight: 3, Asleep: true, Woke: 1 << 40}
+	w.bodies = append(w.bodies, beast, human)
+	w.nextID = 2
+	w.buildGrid()
+	b, h := &w.bodies[0], &w.bodies[1]
+	w.sleepTick(h)
+	if !h.Asleep {
+		t.Fatal("it woke untouched")
+	}
+	w.act(0, b, Action{Kind: ActAttack, Mate: 1})
+	w.sleepTick(h)
+	if h.Asleep {
+		t.Fatal("struck, it sleeps on")
+	}
+	if why := w.trigger(h, h.Under, h.Saw, h.Mates, h.Threats); why != TriggerThreat {
+		t.Fatalf("struck awake, trigger %v", TriggerNames[why])
+	}
+}

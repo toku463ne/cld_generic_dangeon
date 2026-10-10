@@ -276,6 +276,10 @@ type Stats struct {
 	Blows, Kills            int64 `json:",omitempty"`
 	BlowsBack, HuntersSlain int64 `json:",omitempty"`
 	SleptSafe               int64 `json:",omitempty"`
+	// KilledAsleep and KilledAway count the prey struck down while
+	// asleep, and while standing where none of its food returns (stage
+	// 10-2e, to read where the hunting bites).
+	KilledAsleep, KilledAway int64 `json:",omitempty"`
 	// Begun, Fetched and Abandoned count the settlements begun, the times
 	// a builder went for food in sight, and the sites given up (stage
 	// 8-2b).
