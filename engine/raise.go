@@ -341,10 +341,52 @@ func (w *World) loadPlaces() {
 }
 
 // barred reports whether tile t is a settlement of another species than
-// body b's, which b may not enter nor count as a place to rest
-// (ClosedPlaces).
+// body b's (ClosedPlaces), or one of the map's places to rest in a
+// region home to another species alone (ClosedShelters): b may neither
+// enter it nor count it as a place to rest.
 func (w *World) barred(b *Body, t int) bool {
-	return w.cfg.ClosedPlaces && w.placeSp != nil && w.placeSp[t] != 0 && int(w.placeSp[t])-1 != b.Species
+	if w.cfg.ClosedPlaces && w.placeSp != nil && w.placeSp[t] != 0 {
+		return int(w.placeSp[t])-1 != b.Species
+	}
+	if o := w.ownerOf(t); o >= 0 {
+		return o != b.Species
+	}
+	return false
+}
+
+// initOwners works out which species the map's places to rest in each
+// region belong to (ClosedShelters): the one species the region is home
+// to, if exactly one.
+func (w *World) initOwners() {
+	w.shelterOwner = nil
+	if !w.cfg.ClosedShelters || w.SpeciesCount() < 2 {
+		return
+	}
+	w.shelterOwner = make([]int8, len(w.m.RegionFood))
+	for r := range w.shelterOwner {
+		owner := -1
+		for s := 0; s < w.SpeciesCount(); s++ {
+			if w.Home(s, RegionID(r)) {
+				if owner >= 0 {
+					owner = -2 // several: everyone's
+					break
+				}
+				owner = s
+			}
+		}
+		if owner >= 0 {
+			w.shelterOwner[r] = int8(owner + 1)
+		}
+	}
+}
+
+// ownerOf returns the species the map's place to rest on tile t belongs
+// to, or -1 where t is no such place or it is everyone's.
+func (w *World) ownerOf(t int) int {
+	if w.shelterOwner == nil || len(w.m.Shelter) == 0 || !w.m.Shelter[t] || (w.placeAt != nil && w.placeAt[t] != 0) {
+		return -1
+	}
+	return int(w.shelterOwner[w.m.Region[t]]) - 1
 }
 
 // Places returns the settlements standing now.

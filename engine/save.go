@@ -161,6 +161,7 @@ func Load(in io.Reader) (*World, error) {
 	w.groundTents = s.GroundTents
 	w.loadPlaces()
 	w.initPrey()
+	w.initOwners()
 	w.initPredict()
 	w.pred.pending = s.Tables
 	w.buildGrid()

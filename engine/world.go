@@ -47,10 +47,13 @@ type World struct {
 	// places are the built places standing (stage 8-1), oldest first;
 	// placeAt the place each tile belongs to (0: none), and nextPlace the
 	// last place's ID.
-	places    []Place
-	placeAt   []int64
-	placeSp   []int8 // per tile, the species of its place plus one (0: none)
-	nextPlace int64
+	places  []Place
+	placeAt []int64
+	placeSp []int8 // per tile, the species of its place plus one (0: none)
+	// shelterOwner is, per region, the species plus one that the map's
+	// places to rest there belong to (ClosedShelters), 0 for everyone's.
+	shelterOwner []int8
+	nextPlace    int64
 	// groundTents are the tents lying folded on tiles (stage 8-2a3).
 	groundTents []GroundTent
 	rates       rates // a learning body's estimates, for the decision under way
@@ -166,6 +169,7 @@ func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 	w.rng, w.draws = newCountingRand(cfg.Seed)
 	w.initFood()
 	w.initPrey()
+	w.initOwners()
 	w.initPredict()
 	w.fillFood()
 	w.placeBodies(genomes)

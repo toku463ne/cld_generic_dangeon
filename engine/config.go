@@ -182,6 +182,13 @@ type Config struct {
 	// spend least energy over Window ticks are kept - the same chance of
 	// living on, for less of the body's energy.
 	TieSpend bool
+	// ClosedShelters gives the map's own places to rest in a region that
+	// is home to one species alone to that species (stage 10-2i, the
+	// user's choice: VISION's "他種族は定住場所には入れない" read for
+	// the shared places too): no other species steps onto them or counts
+	// them as places to rest. A region home to several, or to none, keeps
+	// its places open to all.
+	ClosedShelters bool
 	// ClosedPlaces keeps a body out of a settlement another species built
 	// (stage 9-7b-2b, VISION "他種族は定住場所には入れない"): it cannot
 	// step onto its tiles and does not count them as places to rest. The
@@ -599,6 +606,7 @@ func DefaultConfig() Config {
 		TerrainBurn:        1.5,
 		AvoidBurn:          3,
 		ClosedPlaces:       true,
+		ClosedShelters:     true,
 		FoodKinds:          []FoodKind{{Name: "human food", Tags: []string{"human"}}, {Name: "beast food", Tags: []string{"beast"}}, {Name: "raw meat", Tags: []string{"beast"}}},
 		Foods:              []FoodSpec{{Name: "human food", Kind: 0, Share: 0.5}, {Name: "beast food", Kind: 1, Share: 0.5, Terrain: TerrainForest}, {Name: "raw meat", Kind: 2, Kill: true}},
 		FoodEnergy:         30,

@@ -633,3 +633,52 @@ func TestTerrainBurn(t *testing.T) {
 		t.Fatalf("on forest a human burns %v, a beast %v", w.burnOf(&a), w.burnOf(&b))
 	}
 }
+
+// The map's places to rest in a region home to one species alone belong
+// to it (ClosedShelters, stage 10-2i): another species may not step onto
+// them nor remember them, and they are a refuge for their own; a region
+// home to both keeps them open. A settlement keeps its builder's rule.
+func TestClosedShelters(t *testing.T) {
+	m := testMap() // regions 0..3; the water in column 7
+	m.PoolFood = map[string][]float64{"human food": {1, 1, 0, 0}, "beast food": {0, 0, 1, 1}}
+	m.SetShelter(2, 1) // region 0: human
+	m.SetShelter(2, 6) // region 2: beast
+	for _, closed := range []bool{true, false} {
+		cfg := testConfig(22)
+		cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, append([]FoodSpec(nil), DefaultConfig().Foods...)
+		cfg.Foods[1].Terrain = TerrainLand
+		cfg.Bodies, cfg.ClosedShelters = 0, closed
+		w, err := NewWorld(cfg, m)
+		if err != nil {
+			t.Fatal(err)
+		}
+		human := Body{ID: 0, X: 2.5, Y: 2.5, Species: 0}
+		beast := Body{ID: 1, X: 2.5, Y: 2.5, Species: 1}
+		top, bottom := m.index(2, 1), m.index(2, 6)
+		if got := w.barred(&beast, top); got != closed {
+			t.Fatalf("closed %v: a beast barred from the human shelter %v", closed, got)
+		}
+		if got := w.barred(&human, bottom); got != closed {
+			t.Fatalf("closed %v: a human barred from the beast shelter %v", closed, got)
+		}
+		if w.barred(&human, top) || w.barred(&beast, bottom) {
+			t.Fatalf("closed %v: barred from its own", closed)
+		}
+		if got := w.safe(&human, top); got != closed {
+			t.Fatalf("closed %v: the human shelter a refuge %v", closed, got)
+		}
+	}
+	// A region home to both species keeps its places open.
+	m.PoolFood = nil
+	cfg := testConfig(23)
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, append([]FoodSpec(nil), DefaultConfig().Foods...)
+	cfg.Foods[1].Terrain = TerrainLand
+	cfg.Bodies = 0
+	w, err := NewWorld(cfg, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w.barred(&Body{Species: 1}, m.index(2, 1)) {
+		t.Fatal("a place in a region home to both is barred")
+	}
+}

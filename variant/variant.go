@@ -79,8 +79,13 @@ const (
 // twenty seeds a unit every 5 to 25 ticks and is grazed faster.)
 const PlantSeedRate = 0.005
 
-// Ravenous is Warmed with hunting at any hunger (stage 10-2f).
-const Ravenous = "ravenous"
+// Ravenous is Warmed with hunting at any hunger (stage 10-2f). Commons is
+// Warmed with the map's places to rest open to every species (stage
+// 10-2h).
+const (
+	Ravenous = "ravenous"
+	Commons  = "commons"
+)
 
 // Warmed is Roomy with hunting from tick 5000, past the crash every
 // measured world starts with (stage 10-2e); Warmedfearless is that with
@@ -500,6 +505,11 @@ var rewrites = map[string]func(*engine.Config){
 	Warmed: func(c *engine.Config) {
 		c.FoodCap *= 2
 		c.HuntFrom = 5000
+	},
+	Commons: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.HuntFrom = 5000
+		c.ClosedShelters = false
 	},
 	Ravenous: func(c *engine.Config) {
 		c.FoodCap *= 2

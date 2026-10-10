@@ -372,7 +372,12 @@ func (w *World) fightLoss(b, h *Body) (ticks int, loss float64, down bool) {
 }
 
 // safe reports whether tile t is a refuge for body b: a settlement of
-// its own species, which its hunters may not enter (ClosedPlaces).
+// its own species (ClosedPlaces), or one of the map's places to rest
+// that belongs to its species (ClosedShelters) - which its hunters may
+// not enter.
 func (w *World) safe(b *Body, t int) bool {
-	return w.cfg.ClosedPlaces && w.placeSp != nil && int(w.placeSp[t])-1 == b.Species
+	if w.cfg.ClosedPlaces && w.placeSp != nil && w.placeSp[t] != 0 {
+		return int(w.placeSp[t])-1 == b.Species
+	}
+	return w.ownerOf(t) == b.Species
 }
