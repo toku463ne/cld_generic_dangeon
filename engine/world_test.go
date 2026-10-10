@@ -92,9 +92,9 @@ func TestLoadRejectsOtherVersion(t *testing.T) {
 func TestFingerprint(t *testing.T) {
 	// Re-pinned at stage 9-7b-2a (a first body's species is drawn before
 	// its tile, since the tile is drawn among its species' home regions)
-	// and 9-7b-2b (settlements closed to other species), and 9-7b-2c
-	// (bodies may wade into water).
-	const want = uint64(0x9eeeb0abb5782a77)
+	// and 9-7b-2b (settlements closed to other species), 9-7b-2c (bodies
+	// may wade into water) and 9-7b-3 (no tent pitched in water).
+	const want = uint64(0x4392bd468cb6776)
 	w, err := NewWorld(testConfig(1), tempMap())
 	if err != nil {
 		t.Fatal(err)

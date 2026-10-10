@@ -180,3 +180,27 @@ func TestDropTent(t *testing.T) {
 		t.Fatal("a tent on the ground did not wear out")
 	}
 }
+
+// A tent is pitched on land only: a body that falls asleep in water
+// neither makes one nor pitches the one it carries (stage 9-7b-3).
+func TestNoTentInWater(t *testing.T) {
+	w := newTestWorld(t, 3)
+	for _, has := range []bool{false, true} {
+		b := Body{X: 7.5, Y: 2.5, Energy: 90, Heading: -1, Goal: -1, Decided: -1, Mature: 0}
+		b.Skill[SkillTent] = 1
+		b.Tent.Has = has
+		if w.m.Terrain[w.tileOf(b.X, b.Y)] != TerrainWater {
+			t.Fatal("the body is not in water")
+		}
+		w.howSleep(&b, Action{Kind: ActSleep})
+		if b.Tent.Pitched || b.Tent.Has != has {
+			t.Fatalf("has %v: in water the tent is pitched %v, has %v", has, b.Tent.Pitched, b.Tent.Has)
+		}
+		b.X = 6.5 // on land, beside the water
+		w.howSleep(&b, Action{Kind: ActSleep})
+		if has && !b.Tent.Pitched {
+			t.Fatal("on land the tent it has is not pitched")
+		}
+	}
+}
+

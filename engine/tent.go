@@ -87,6 +87,9 @@ func (w *World) howSleep(b *Body, a Action) {
 	if a.Kind != ActSleep || !w.cfg.Tents {
 		return
 	}
+	if t := w.tileOf(b.X, b.Y); t < 0 || w.m.Terrain[t] != TerrainLand {
+		return // a tent stands on land only (stage 9-7b-3): in water it sleeps as it is
+	}
 	if !b.Tent.Has && w.canMakeTent(b) && w.cfg.Learn && w.cfg.Window > 0 {
 		reserve := w.restReserve(b) + b.Held*w.pred.meal
 		win := w.pred.windows[0]
