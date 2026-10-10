@@ -133,9 +133,12 @@ type Body struct {
 	Attack  int `json:",omitempty"`
 	Defense int `json:",omitempty"`
 	// Slain says a hunter struck it down this tick, Slayer which (stage
-	// 10-2a): it dies at the end of the tick and leaves its meat.
+	// 10-2a): it dies at the end of the tick and leaves its meat. Foe is
+	// the ID plus one of the body that struck it last (stage 10-2c),
+	// which it may strike back; zero for none.
 	Slain  bool  `json:",omitempty"`
 	Slayer int64 `json:",omitempty"`
+	Foe    int64 `json:",omitempty"`
 	// Build is its own speed, most energy and burn (build.go), and Share
 	// the share of its budget it was born with for speed (with Allot).
 	Build Build
@@ -265,8 +268,13 @@ type Stats struct {
 	// 9-7b-2c).
 	DiedOnWater int64 `json:",omitempty"`
 	// Blows counts the blows struck and Kills the prey struck down (Hunt,
-	// stage 10-2a).
-	Blows, Kills int64 `json:",omitempty"`
+	// stage 10-2a); BlowsBack the blows struck back at a hunter and
+	// HuntersSlain the hunters struck down by their prey (Fight, stage
+	// 10-2c); SleptSafe the sleeps a hunted body began in a settlement
+	// of its own species (Refuge, stage 10-2d).
+	Blows, Kills            int64 `json:",omitempty"`
+	BlowsBack, HuntersSlain int64 `json:",omitempty"`
+	SleptSafe               int64 `json:",omitempty"`
 	// Begun, Fetched and Abandoned count the settlements begun, the times
 	// a builder went for food in sight, and the sites given up (stage
 	// 8-2b).
@@ -444,6 +452,9 @@ func (w *World) fallAsleep(b *Body) {
 	w.stats.Slept++
 	if w.m.ShelterAt(int(math.Floor(b.X)), int(math.Floor(b.Y))) {
 		w.stats.SleptSheltered++
+	}
+	if t := w.tileOf(b.X, b.Y); t >= 0 && w.hunted(b.Species) && w.safe(b, t) {
+		w.stats.SleptSafe++
 	}
 	if t := w.tileOf(b.X, b.Y); t >= 0 && w.placeSp != nil && w.placeSp[t] != 0 && int(w.placeSp[t])-1 != b.Species {
 		w.stats.SleptAbroad++

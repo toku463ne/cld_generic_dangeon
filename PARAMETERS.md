@@ -217,6 +217,7 @@
 | 知っている場所の行の信じ方（親への重みをこれで割る） | `Steady` | 1 | 9-6b の感度（条件 `steady` 1.5・`fickle` 1/1.5）。`RegionWeight`・`PathWeight` を `Steady` で割る。1 で 9-6a の世界と同一。知らない地域の読みは動かない |
 | 種族の表（名前・最初の身体の割合・予算の目盛りのずれ・入れる地形・泳げるか・スキルを持てないか・食べる種族） | `Species` | human 0.5 / beast 0.5 (Size 1, NoSkills, Preys human)。地形は陸、泳げない | 9-7a。9-7b-2c で入れる地形（`Terrains`）と泳げるか（`Swims`）の列。9-7b-4 で `NoSkills`（既定では獣。条件 `skilled` で全種族が持つ）。魚（水だけ・泳げる）は条件 `fish` で足す。身体は行の添字を持ち、交配は同じ行とだけ。獣の目盛りは `BudgetStep` 倍（ユーザ判断 2026-10-09「予算の段を 1 つ上」）。1 行で 9-6a の世界（条件 `single`）、獣の Size 0 がタグだけの対照 `twin` |
 | 狩り・1 回の打撃・獲物が残す肉の数 | `Hunt`・`HitEnergy`・`MeatUnits` | true・50・2 | 10-2a（ユーザ判断: 互角で 4 回、獣 → 人間だけ）。`HitEnergy` は `EnergyMax` の半分で、互角（攻撃/(攻撃+防御) ＝ 1/2）なら 1 回 25。切ると条件 `peaceful` |
+| 打ち返す・避難所で眠る | `Fight`・`Refuge` | true・true | 10-2c・10-2d（ユーザ判断 2026-10-10: 1 打ち返す ＋ 3 閉じた場所で眠る）。切ると条件 `meek`・`exposed` |
 | 獲物が脅威を読む | `Fear` | true | 10-2b（`VISION.md`: 脅威に応じて戦う／逃げる）。狩る側が視界に入る・打たれるで判断し直し、狩る側の届く手から 1 打分を引いて読む。切ると条件 `fearless` |
 | 攻撃力・防御力を予算の枠にする・段の上限・1 段の倍率・段ごとの代金 | `AllotCombat`・`CombatMost`・`CombatStep`・`CombatTrade` | true・2・1.5・0 | 10-1（`VISION.md`「遺伝子の能力」）。3 段、中立 1。代金 0 は仮——攻撃の規則（10-2a）が読むようになってから価格を測る（9-3 の視野と同じ順） |
 | 開拓の段を遺伝子にする・段の上限・1 段の倍率 | `AllotVenture`・`VentureMost`・`VentureStep` | true・2・1.5 | 9-6a（`VISION.md`「性格の遺伝子は予測の事前分布を動かす」「傾向の遺伝子は予算の枠外」）。段 k の見込みは 陸 × `Venture` × `VentureStep`^(k − 中立)。予算の枠外で代金なし。false で 9-5b の世界（条件 `unventured`） |

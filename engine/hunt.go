@@ -90,6 +90,17 @@ func adjacent(b, o *Body) bool {
 // reach that b cannot outrun is no option (stage 10-2b).
 func (w *World) huntOptions(dst []Action, b *Body) []Action {
 	clear(w.hunt)
+	if w.cfg.Fight {
+		// Striking back at the body that struck it, while within reach
+		// (stage 10-2c).
+		if foe := w.foeOf(b); foe != nil && adjacent(b, foe) && foe.Species != b.Species {
+			dst = append(dst, Action{Kind: ActAttack, Mate: foe.ID})
+			if w.hunt == nil {
+				w.hunt = map[int64]int{}
+			}
+			w.hunt[foe.ID] = w.fightTicks(b, foe)
+		}
+	}
 	w.preyIn(b, func(o *Body) {
 		gap := math.Max(math.Abs(o.X-b.X), math.Abs(o.Y-b.Y)) - 1
 		walk := 0
@@ -127,6 +138,12 @@ func (w *World) attack(i int, b *Body, id int64) {
 			o = p
 		}
 	})
+	back := false
+	if o == nil && w.cfg.Fight {
+		if foe := w.foeOf(b); foe != nil && foe.ID == id && adjacent(b, foe) {
+			o, back = foe, true // striking back: no chase
+		}
+	}
 	if o == nil {
 		return
 	}
@@ -135,10 +152,16 @@ func (w *World) attack(i int, b *Body, id int64) {
 		return
 	}
 	o.Energy -= w.damage(b, o)
-	o.Struck = true
+	o.Struck, o.Foe = true, b.ID+1
 	w.stats.Blows++
+	if back {
+		w.stats.BlowsBack++
+	}
 	if o.Energy <= 0 {
 		o.Slain, o.Slayer = true, b.ID
+		if back {
+			w.stats.HuntersSlain++
+		}
 	}
 }
 
@@ -248,4 +271,53 @@ func (w *World) threatLoss(b *Body, x, y float64, ticks int) float64 {
 		worst = math.Max(worst, math.Min(blows, math.Ceil(b.Energy/blow))*blow)
 	}
 	return worst
+}
+
+// Striking back (stage 10-2c, the user's choice: a prey fights as well as
+// flees). A body struck remembers who struck it (Foe) and, while that
+// body stands within reach, may attack it back, whatever the species:
+// the blows land as a hunter's do. The fight reads as the blows it takes
+// until one of the two is down (valueInto): it strikes back where that
+// reads better than stepping away. A foe out of sight is forgotten.
+
+// hunted reports whether some species preys on species s.
+func (w *World) hunted(s int) bool {
+	if w.prey == nil || !w.cfg.Hunt {
+		return false
+	}
+	for h := range w.prey {
+		if w.prey[h][s] {
+			return true
+		}
+	}
+	return false
+}
+
+// foeOf returns the body that struck b last, if it still stands within
+// b's sight; nil, and the foe forgotten, otherwise.
+func (w *World) foeOf(b *Body) *Body {
+	if b.Foe == 0 {
+		return nil
+	}
+	var foe *Body
+	w.hunters(b, func(o *Body) {
+		if o.ID == b.Foe-1 {
+			foe = o
+		}
+	})
+	if foe == nil {
+		b.Foe = 0
+	}
+	return foe
+}
+
+// fightTicks is how many blows body b needs to down body o.
+func (w *World) fightTicks(b, o *Body) int {
+	return max(int(math.Ceil(o.Energy/w.damage(b, o))), 1)
+}
+
+// safe reports whether tile t is a refuge for body b: a settlement of
+// its own species, which its hunters may not enter (ClosedPlaces).
+func (w *World) safe(b *Body, t int) bool {
+	return w.cfg.ClosedPlaces && w.placeSp != nil && int(w.placeSp[t])-1 == b.Species
 }

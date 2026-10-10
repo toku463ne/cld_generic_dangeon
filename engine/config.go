@@ -546,6 +546,13 @@ type Config struct {
 	Hunt      bool
 	HitEnergy float64
 	MeatUnits int
+	// Fight lets a body struck strike back at the body that struck it
+	// while it stands within reach (stage 10-2c, hunt.go); Refuge has a
+	// hunted body walk to sleep in a settlement of its own species, which
+	// its hunters may not enter, before any other place to rest (stage
+	// 10-2d, shelter.go).
+	Fight  bool
+	Refuge bool
 	// Fear has a prey read the hunters it sees (stage 10-2b, hunt.go):
 	// a hunter coming into sight or a blow landing makes it decide, and
 	// every option that leaves it next to a hunter reads a blow's worth
@@ -713,6 +720,8 @@ func DefaultConfig() Config {
 		HitEnergy:          50,
 		MeatUnits:          2,
 		Fear:               true,
+		Fight:              true,
+		Refuge:             true,
 		AllotCombat:        true,
 		CombatMost:         2,
 		CombatStep:         1.5,

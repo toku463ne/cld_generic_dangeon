@@ -83,8 +83,36 @@ func (w *World) shelterAhead(b *Body) (f Food, burn float64, ok bool) {
 	if burn >= w.planBurn(b)*(1-1e-9) { // rounding is not warmth
 		return Food{}, 0, false
 	}
+	if w.cfg.Refuge && w.hunted(b.Species) {
+		// A hunted body sleeps where its hunters cannot come, if it
+		// knows such a place (stage 10-2d).
+		if f, ok = w.nearestSafe(b); ok {
+			return f, burn, true
+		}
+	}
 	f, ok = w.nearestOf(b, b.Memory.Shelters)
 	return f, burn, ok
+}
+
+// nearestSafe is nearestOf over the places to rest body b remembers that
+// are settlements of its own species.
+func (w *World) nearestSafe(b *Body) (Food, bool) {
+	here, speed := w.tileOf(b.X, b.Y), w.speedOf(b)
+	best, bt := math.Inf(1), -1
+	for t := range b.Memory.Shelters {
+		if t == here || !w.safe(b, t) {
+			continue
+		}
+		x, y := t%w.m.Width, t/w.m.Width
+		d := float64(walkTicks(gapTo(b.X, x), gapTo(b.Y, y), speed))
+		if d < best || d == best && t < bt {
+			best, bt = d, t
+		}
+	}
+	if bt < 0 {
+		return Food{}, false
+	}
+	return Food{X: bt % w.m.Width, Y: bt / w.m.Width}, true
 }
 
 // ownAhead returns the nearest settlement tile body b built and

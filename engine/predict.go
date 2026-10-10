@@ -628,17 +628,29 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 		for i, win := range windows {
 			if a.Kind == ActAttack {
 				// A kill is a meal reached after the ticks of walking and
-				// striking, on the prey's ground (stage 10-2a).
+				// striking, on the prey's ground (stage 10-2a). Striking
+				// back at a foe (stage 10-2c) is no meal: it is the blows
+				// taken until one of the two is down, and the fight lost
+				// where the foe is the longer-lived.
 				k := w.huntTicks(a.Mate)
 				ku := grainsOf(k)
 				left, wn := n-1-ku, win
 				if rs != nil {
 					left, wn = left-rs.lump, wn-rs.lump
 				}
+				gain := meal
+				if foe := w.foeOf(b); foe != nil && foe.ID == a.Mate && !w.preysOn(b, foe) {
+					gain = 0
+					if mine := w.fightTicks(foe, b); mine <= k {
+						left = 0 // down first
+					} else {
+						left -= w.units(float64(k) * w.damage(foe, b))
+					}
+				}
 				risk := 1.0
 				if left > 0 {
 					at := alive(w.m.RegionAt(int(math.Floor(x)), int(math.Floor(y))))
-					risk = at.deadIn(wn-1, min(left+meal, top)-1)
+					risk = at.deadIn(wn-1, min(left+gain, top)-1)
 				}
 				v.Risk[i] = append(v.Risk[i], risk)
 				if i == 0 {

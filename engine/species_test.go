@@ -407,3 +407,88 @@ func TestFear(t *testing.T) {
 		}
 	}
 }
+
+// A body struck strikes back at the body that struck it while it stands
+// within reach (Fight, stage 10-2c): the blows land as a hunter's do, a
+// hunter struck down counts as such, and a foe out of sight is forgotten.
+// Without Fight no body strikes back.
+func TestFight(t *testing.T) {
+	for _, fight := range []bool{true, false} {
+		cfg := testConfig(16)
+		cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
+		cfg.Bodies, cfg.AllotCombat, cfg.Fight = 0, false, fight
+		w, err := NewWorld(cfg, testMap())
+		if err != nil {
+			t.Fatal(err)
+		}
+		beast := Body{ID: 0, X: 2.5, Y: 2.5, Energy: 30, Species: 1, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 3}
+		human := Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100, Species: 0, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Male, Sight: 3}
+		w.bodies = append(w.bodies, beast, human)
+		w.nextID = 2
+		w.buildGrid()
+		b, h := &w.bodies[0], &w.bodies[1]
+		w.act(0, b, Action{Kind: ActAttack, Mate: 1}) // the beast strikes first
+		if h.Foe != 1 {
+			t.Fatal("the human does not remember who struck it")
+		}
+		back := false
+		for _, a := range w.possibleActions(nil, h) {
+			back = back || a == Action{Kind: ActAttack, Mate: 0}
+		}
+		if back != fight {
+			t.Fatalf("fight %v: striking back offered %v", fight, back)
+		}
+		if !fight {
+			continue
+		}
+		// Two blows down a beast of 30 at even strength; it dies at the
+		// tick's end and counts as a hunter slain.
+		w.act(1, h, Action{Kind: ActAttack, Mate: 0})
+		w.act(1, h, Action{Kind: ActAttack, Mate: 0})
+		if !b.Slain || b.Slayer != 1 || w.stats.BlowsBack != 2 || w.stats.HuntersSlain != 1 {
+			t.Fatalf("beast slain %v by %d; blows back %d, hunters slain %d", b.Slain, b.Slayer, w.stats.BlowsBack, w.stats.HuntersSlain)
+		}
+		w.removeDead()
+		w.buildGrid()
+		if len(w.bodies) != 1 || w.bodies[0].Species != 0 {
+			t.Fatal("the beast did not die")
+		}
+		// The foe gone, it is forgotten.
+		h = &w.bodies[0]
+		w.huntOptions(nil, h)
+		if h.Foe != 0 {
+			t.Fatal("a dead foe is remembered")
+		}
+	}
+}
+
+// A hunted body sleeps in a settlement of its own species when it
+// remembers one, before a nearer place to rest its hunters may enter
+// (Refuge, stage 10-2d); an unhunted body, or one without Refuge, walks
+// to the nearest.
+func TestRefuge(t *testing.T) {
+	for _, refuge := range []bool{true, false} {
+		w := newTestWorld(t, 17)
+		w.cfg.Refuge = refuge
+		w.cfg.Learn, w.cfg.ShelterRead, w.cfg.Sleep = true, true, true
+		w.bodies = w.bodies[:0]
+		// A human settlement far to the east, a map shelter close by.
+		builder := Body{ID: 0, X: 9.5, Y: 7.5, Energy: 60, Species: 0, Heading: -1, Goal: -1, Decided: -1}
+		builder.Work = Work{Site: w.tileOf(builder.X, builder.Y) + 1}
+		w.bodies = append(w.bodies, builder)
+		w.settle(&w.bodies[0])
+		w.m.SetShelter(1, 1)
+		h := Body{ID: 1, X: 2.5, Y: 2.5, Energy: 60, Species: 0, Heading: -1, Goal: -1, Decided: -1, Pressure: 1}
+		h.Memory.Shelters = map[int]bool{w.m.index(1, 1): true, w.m.index(9, 7): true}
+		h.Memory.Warm = [2]float64{0.5, 1} // warmth learned: half the burn
+		w.bodies = append(w.bodies, h)
+		w.buildGrid()
+		f, _, ok := w.shelterAhead(&w.bodies[1])
+		if !ok {
+			t.Fatalf("refuge %v: no place to walk to", refuge)
+		}
+		if far := f.X == 9; far != refuge {
+			t.Fatalf("refuge %v: walks to (%d,%d)", refuge, f.X, f.Y)
+		}
+	}
+}

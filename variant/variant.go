@@ -80,10 +80,14 @@ const (
 const PlantSeedRate = 0.005
 
 // Peaceful is stage 9-7b-4 on Roomy's cap: no species hunts. Fearless is
-// stage 10-2a on it: the prey takes no notice of a hunter.
+// stage 10-2a on it: the prey takes no notice of a hunter. Meek is stage
+// 10-2b on it: the prey does not strike back; Exposed is 10-2c: a hunted
+// body does not seek a settlement of its own to sleep in.
 const (
 	Peaceful = "peaceful"
 	Fearless = "fearless"
+	Meek     = "meek"
+	Exposed  = "exposed"
 )
 
 // Skilled is stage 9-7b-3: every species is born with skills as humans
@@ -489,6 +493,14 @@ var rewrites = map[string]func(*engine.Config){
 	Fearless: func(c *engine.Config) {
 		c.FoodCap *= 2
 		c.Fear = false
+	},
+	Meek: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.Fight = false
+	},
+	Exposed: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.Refuge = false
 	},
 	Skilled: func(c *engine.Config) {
 		c.FoodCap *= 2
