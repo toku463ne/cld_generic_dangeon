@@ -17,6 +17,9 @@ import "math"
 // the same currency as a unit in sight. The prey does not strike back:
 // humans do not prey on beasts. Fleeing is stage 10-2b.
 
+// hunting reports whether hunting is on now (Hunt, from HuntFrom).
+func (w *World) hunting() bool { return w.cfg.Hunt && w.tick >= w.cfg.HuntFrom }
+
 // preysOn reports whether body b's species preys on body o's.
 func (w *World) preysOn(b, o *Body) bool {
 	return w.prey != nil && w.prey[b.Species][o.Species]
@@ -55,7 +58,7 @@ func (w *World) damage(b, o *Body) float64 {
 // sight, in the order of the grid.
 func (w *World) preyIn(b *Body, f func(*Body)) {
 	sight := w.sightOf(b)
-	if !w.cfg.Hunt || w.prey == nil || sight < 0 || w.grid == nil {
+	if !w.hunting() || w.prey == nil || sight < 0 || w.grid == nil {
 		return
 	}
 	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
@@ -217,7 +220,7 @@ func (w *World) dropMeat(b *Body) {
 // preys on b's.
 func (w *World) hunters(b *Body, f func(*Body)) {
 	sight := w.sightOf(b)
-	if !w.cfg.Hunt || !w.cfg.Fear || w.prey == nil || sight < 0 || w.grid == nil {
+	if !w.hunting() || !w.cfg.Fear || w.prey == nil || sight < 0 || w.grid == nil {
 		return
 	}
 	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
@@ -285,7 +288,7 @@ func (w *World) threatLoss(b *Body, x, y float64, ticks int) float64 {
 
 // hunted reports whether some species preys on species s.
 func (w *World) hunted(s int) bool {
-	if w.prey == nil || !w.cfg.Hunt {
+	if w.prey == nil || !w.hunting() {
 		return false
 	}
 	for h := range w.prey {

@@ -79,6 +79,14 @@ const (
 // twenty seeds a unit every 5 to 25 ticks and is grazed faster.)
 const PlantSeedRate = 0.005
 
+// Warmed is Roomy with hunting from tick 5000, past the crash every
+// measured world starts with (stage 10-2e); Warmedfearless is that with
+// the prey taking no notice of a hunter.
+const (
+	Warmed         = "warmed"
+	Warmedfearless = "warmedfearless"
+)
+
 // Peaceful is stage 9-7b-4 on Roomy's cap: no species hunts. Fearless is
 // stage 10-2a on it: the prey takes no notice of a hunter. Meek is stage
 // 10-2b on it: the prey does not strike back; Exposed is 10-2c: a hunted
@@ -486,6 +494,15 @@ var rewrites = map[string]func(*engine.Config){
 	Together:   func(c *engine.Config) { c.PoolPlaces = false },
 	Open:       func(c *engine.Config) { c.ClosedPlaces = false },
 	Roomy:      func(c *engine.Config) { c.FoodCap *= 2 },
+	Warmed: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.HuntFrom = 5000
+	},
+	Warmedfearless: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.HuntFrom = 5000
+		c.Fear = false
+	},
 	Peaceful: func(c *engine.Config) {
 		c.FoodCap *= 2
 		c.Hunt = false

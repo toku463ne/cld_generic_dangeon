@@ -501,3 +501,21 @@ func TestRefuge(t *testing.T) {
 		}
 	}
 }
+
+// With HuntFrom, no body hunts, fears or fights before that tick.
+func TestHuntFrom(t *testing.T) {
+	cfg := testConfig(18)
+	cfg.HuntFrom = 100
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 99)
+	if w.stats.Blows != 0 || w.hunting() || w.hunted(0) {
+		t.Fatalf("hunting before HuntFrom: blows %d", w.stats.Blows)
+	}
+	run(w, 1)
+	if !w.hunting() {
+		t.Fatal("not hunting at HuntFrom")
+	}
+}

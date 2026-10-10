@@ -546,6 +546,11 @@ type Config struct {
 	Hunt      bool
 	HitEnergy float64
 	MeatUnits int
+	// HuntFrom is the tick hunting begins (zero: from the start): a
+	// measured world starts with every body at once and crashes, and the
+	// hunting of that crash is the start's, not the world's (stage
+	// 10-2e). A played map is warmed before play.
+	HuntFrom int64
 	// Fight lets the prey and its kind within reach strike back at a
 	// hunter that has struck within FightTicks (stages 10-2c and 10-2e,
 	// hunt.go); Refuge has a
