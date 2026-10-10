@@ -124,6 +124,10 @@ type Body struct {
 	LightSince int64     `json:",omitempty"`
 	LightKey   int32     `json:",omitempty"`
 	Dusk       []DuskRow `json:",omitempty"`
+	// Attack and Defense are its combat levels plus one (AllotCombat,
+	// stage 10-1); zero stands for the neutral level.
+	Attack  int `json:",omitempty"`
+	Defense int `json:",omitempty"`
 	// Build is its own speed, most energy and burn (build.go), and Share
 	// the share of its budget it was born with for speed (with Allot).
 	Build Build

@@ -216,6 +216,7 @@
 | 知らない地域の見込み（陸 × この倍率） | `Venture` | 1 | 9-6 の感度（条件 `bold` 1.5・`timid` 1/1.5、`unventured` の世界で）。地域の行の親を陸 × `Venture`（上限 1）にする。1 で 9-5b までの世界と同一。証拠が `RegionWeight` を超えれば消える |
 | 知っている場所の行の信じ方（親への重みをこれで割る） | `Steady` | 1 | 9-6b の感度（条件 `steady` 1.5・`fickle` 1/1.5）。`RegionWeight`・`PathWeight` を `Steady` で割る。1 で 9-6a の世界と同一。知らない地域の読みは動かない |
 | 種族の表（名前・最初の身体の割合・予算の目盛りのずれ・入れる地形・泳げるか・スキルを持てないか） | `Species` | human 0.5 / beast 0.5 (Size 1, NoSkills)。地形は陸、泳げない | 9-7a。9-7b-2c で入れる地形（`Terrains`）と泳げるか（`Swims`）の列。9-7b-4 で `NoSkills`（既定では獣。条件 `skilled` で全種族が持つ）。魚（水だけ・泳げる）は条件 `fish` で足す。身体は行の添字を持ち、交配は同じ行とだけ。獣の目盛りは `BudgetStep` 倍（ユーザ判断 2026-10-09「予算の段を 1 つ上」）。1 行で 9-6a の世界（条件 `single`）、獣の Size 0 がタグだけの対照 `twin` |
+| 攻撃力・防御力を予算の枠にする・段の上限・1 段の倍率・段ごとの代金 | `AllotCombat`・`CombatMost`・`CombatStep`・`CombatTrade` | true・2・1.5・0 | 10-1（`VISION.md`「遺伝子の能力」）。3 段、中立 1。代金 0 は仮——攻撃の規則（10-2a）が読むようになってから価格を測る（9-3 の視野と同じ順） |
 | 開拓の段を遺伝子にする・段の上限・1 段の倍率 | `AllotVenture`・`VentureMost`・`VentureStep` | true・2・1.5 | 9-6a（`VISION.md`「性格の遺伝子は予測の事前分布を動かす」「傾向の遺伝子は予算の枠外」）。段 k の見込みは 陸 × `Venture` × `VentureStep`^(k − 中立)。予算の枠外で代金なし。false で 9-5b の世界（条件 `unventured`） |
 | 通ったタイル → 地域 の重み（タイル） | `PathWeight` | 20 | 仮。一生で通ったタイルに入るのは約 45 回（[1-6-room](docs/experiments/20260926-1-6-room.md)） |
 | 通ったタイルを覚えている tick 数 | `PathRecall` | 200 | 仮。数え上げと同じ |

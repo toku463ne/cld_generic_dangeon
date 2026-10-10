@@ -299,3 +299,69 @@ func TestAllotVenture(t *testing.T) {
 		t.Fatal("without AllotVenture boldness still reads")
 	}
 }
+
+// Attack and defense are slots of the budget (AllotCombat, stage 10-1):
+// drawn within 0..CombatMost, inherited and mutated like every slot,
+// each level off the neutral multiplying the strength by CombatStep, and
+// each level above the neutral costing CombatTrade of the build's budget
+// (free at zero). Without AllotCombat every body is at the neutral level.
+func TestCombatSlots(t *testing.T) {
+	w := newTestWorld(t, 13)
+	seen := map[[2]int]bool{}
+	for _, b := range w.Bodies() {
+		a, d := w.BodyAttack(b), w.BodyDefense(b)
+		if a < 0 || a > w.cfg.CombatMost || d < 0 || d > w.cfg.CombatMost {
+			t.Fatalf("body %d has attack %d defense %d", b.ID, a, d)
+		}
+		seen[[2]int{a, d}] = true
+	}
+	if len(seen) < 4 {
+		t.Fatalf("only %d attack/defense pairs drawn among %d bodies", len(seen), len(w.Bodies()))
+	}
+	// Powers: CombatStep per level off the neutral, one at it.
+	n := w.cfg.CombatMost / 2
+	for lvl := 0; lvl <= w.cfg.CombatMost; lvl++ {
+		b := Body{Attack: lvl + 1, Defense: lvl + 1}
+		want := math.Pow(w.cfg.CombatStep, float64(lvl-n))
+		if math.Abs(w.attackPower(&b)-want) > 1e-12 || math.Abs(w.defensePower(&b)-want) > 1e-12 {
+			t.Fatalf("level %d: powers %v / %v, want %v", lvl, w.attackPower(&b), w.defensePower(&b), want)
+		}
+	}
+	// Inheritance carries the slots; the genome round-trips.
+	g := Genome{Level: 0, Sight: w.cfg.Sight, Fert: w.cfg.FertMost / 2, Size: w.sizeNeutral(), Bold: w.cfg.VentureMost / 2, Attack: w.cfg.CombatMost, Defense: 0}
+	w.cfg.AllotMutation = 0
+	if h := w.inherit(g, g); h.Attack != w.cfg.CombatMost || h.Defense != 0 {
+		t.Fatalf("inherited attack %d defense %d, want %d and 0", h.Attack, h.Defense, w.cfg.CombatMost)
+	}
+	var b Body
+	b.Energy = math.Inf(1)
+	w.endow(&b, g)
+	if got := w.genomeOf(&b); got.Attack != g.Attack || got.Defense != g.Defense {
+		t.Fatalf("endowed genome %+v, want attack %d defense %d", got, g.Attack, g.Defense)
+	}
+	// Free at CombatTrade zero; a price shrinks the build.
+	free := b.Build
+	w.cfg.CombatTrade = 0.2
+	var c Body
+	c.Energy = math.Inf(1)
+	w.endow(&c, Genome{Level: 0, Sight: w.cfg.Sight, Fert: w.cfg.FertMost / 2, Size: w.sizeNeutral(), Bold: w.cfg.VentureMost / 2, Attack: w.cfg.CombatMost, Defense: w.cfg.CombatMost})
+	if c.Build.EnergyMax >= free.EnergyMax {
+		t.Fatalf("a priced combat level did not shrink the build: %v vs %v", c.Build.EnergyMax, free.EnergyMax)
+	}
+	// Without the slot every body is neutral.
+	cfg := testConfig(2)
+	cfg.AllotCombat = false
+	w2, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, b := range w2.Bodies() {
+		if w2.BodyAttack(b) != n || w2.BodyDefense(b) != n || b.Attack != 0 {
+			t.Fatalf("without AllotCombat body %d is at %d/%d", b.ID, w2.BodyAttack(b), w2.BodyDefense(b))
+		}
+	}
+	cfg.AllotCombat, cfg.CombatMost = true, 0
+	if _, err := NewWorld(cfg, testMap()); err == nil {
+		t.Fatal("CombatMost 0 was accepted")
+	}
+}

@@ -125,6 +125,9 @@ func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 	if cfg.AllotVenture && (cfg.VentureMost < 1 || !(cfg.VentureStep > 0)) {
 		return nil, fmt.Errorf("AllotVenture needs VentureMost >= 1 and VentureStep above zero, got %d %v", cfg.VentureMost, cfg.VentureStep)
 	}
+	if cfg.AllotCombat && (cfg.CombatMost < 1 || !(cfg.CombatStep > 0) || !(cfg.CombatTrade >= 0)) {
+		return nil, fmt.Errorf("AllotCombat needs CombatMost >= 1, CombatStep above zero and CombatTrade at least zero, got %d %v %v", cfg.CombatMost, cfg.CombatStep, cfg.CombatTrade)
+	}
 	if cfg.AllotBudget && (cfg.BudgetLevels < 1 || !(cfg.BudgetStep > 0) || !(cfg.Budget > 0)) {
 		return nil, fmt.Errorf("AllotBudget needs BudgetLevels >= 1 and BudgetStep and Budget above zero, got %d %v %v", cfg.BudgetLevels, cfg.BudgetStep, cfg.Budget)
 	}
@@ -354,6 +357,37 @@ func (w *World) steadyOf(b *Body) float64 { return w.cfg.Steady }
 func (w *World) regionWeight(b *Body) float64 { return w.cfg.RegionWeight / w.steadyOf(b) }
 func (w *World) pathWeight(b *Body) float64   { return w.cfg.PathWeight / w.steadyOf(b) }
 
+// attackOf and defenseOf are body b's combat levels (AllotCombat, stage
+// 10-1): its own drawn level, or the neutral one. attackPower and
+// defensePower are what they buy: CombatStep to the level off the
+// neutral, exactly one at it.
+func (w *World) attackOf(b *Body) int {
+	if b.Attack > 0 {
+		return b.Attack - 1
+	}
+	return w.cfg.CombatMost / 2
+}
+
+func (w *World) defenseOf(b *Body) int {
+	if b.Defense > 0 {
+		return b.Defense - 1
+	}
+	return w.cfg.CombatMost / 2
+}
+
+func (w *World) attackPower(b *Body) float64 {
+	return math.Pow(w.cfg.CombatStep, float64(w.attackOf(b)-w.cfg.CombatMost/2))
+}
+
+func (w *World) defensePower(b *Body) float64 {
+	return math.Pow(w.cfg.CombatStep, float64(w.defenseOf(b)-w.cfg.CombatMost/2))
+}
+
+// BodyAttack and BodyDefense are attackOf and defenseOf, for counts and
+// clients.
+func (w *World) BodyAttack(b Body) int  { return w.attackOf(&b) }
+func (w *World) BodyDefense(b Body) int { return w.defenseOf(&b) }
+
 // BodyBold is boldOf, for counts and clients.
 func (w *World) BodyBold(b Body) int { return w.boldOf(&b) }
 
@@ -496,6 +530,10 @@ func (w *World) Fingerprint() uint64 {
 		}
 		if b.Bold != 0 {
 			put(uint64(b.Bold))
+		}
+		if b.Attack != 0 || b.Defense != 0 {
+			put(uint64(b.Attack))
+			put(uint64(b.Defense))
 		}
 		if b.Species != 0 {
 			put(uint64(b.Species))

@@ -527,6 +527,18 @@ type Config struct {
 	// (BudgetLedger) accounts for it.
 	Budget float64
 
+	// AllotCombat puts attack and defense in the budget (stage 10-1,
+	// VISION "遺伝子": 攻撃力・防御力): a body draws a level of each, 0 to
+	// CombatMost, drawn, inherited and mutated as every slot is, the
+	// neutral level CombatMost/2. Each level off the neutral multiplies
+	// the strength by CombatStep, and costs or refunds CombatTrade of the
+	// budget the speed/energy pair splits (zero: the levels are free,
+	// until a rule reads them and a price can be measured).
+	AllotCombat bool
+	CombatMost  int
+	CombatStep  float64
+	CombatTrade float64
+
 	// Collide keeps a body from stepping into a tile another body stands
 	// on (breed.go keeps who stands where): the move is not among its
 	// options, and a body whose intent would take it there decides again
@@ -684,6 +696,10 @@ func DefaultConfig() Config {
 		Requests:           true,
 		RequestRange:       5,
 		RequestTicks:       100,
+		AllotCombat:        true,
+		CombatMost:         2,
+		CombatStep:         1.5,
+		CombatTrade:        0,
 		Collide:            true,
 	}
 }
