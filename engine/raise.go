@@ -91,7 +91,7 @@ func (w *World) canSettle(b *Body) bool {
 		return false
 	}
 	t := w.tileOf(b.X, b.Y)
-	return t >= 0 && w.m.Terrain[t] == TerrainLand && !w.m.ShelterAt(t%w.m.Width, t/w.m.Width)
+	return t >= 0 && w.m.Terrain[t].Ground() && !w.m.ShelterAt(t%w.m.Width, t/w.m.Width)
 }
 
 // settleInstead is what body b, falling asleep (a is ActSleep), does: it
@@ -233,7 +233,7 @@ func (w *World) settle(b *Body) {
 	lo := w.cfg.BuildSide / 2
 	for y := by - lo; y < by-lo+w.cfg.BuildSide; y++ {
 		for x := bx - lo; x < bx-lo+w.cfg.BuildSide; x++ {
-			if !w.m.InBounds(x, y) || w.m.TerrainAt(x, y) != TerrainLand || w.m.ShelterAt(x, y) {
+			if !w.m.InBounds(x, y) || !w.m.TerrainAt(x, y).Ground() || w.m.ShelterAt(x, y) {
 				continue
 			}
 			w.m.SetShelter(x, y)

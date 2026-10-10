@@ -26,7 +26,7 @@ func landParts(m engine.Map) ([]int, int) {
 	for y := 0; y < m.Height; y++ {
 		for x := 0; x < m.Width; x++ {
 			i := y*m.Width + x
-			if part[i] >= 0 || m.TerrainAt(x, y) != engine.TerrainLand {
+			if part[i] >= 0 || !m.TerrainAt(x, y).Ground() {
 				continue
 			}
 			stack := []int{i}
@@ -38,7 +38,7 @@ func landParts(m engine.Map) ([]int, int) {
 				for dy := -1; dy <= 1; dy++ {
 					for dx := -1; dx <= 1; dx++ {
 						ux, uy := tx+dx, ty+dy
-						if !m.InBounds(ux, uy) || m.TerrainAt(ux, uy) != engine.TerrainLand {
+						if !m.InBounds(ux, uy) || !m.TerrainAt(ux, uy).Ground() {
 							continue
 						}
 						if u := uy*m.Width + ux; part[u] < 0 {

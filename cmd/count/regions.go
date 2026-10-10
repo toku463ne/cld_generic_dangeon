@@ -43,7 +43,7 @@ func runRegions(cfg engine.Config, m engine.Map, ticks int) (regionsTally, error
 	nr := len(m.RegionFood)
 	land := make([]float64, nr)
 	for i, tt := range m.Terrain {
-		if tt == engine.TerrainLand {
+		if tt.Ground() {
 			land[m.Region[i]]++
 		}
 	}

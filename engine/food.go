@@ -195,7 +195,7 @@ type foodState struct {
 	// regionTiles lists, per terrain and region, the region's tiles of
 	// that terrain: where a pool of that terrain's food can appear, and
 	// what a body that may enter it walks over.
-	regionTiles [TerrainWater + 1][][]int
+	regionTiles [NumTerrains][][]int
 
 	scratch []int
 }
@@ -225,7 +225,7 @@ func validFood(kinds []FoodKind, pools []FoodSpec) error {
 		if p.Kind < 0 || p.Kind >= len(kinds) {
 			return fmt.Errorf("food pool %s is of kind %d, have %d kinds", p.Name, p.Kind, len(kinds))
 		}
-		if p.Terrain > TerrainWater {
+		if p.Terrain >= NumTerrains {
 			return fmt.Errorf("food pool %s lies on unknown terrain %d", p.Name, p.Terrain)
 		}
 		if p.Seed < 0 || p.Start < 0 || !(p.SeedRate >= 0) {
@@ -326,8 +326,14 @@ func (w *World) shareSum(shares []float64, t Terrain) float64 {
 	return sum
 }
 
-// regionLand is region r's land tiles.
-func (w *World) regionLand(r RegionID) []int { return w.food.regionTiles[TerrainLand][r] }
+// regionLand is region r's ground tiles (land and forest): what the
+// config body, at home on every ground, walks.
+func (w *World) regionLand(r RegionID) []int {
+	if len(w.food.regionTiles[TerrainForest][r]) == 0 {
+		return w.food.regionTiles[TerrainLand][r]
+	}
+	return append(append([]int(nil), w.food.regionTiles[TerrainLand][r]...), w.food.regionTiles[TerrainForest][r]...)
+}
 
 // areaOf is the tiles of region r a body of species s lives on: its own
 // terrains, not water it could wade into (the tables read the ground it

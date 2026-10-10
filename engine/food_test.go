@@ -83,6 +83,7 @@ func TestFoodFollowsRegionShares(t *testing.T) {
 		}
 	}
 	cfg := DefaultConfig()
+	cfg.FoodKinds, cfg.Foods = nil, nil // one pool: the pools are tested apart
 	cfg.Bodies = 0
 	cfg.FoodCap = 400
 	counts := [2]int{}
@@ -128,6 +129,7 @@ func TestFoodFollowsSeasons(t *testing.T) {
 		}
 	}
 	cfg := DefaultConfig()
+	cfg.FoodKinds, cfg.Foods = nil, nil // one pool: the pools are tested apart
 	cfg.Bodies, cfg.FoodCap, cfg.FoodReturn = 0, 100, 1
 	w, err := NewWorld(cfg, m)
 	if err != nil {
@@ -190,6 +192,7 @@ func TestProvision(t *testing.T) {
 			}
 		}
 		cfg := DefaultConfig()
+		cfg.FoodKinds, cfg.Foods = nil, nil // one pool: the pools are tested apart
 		cfg.Bodies, cfg.FoodCap, cfg.FoodReturn = 0, 20, 1
 		cfg.ProvisionWith, cfg.ProvisionAlone = c.with, c.alone
 		cfg.ProvisionEach = false // each unit by chance (3-3)
@@ -246,6 +249,7 @@ func TestProvisionEach(t *testing.T) {
 		}
 	}
 	cfg := DefaultConfig()
+	cfg.FoodKinds, cfg.Foods = nil, nil // one pool: the pools are tested apart
 	cfg.Bodies, cfg.FoodCap, cfg.FoodReturn = 0, 20, 1
 	cfg.ProvisionEachWith, cfg.ProvisionEachAlone = 1, 0
 	cfg.Provision = true // off by default since 6-4a
@@ -443,7 +447,8 @@ func TestUnkeptIsStage82b3(t *testing.T) {
 // human pool and a beast pool.
 func TestFoodKinds(t *testing.T) {
 	cfg := testConfig(3)
-	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds[:2], DefaultConfig().Foods[:2] // the two pools, without the meat
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds[:2], append([]FoodSpec(nil), DefaultConfig().Foods[:2]...) // the two pools, without the meat
+	cfg.Foods[1].Terrain = TerrainLand                                                                              // the test map has no forest
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -517,7 +522,8 @@ func TestFoodKinds(t *testing.T) {
 	// With no beasts, the beast pool is never touched: not eaten, not
 	// provisioned, not picked; only decay moves it.
 	cfg = testConfig(4)
-	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds[:2], DefaultConfig().Foods[:2] // the two pools, without the meat
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds[:2], append([]FoodSpec(nil), DefaultConfig().Foods[:2]...) // the two pools, without the meat
+	cfg.Foods[1].Terrain = TerrainLand                                                                              // the test map has no forest
 	cfg.Species = cfg.Species[:1]
 	cfg.Wade = false
 	cfg.AllotCombat = false
@@ -568,9 +574,10 @@ func TestFoodKinds(t *testing.T) {
 // With the default tables (a human pool and a beast pool) the world is
 // stage 9-7b-1: its fingerprint is pinned here.
 func TestPooledIsStage97b1(t *testing.T) {
-	const want = uint64(0x3aebf3d9a33238e8)
+	const want = uint64(0xe26bd4c724e318b2)
 	cfg := testConfig(1)
-	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds[:2], DefaultConfig().Foods[:2] // the two pools, without the meat
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds[:2], append([]FoodSpec(nil), DefaultConfig().Foods[:2]...) // the two pools, without the meat
+	cfg.Foods[1].Terrain = TerrainLand                                                                              // the test map has no forest
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
 		t.Fatal(err)
@@ -595,8 +602,10 @@ func TestPoolPlaces(t *testing.T) {
 	}
 	m.PoolFood = map[string][]float64{"human food": {1, 0}, "beast food": {0, 1}}
 	cfg := testConfig(6)
-	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds[:2], DefaultConfig().Foods[:2] // the two pools, without the meat
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds[:2], append([]FoodSpec(nil), DefaultConfig().Foods[:2]...) // the two pools, without the meat
+	cfg.Foods[1].Terrain = TerrainLand                                                                              // the test map has no forest
 	cfg.FoodCap, cfg.FoodReturn = 40, 1
+	cfg.TerrainBurn, cfg.AvoidBurn = 1, 1 // the config's burn on any ground
 	w, err := NewWorld(cfg, m)
 	if err != nil {
 		t.Fatal(err)

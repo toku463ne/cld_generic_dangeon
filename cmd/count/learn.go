@@ -56,7 +56,7 @@ func runLearn(cfg engine.Config, m engine.Map, ticks int) (learnTally, error) {
 	}
 	land := make([]float64, len(m.RegionFood))
 	for i, tr := range m.Terrain {
-		if tr == engine.TerrainLand {
+		if tr.Ground() {
 			land[m.Region[i]]++
 		}
 	}

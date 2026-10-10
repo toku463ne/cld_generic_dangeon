@@ -206,7 +206,7 @@ func (w *World) dropMeat(b *Body) {
 			continue
 		}
 		t := w.m.index(x, y)
-		if w.m.Terrain[t] != w.food.pools[p].terrain || w.food.foodAt[t] != 0 || w.food.pools[p].count+w.food.pools[p].held >= w.food.pools[p].cap {
+		if !w.m.Terrain[t].Ground() || w.food.foodAt[t] != 0 || w.food.pools[p].count+w.food.pools[p].held >= w.food.pools[p].cap {
 			continue
 		}
 		w.putFood(t, p)

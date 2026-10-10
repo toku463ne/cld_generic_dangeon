@@ -71,7 +71,7 @@ func runPlaceRoom(cfg engine.Config, m engine.Map, ticks int) (placeRoomTally, e
 		late := now > 5000
 		for y := by - s; y <= by+s; y++ {
 			for x := bx - s; x <= bx+s; x++ {
-				if !m.InBounds(x, y) || m.TerrainAt(x, y) != engine.TerrainLand {
+				if !m.InBounds(x, y) || !m.TerrainAt(x, y).Ground() {
 					continue
 				}
 				tile := y*m.Width + x

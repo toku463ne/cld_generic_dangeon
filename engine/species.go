@@ -36,12 +36,51 @@ type SpeciesSpec struct {
 	NoSkills bool `json:",omitempty"`
 	// Preys names the species its bodies hunt (stage 10-2a, hunt.go).
 	Preys []string `json:",omitempty"`
+	// Likes and Dislikes are the terrains its bodies burn least and most
+	// on (stage 10-2h, VISION "好む地形・苦手な地形"): on a liked terrain
+	// the burn is its own, on any other TerrainBurn times it, on a
+	// disliked one AvoidBurn times. Water for a wader is WaterBurn apart.
+	Likes    []Terrain `json:",omitempty"`
+	Dislikes []Terrain `json:",omitempty"`
+}
+
+// terrainBurn is the factor the terrain of tile t puts on a body of
+// species s: one on a terrain it likes, AvoidBurn on one it dislikes,
+// TerrainBurn on any other ground; water is read apart (waterBurn).
+func (w *World) terrainBurn(s int, t Terrain) float64 {
+	if !t.Ground() {
+		return 1
+	}
+	spec := w.specOf(s)
+	for _, x := range spec.Likes {
+		if x == t {
+			return 1
+		}
+	}
+	for _, x := range spec.Dislikes {
+		if x == t {
+			return w.cfg.AvoidBurn
+		}
+	}
+	if len(spec.Likes) == 0 && len(spec.Dislikes) == 0 {
+		return 1 // a row without preferences is at home everywhere
+	}
+	return w.cfg.TerrainBurn
+}
+
+// groundBurn is the factor the ground body b stands on puts on its burn.
+func (w *World) groundBurn(b *Body) float64 {
+	t := w.tileOf(b.X, b.Y)
+	if t < 0 {
+		return 1
+	}
+	return w.terrainBurn(b.Species, w.m.Terrain[t])
 }
 
 // enters reports whether species s may be on terrain t by its row alone.
 func (s SpeciesSpec) enters(t Terrain) bool {
 	if len(s.Terrains) == 0 {
-		return t == TerrainLand
+		return t.Ground()
 	}
 	for _, x := range s.Terrains {
 		if x == t {
@@ -99,8 +138,13 @@ func validSpecies(table []SpeciesSpec) error {
 			return fmt.Errorf("species %s has share %v", s.Name, s.Share)
 		}
 		for _, t := range s.Terrains {
-			if t > TerrainWater {
+			if t >= NumTerrains {
 				return fmt.Errorf("species %s enters unknown terrain %d", s.Name, t)
+			}
+		}
+		for _, t := range append(append([]Terrain(nil), s.Likes...), s.Dislikes...) {
+			if t >= NumTerrains {
+				return fmt.Errorf("species %s likes or dislikes unknown terrain %d", s.Name, t)
 			}
 		}
 		if s.Swims && !s.enters(TerrainWater) {

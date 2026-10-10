@@ -324,7 +324,7 @@ func (w *World) placeBodies(genomes []Genome) {
 	// or anywhere on land where it comes back nowhere.
 	var land []int
 	for i, t := range w.m.Terrain {
-		if t == TerrainLand {
+		if t.Ground() {
 			land = append(land, i)
 		}
 	}

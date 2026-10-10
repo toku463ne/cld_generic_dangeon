@@ -15,7 +15,15 @@ type Terrain uint8
 const (
 	TerrainLand Terrain = iota
 	TerrainWater
+	// TerrainForest is ground like land, the beasts' own (stage 10-2h,
+	// VISION: species have terrains they like and dislike).
+	TerrainForest
+	NumTerrains
 )
+
+// Ground reports whether terrain t can be walked, built and slept on by
+// the species of the land: land and forest, not water.
+func (t Terrain) Ground() bool { return t == TerrainLand || t == TerrainForest }
 
 // RegionID names the region a tile belongs to. What a region gives (how fast
 // food appears, and so on) is attached to the ID by later stages.
@@ -127,7 +135,7 @@ func (m Map) Validate() error {
 		return fmt.Errorf("region layer has %d tiles, want %d", len(m.Region), n)
 	}
 	for i, t := range m.Terrain {
-		if t > TerrainWater {
+		if t >= NumTerrains {
 			return fmt.Errorf("tile %d has unknown terrain %d", i, t)
 		}
 	}

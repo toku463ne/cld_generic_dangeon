@@ -457,7 +457,7 @@ func reach(m engine.Map, name string, seeds int, seed0 int64) {
 		}
 		d := nearestFood(m, w.Foods())
 		for i, t := range m.Terrain {
-			if t != engine.TerrainLand {
+			if !t.Ground() {
 				continue
 			}
 			land++
@@ -507,7 +507,7 @@ func nearestFood(m engine.Map, foods []engine.Food) []float64 {
 					continue
 				}
 				nx, ny := x+dx, y+dy
-				if !m.InBounds(nx, ny) || m.TerrainAt(nx, ny) != engine.TerrainLand {
+				if !m.InBounds(nx, ny) || !m.TerrainAt(nx, ny).Ground() {
 					continue
 				}
 				step := 1.0
@@ -1959,7 +1959,7 @@ func runChange(cfg engine.Config, m engine.Map, ticks int) (changeTally, error) 
 			case p.act.Kind == engine.ActMove:
 				nx, ny := step(b.X, b.Y, p.act)
 				tx, ty := int(math.Floor(nx)), int(math.Floor(ny))
-				if !m.InBounds(tx, ty) || m.TerrainAt(tx, ty) != engine.TerrainLand ||
+				if !m.InBounds(tx, ty) || !m.TerrainAt(tx, ty).Ground() ||
 					m.RegionAt(tx, ty) != m.RegionAt(int(math.Floor(b.X)), int(math.Floor(b.Y))) {
 					kind = 2
 				}

@@ -983,7 +983,7 @@ func regionShares(m engine.Map) (area, food []float64) {
 	food = make([]float64, len(m.RegionFood))
 	land := 0.0
 	for i, t := range m.Terrain {
-		if t == engine.TerrainLand {
+		if t.Ground() {
 			area[m.Region[i]]++
 			land++
 		}
@@ -1578,12 +1578,12 @@ func edgeTiles(m engine.Map) []bool {
 	e := make([]bool, m.Width*m.Height)
 	for y := 0; y < m.Height; y++ {
 		for x := 0; x < m.Width; x++ {
-			if m.TerrainAt(x, y) != engine.TerrainLand {
+			if !m.TerrainAt(x, y).Ground() {
 				continue
 			}
 			for dy := -1; dy <= 1; dy++ {
 				for dx := -1; dx <= 1; dx++ {
-					if !m.InBounds(x+dx, y+dy) || m.TerrainAt(x+dx, y+dy) != engine.TerrainLand {
+					if !m.InBounds(x+dx, y+dy) || !m.TerrainAt(x+dx, y+dy).Ground() {
 						e[y*m.Width+x] = true
 					}
 				}
@@ -1598,7 +1598,7 @@ func edgeShare(m engine.Map) float64 {
 	e := edgeTiles(m)
 	n, land := 0.0, 0.0
 	for i, t := range m.Terrain {
-		if t == engine.TerrainLand {
+		if t.Ground() {
 			land++
 			if e[i] {
 				n++
@@ -1631,7 +1631,7 @@ func memRows(w *engine.World, m engine.Map) []memRow {
 	}
 	land := make([]float64, len(m.RegionFood))
 	for i, t := range m.Terrain {
-		if t == engine.TerrainLand {
+		if t.Ground() {
 			land[m.Region[i]]++
 		}
 	}
@@ -1714,7 +1714,7 @@ type ageStat struct{ err, tiles, n float64 }
 func readAges(w *engine.World, m engine.Map, st *[len(ageBands)]ageStat) {
 	land := make([]float64, len(m.RegionFood))
 	for i, t := range m.Terrain {
-		if t == engine.TerrainLand {
+		if t.Ground() {
 			land[m.Region[i]]++
 		}
 	}

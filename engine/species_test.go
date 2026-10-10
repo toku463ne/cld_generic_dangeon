@@ -253,7 +253,8 @@ func TestDeepWater(t *testing.T) {
 // eats. Humans attack nothing; with Hunt off nothing is attacked.
 func TestHunt(t *testing.T) {
 	cfg := testConfig(14)
-	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, append([]FoodSpec(nil), DefaultConfig().Foods...)
+	cfg.Foods[1].Terrain = TerrainLand // the test map has no forest
 	cfg.Bodies = 0
 	cfg.HuntHunger = 1      // hunger is not the question here
 	cfg.AllotCombat = false // even strength
@@ -359,7 +360,8 @@ func TestHunt(t *testing.T) {
 func TestFear(t *testing.T) {
 	for _, fear := range []bool{true, false} {
 		cfg := testConfig(15)
-		cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
+		cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, append([]FoodSpec(nil), DefaultConfig().Foods...)
+		cfg.Foods[1].Terrain = TerrainLand // the test map has no forest
 		cfg.Bodies, cfg.AllotCombat, cfg.Fear = 0, false, fear
 		cfg.HuntHunger = 1 // hunger is not the question here
 		w, err := NewWorld(cfg, testMap())
@@ -418,7 +420,8 @@ func TestFear(t *testing.T) {
 func TestFight(t *testing.T) {
 	for _, fight := range []bool{true, false} {
 		cfg := testConfig(16)
-		cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
+		cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, append([]FoodSpec(nil), DefaultConfig().Foods...)
+		cfg.Foods[1].Terrain = TerrainLand // the test map has no forest
 		cfg.Bodies, cfg.AllotCombat, cfg.Fight = 0, false, fight
 		cfg.HuntHunger = 1 // hunger is not the question here
 		w, err := NewWorld(cfg, testMap())
@@ -528,7 +531,8 @@ func TestHuntFrom(t *testing.T) {
 // of the tick, and decides.
 func TestBlowWakes(t *testing.T) {
 	cfg := testConfig(19)
-	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, append([]FoodSpec(nil), DefaultConfig().Foods...)
+	cfg.Foods[1].Terrain = TerrainLand // the test map has no forest
 	cfg.Bodies, cfg.AllotCombat = 0, false
 	cfg.HuntHunger = 1 // hunger is not the question here
 	w, err := NewWorld(cfg, testMap())
@@ -559,7 +563,8 @@ func TestBlowWakes(t *testing.T) {
 // it is offered no attack; under the share, it is.
 func TestHuntHunger(t *testing.T) {
 	cfg := testConfig(20)
-	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, append([]FoodSpec(nil), DefaultConfig().Foods...)
+	cfg.Foods[1].Terrain = TerrainLand // the test map has no forest
 	cfg.Bodies, cfg.AllotCombat = 0, false
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
@@ -589,5 +594,42 @@ func TestHuntHunger(t *testing.T) {
 	cfg.HuntHunger = 0
 	if _, err := NewWorld(cfg, testMap()); err == nil {
 		t.Fatal("HuntHunger 0 was accepted")
+	}
+}
+
+// A species burns its own on the ground it likes, TerrainBurn times it
+// on other ground and AvoidBurn times on ground it dislikes (stage
+// 10-2h); a row without preferences is at home everywhere, and water is
+// read apart.
+func TestTerrainBurn(t *testing.T) {
+	w := newTestWorld(t, 21)
+	human, beast := Body{Species: 0}, Body{Species: 1}
+	if w.terrainBurn(0, TerrainLand) != 1 || w.terrainBurn(1, TerrainForest) != 1 {
+		t.Fatal("a species burns more on the ground it likes")
+	}
+	if w.terrainBurn(0, TerrainForest) != w.cfg.TerrainBurn || w.terrainBurn(1, TerrainLand) != w.cfg.TerrainBurn {
+		t.Fatal("a species burns its own off the ground it likes")
+	}
+	w.cfg.Species = append([]SpeciesSpec(nil), w.cfg.Species...)
+	w.cfg.Species[0].Dislikes = []Terrain{TerrainForest}
+	if w.terrainBurn(0, TerrainForest) != w.cfg.AvoidBurn {
+		t.Fatal("a disliked ground does not burn AvoidBurn")
+	}
+	if w.terrainBurn(0, TerrainWater) != 1 {
+		t.Fatal("water is read as ground")
+	}
+	w.cfg.Species[0].Likes, w.cfg.Species[0].Dislikes = nil, nil
+	if w.terrainBurn(0, TerrainForest) != 1 {
+		t.Fatal("a row without preferences is not at home everywhere")
+	}
+	_ = human
+	_ = beast
+	// The burn of a body on forest.
+	w.m.SetTerrain(3, 3, TerrainForest)
+	b := Body{X: 3.5, Y: 3.5, Energy: 50, Species: 1}
+	a := Body{X: 3.5, Y: 3.5, Energy: 50, Species: 0}
+	w.cfg.Species[0].Likes = []Terrain{TerrainLand}
+	if w.burnOf(&a) <= w.burnOf(&b) {
+		t.Fatalf("on forest a human burns %v, a beast %v", w.burnOf(&a), w.burnOf(&b))
 	}
 }

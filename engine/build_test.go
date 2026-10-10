@@ -38,6 +38,7 @@ func TestBuildOfTheConfigIsTheZeroBuild(t *testing.T) {
 // A body's own build is what moves, burns and caps it.
 func TestOwnBuild(t *testing.T) {
 	w := newTestWorld(t, 1)
+	w.cfg.TerrainBurn, w.cfg.AvoidBurn = 1, 1 // the config's burn on any ground
 	id := w.bodies[0].ID
 	if !w.SetBuild(id, Build{Speed: 0.5, EnergyMax: 60, EnergyBurn: 0.2}) {
 		t.Fatal("body not found")

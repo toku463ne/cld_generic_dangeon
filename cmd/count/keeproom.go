@@ -31,7 +31,7 @@ func runKeep(cfg engine.Config, m engine.Map, ticks int) (keepTally, error) {
 	}
 	land := 0
 	for _, k := range m.Terrain {
-		if k == engine.TerrainLand {
+		if k.Ground() {
 			land++
 		}
 	}
@@ -58,7 +58,7 @@ func runKeep(cfg engine.Config, m engine.Map, ticks int) (keepTally, error) {
 		t.ticks++
 		t.land += float64(land)
 		for i := range m.Terrain {
-			if m.Terrain[i] == engine.TerrainLand && w.ShelterAt(i%m.Width, i/m.Width) {
+			if m.Terrain[i].Ground() && w.ShelterAt(i%m.Width, i/m.Width) {
 				t.shelterTiles++
 			}
 		}

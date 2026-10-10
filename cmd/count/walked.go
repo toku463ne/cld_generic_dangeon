@@ -37,7 +37,7 @@ func runWalked(cfg engine.Config, m engine.Map, ticks int) (walkedTally, error) 
 	}
 	land := make([]float64, len(m.RegionFood))
 	for i, tt := range m.Terrain {
-		if tt == engine.TerrainLand {
+		if tt.Ground() {
 			land[m.Region[i]]++
 		}
 	}
@@ -78,7 +78,7 @@ func runWalked(cfg engine.Config, m engine.Map, ticks int) (walkedTally, error) 
 			fx, fy := from%m.Width, from/m.Width
 			for y := ty - s; y <= ty+s; y++ {
 				for x := tx - s; x <= tx+s; x++ {
-					if !m.InBounds(x, y) || m.TerrainAt(x, y) != engine.TerrainLand {
+					if !m.InBounds(x, y) || !m.TerrainAt(x, y).Ground() {
 						continue
 					}
 					if abs(x-fx) <= s && abs(y-fy) <= s {

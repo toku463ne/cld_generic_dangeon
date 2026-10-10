@@ -57,7 +57,7 @@ func shelters(m *engine.Map) {
 	for _, c := range [][2]int{{m.Width / 4, m.Height / 4}, {3 * m.Width / 4, m.Height / 4}, {m.Width / 4, 3 * m.Height / 4}, {3 * m.Width / 4, 3 * m.Height / 4}} {
 		for y := c[1] - ShelterSize/2; y < c[1]-ShelterSize/2+ShelterSize; y++ {
 			for x := c[0] - ShelterSize/2; x < c[0]-ShelterSize/2+ShelterSize; x++ {
-				if m.InBounds(x, y) && m.TerrainAt(x, y) == engine.TerrainLand {
+				if m.InBounds(x, y) && m.TerrainAt(x, y).Ground() {
 					m.SetShelter(x, y)
 				}
 			}
@@ -100,6 +100,13 @@ func Constrained(width, height int) engine.Map {
 				r += 2
 			}
 			m.SetRegion(x, y, engine.RegionID(r))
+		}
+	}
+	// The beasts' half is forest (stage 10-2h): their food returns in
+	// it, and each species burns more off its own ground.
+	for y := height / 2; y < height; y++ {
+		for x := 0; x < width; x++ {
+			m.SetTerrain(x, y, engine.TerrainForest)
 		}
 	}
 	water := width * 5 / 8
@@ -198,7 +205,12 @@ func Patches(width, height int) engine.Map {
 	}
 	// The species keep apart (stage 9-7b-2): human food comes back in the
 	// top and left patches (regions 1 and 2), beast food in the right and
-	// bottom (3 and 4).
+	// bottom (3 and 4), which are forest (stage 10-2h).
+	for i := range m.Region {
+		if m.Region[i] == 3 || m.Region[i] == 4 {
+			m.Terrain[i] = engine.TerrainForest
+		}
+	}
 	m.PoolFood = map[string][]float64{
 		"human food": {0, 0.5, 0.5, 0, 0},
 		"beast food": {0, 0, 0, 0.5, 0.5},

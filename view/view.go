@@ -155,6 +155,11 @@ func New(w *engine.World, scale int) *View {
 	for y := 0; y < m.Height; y++ {
 		for x := 0; x < m.Width; x++ {
 			c := regionColors[int(m.RegionAt(x, y))%len(regionColors)]
+			if m.TerrainAt(x, y) == engine.TerrainForest {
+				// Forest is the region's colour, darker and greener
+				// (stage 10-2h).
+				c = color.RGBA{c.R * 2 / 3, c.G * 4 / 5, c.B * 2 / 3, 0xff}
+			}
 			if m.TerrainAt(x, y) == engine.TerrainWater {
 				c = waterColor
 			}

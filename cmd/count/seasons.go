@@ -32,7 +32,7 @@ func runSeasons(cfg engine.Config, m engine.Map, ticks int) (seasonsTally, error
 	land := make([]float64, nr)
 	total := 0.0
 	for i, tt := range m.Terrain {
-		if tt == engine.TerrainLand {
+		if tt.Ground() {
 			land[m.Region[i]]++
 			total++
 		}

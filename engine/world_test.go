@@ -98,9 +98,10 @@ func TestFingerprint(t *testing.T) {
 	// defense drawn), 10-2a (beasts hunt humans), 10-2b (prey read the
 	// hunters they see), 10-2c (a body struck strikes back), 10-2d (a
 	// hunted body sleeps in a settlement of its own), 10-2e (its kind
-	// within reach strikes with it), 10-2f (a blow wakes a sleeper) and
-	// 10-2g (a hunter hunts only when hungry).
-	const want = uint64(0x3e4729611934d697)
+	// within reach strikes with it), 10-2f (a blow wakes a sleeper), 10-2g
+	// (a hunter hunts only when hungry) and 10-2h (a beast burns more on
+	// land, which it does not like).
+	const want = uint64(0xc25bd9794408da31)
 	w, err := NewWorld(testConfig(1), tempMap())
 	if err != nil {
 		t.Fatal(err)
@@ -143,7 +144,8 @@ func TestOpenIsStage97b2a(t *testing.T) {
 	cfg.Wade = false
 	cfg.AllotCombat = false
 	cfg.DeepWater = false
-	cfg.Hunt = false // no hunting until 10-2a
+	cfg.Hunt = false                      // no hunting until 10-2a
+	cfg.TerrainBurn, cfg.AvoidBurn = 1, 1 // no terrain a species prefers until 10-2h
 	cfg.Species = append([]SpeciesSpec(nil), cfg.Species...)
 	cfg.Species[1].NoSkills = false // beasts had skills until 9-7b-4
 	w, err := NewWorld(cfg, tempMap())

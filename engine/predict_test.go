@@ -401,9 +401,10 @@ func TestTraceIsTheChoice(t *testing.T) {
 	// Value reads the config's build, so every body here has it.
 	cfg := testConfig(4)
 	cfg.Allot, cfg.Learn = false, false
-	cfg.ChildAbility = 1 // every body the config's build at every age
-	cfg.Sleep = false    // and at the config's burn: no sleep debt
-	cfg.Wade = false     // and never in water, which multiplies the burn
+	cfg.ChildAbility = 1                  // every body the config's build at every age
+	cfg.Sleep = false                     // and at the config's burn: no sleep debt
+	cfg.Wade = false                      // and never in water, which multiplies the burn
+	cfg.TerrainBurn, cfg.AvoidBurn = 1, 1 // nor off its ground
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)

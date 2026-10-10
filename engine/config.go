@@ -34,6 +34,12 @@ type Config struct {
 	// wall to it, as before the stage.
 	Wade      bool
 	WaterBurn float64
+	// TerrainBurn and AvoidBurn are what a ground a species does not like
+	// puts on its burn, and a ground it dislikes (stage 10-2h, VISION:
+	// a species burns more off its terrain, more still on one it
+	// dislikes). A row with no likes is at home on every ground.
+	TerrainBurn float64
+	AvoidBurn   float64
 	// DeepWater has bodies pass each other in water (stage 9-7b-4,
 	// VISION: water has depth, so creatures seldom touch unless they mean
 	// to): Collide does not hold on a water tile.
@@ -590,9 +596,11 @@ func DefaultConfig() Config {
 		Wade:               true,
 		WaterBurn:          4,
 		DeepWater:          true,
+		TerrainBurn:        1.5,
+		AvoidBurn:          3,
 		ClosedPlaces:       true,
 		FoodKinds:          []FoodKind{{Name: "human food", Tags: []string{"human"}}, {Name: "beast food", Tags: []string{"beast"}}, {Name: "raw meat", Tags: []string{"beast"}}},
-		Foods:              []FoodSpec{{Name: "human food", Kind: 0, Share: 0.5}, {Name: "beast food", Kind: 1, Share: 0.5}, {Name: "raw meat", Kind: 2, Kill: true}},
+		Foods:              []FoodSpec{{Name: "human food", Kind: 0, Share: 0.5}, {Name: "beast food", Kind: 1, Share: 0.5, Terrain: TerrainForest}, {Name: "raw meat", Kind: 2, Kill: true}},
 		FoodEnergy:         30,
 		Grain:              0.1,
 		FoodLife:           1000,
@@ -682,7 +690,7 @@ func DefaultConfig() Config {
 		PriorWeight:        50,
 		RegionWeight:       50,
 		Venture:            1,
-		Species:            []SpeciesSpec{{Name: "human", Share: 0.5}, {Name: "beast", Share: 0.5, Size: 1, NoSkills: true, Preys: []string{"human"}}},
+		Species:            []SpeciesSpec{{Name: "human", Share: 0.5, Likes: []Terrain{TerrainLand}}, {Name: "beast", Share: 0.5, Size: 1, NoSkills: true, Preys: []string{"human"}, Likes: []Terrain{TerrainForest}}},
 		AllotVenture:       true,
 		VentureMost:        2,
 		VentureStep:        1.5,
