@@ -67,8 +67,12 @@ type Work struct {
 	Food int `json:",omitempty"`
 }
 
-// drawSkills gives body b the skills it is born with.
+// drawSkills gives body b the skills it is born with; none to a species
+// without skills (NoSkills), and no draw for it.
 func (w *World) drawSkills(b *Body) {
+	if w.spec(b).NoSkills {
+		return
+	}
 	if w.cfg.Building && w.rng.Float64() < w.cfg.BuildBorn {
 		b.Skill[SkillBuild] = 1
 	}

@@ -131,6 +131,9 @@ func (w *World) blocks(b *Body, x, y float64) bool {
 	if w.barred(b, to) { // another species' settlement (stage 9-7b-2b)
 		return true
 	}
+	if w.cfg.DeepWater && w.m.Terrain[to] == TerrainWater {
+		return false // water has depth: bodies pass each other (stage 9-7b-4)
+	}
 	return w.cfg.Collide && w.grid != nil && w.occupied(to, b)
 }
 

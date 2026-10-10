@@ -191,3 +191,57 @@ func TestWadeAndFish(t *testing.T) {
 		t.Fatal("a pool on unknown terrain was accepted")
 	}
 }
+
+// Only a species with skills is born with any (NoSkills, stage 9-7b-4):
+// beasts build nothing and pitch no tent; the zero row (no table) is
+// skilled.
+func TestSkillsByRow(t *testing.T) {
+	w := newTestWorld(t, 12)
+	skilled := 0
+	for i := 0; i < 3000; i++ {
+		for _, b := range w.Bodies() {
+			has := b.Skill[SkillBuild] > 0 || b.Skill[SkillTent] > 0
+			if b.Species == 1 && has {
+				t.Fatalf("tick %d: beast %d has a skill", w.Tick(), b.ID)
+			}
+			if b.Species == 0 && has {
+				skilled++
+			}
+		}
+		w.Step()
+	}
+	if skilled == 0 {
+		t.Fatal("no human ever had a skill")
+	}
+	for _, p := range w.Places() {
+		if p.Species != 0 {
+			t.Fatal("a beast built a settlement")
+		}
+	}
+	if (SpeciesSpec{}).NoSkills {
+		t.Fatal("the zero row has no skills")
+	}
+}
+
+// In water bodies pass each other (DeepWater, stage 9-7b-4): a step
+// onto a water tile another body stands in is offered, as it is not on
+// land.
+func TestDeepWater(t *testing.T) {
+	for _, deep := range []bool{true, false} {
+		w := pairWorld(t, Body{ID: 0, X: 7.5, Y: 2.5, Energy: 60}, Body{ID: 1, X: 7.5, Y: 3.1, Energy: 60})
+		w.cfg.DeepWater = deep
+		b := &w.bodies[1]
+		if w.m.Terrain[w.tileOf(7.5, 2.5)] != TerrainWater {
+			t.Fatal("column 7 is not water")
+		}
+		north := false
+		for _, a := range w.possibleActions(nil, b) {
+			if a.Kind == ActMove && w.tileOf(b.X, b.Y+float64(moveDirs[a.Dir][1])*w.speedOf(b)) == w.tileOf(7.5, 2.5) {
+				north = true
+			}
+		}
+		if north != deep {
+			t.Fatalf("deep %v: a step into the occupied water tile offered %v", deep, north)
+		}
+	}
+}

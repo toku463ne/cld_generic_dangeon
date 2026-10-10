@@ -79,6 +79,14 @@ const (
 // twenty seeds a unit every 5 to 25 ticks and is grazed faster.)
 const PlantSeedRate = 0.005
 
+// Skilled is stage 9-7b-3: every species is born with skills as humans
+// are; Shallow is stage 9-7b-3 too: bodies block each other in water as
+// on land. Both are the controls of stage 9-7b-4 on Roomy's cap.
+const (
+	Skilled = "skilled"
+	Shallow = "shallow"
+)
+
 // Roomy gives the two species, each in its own regions, the food one
 // species had alone: twice the cap, so each pool is 300 (stage 9-7b-2;
 // on 150 each, the world settles under the collapse floor however it is
@@ -387,7 +395,7 @@ func fish(c *engine.Config) {
 	for i := range c.Species {
 		c.Species[i].Share = 1.0 / 3
 	}
-	c.Species = append(c.Species, engine.SpeciesSpec{Name: "fish", Share: 1.0 / 3, Terrains: []engine.Terrain{engine.TerrainWater}, Swims: true})
+	c.Species = append(c.Species, engine.SpeciesSpec{Name: "fish", Share: 1.0 / 3, Terrains: []engine.Terrain{engine.TerrainWater}, Swims: true, NoSkills: true})
 	c.FoodKinds = append(append([]engine.FoodKind(nil), c.FoodKinds...), engine.FoodKind{Name: "fish food", Tags: []string{"fish"}})
 	c.Foods = append([]engine.FoodSpec(nil), c.Foods...)
 	for i := range c.Foods {
@@ -467,10 +475,18 @@ var rewrites = map[string]func(*engine.Config){
 	Together:   func(c *engine.Config) { c.PoolPlaces = false },
 	Open:       func(c *engine.Config) { c.ClosedPlaces = false },
 	Roomy:      func(c *engine.Config) { c.FoodCap *= 2 },
-	Fish:       fish,
-	Planted:    planted,
-	Planted4:   func(c *engine.Config) { planted(c); c.Foods[len(c.Foods)-1].SeedRate = 4 * PlantSeedRate },
-	Planted10:  func(c *engine.Config) { planted(c); c.Foods[len(c.Foods)-1].SeedRate = 10 * PlantSeedRate },
+	Skilled: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.Species = append([]engine.SpeciesSpec(nil), c.Species...)
+		for i := range c.Species {
+			c.Species[i].NoSkills = false
+		}
+	},
+	Shallow:   func(c *engine.Config) { fish(c); c.DeepWater = false },
+	Fish:      fish,
+	Planted:   planted,
+	Planted4:  func(c *engine.Config) { planted(c); c.Foods[len(c.Foods)-1].SeedRate = 4 * PlantSeedRate },
+	Planted10: func(c *engine.Config) { planted(c); c.Foods[len(c.Foods)-1].SeedRate = 10 * PlantSeedRate },
 	Strewn: func(c *engine.Config) {
 		planted(c)
 		c.Foods[len(c.Foods)-1].Seed, c.Foods[len(c.Foods)-1].SeedRate, c.Foods[len(c.Foods)-1].Start = 0, 0, 0

@@ -203,4 +203,3 @@ func TestNoTentInWater(t *testing.T) {
 		}
 	}
 }
-

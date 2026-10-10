@@ -30,6 +30,10 @@ type SpeciesSpec struct {
 	// water costs it nothing extra (and it lists water).
 	Terrains []Terrain `json:",omitempty"`
 	Swims    bool      `json:",omitempty"`
+	// NoSkills says its bodies are born with no skill and use none
+	// (stage 9-7b-4, VISION: only humans acquire and use skills). The
+	// zero row is skilled, so a world without a table is as before.
+	NoSkills bool `json:",omitempty"`
 }
 
 // enters reports whether species s may be on terrain t by its row alone.

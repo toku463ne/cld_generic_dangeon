@@ -93,8 +93,9 @@ func TestFingerprint(t *testing.T) {
 	// Re-pinned at stage 9-7b-2a (a first body's species is drawn before
 	// its tile, since the tile is drawn among its species' home regions)
 	// and 9-7b-2b (settlements closed to other species), 9-7b-2c (bodies
-	// may wade into water) and 9-7b-3 (no tent pitched in water).
-	const want = uint64(0x4392bd468cb6776)
+	// may wade into water), 9-7b-3 (no tent pitched in water) and 9-7b-4
+	// (only humans have skills; water has depth).
+	const want = uint64(0x332e98ff2320a943)
 	w, err := NewWorld(testConfig(1), tempMap())
 	if err != nil {
 		t.Fatal(err)
@@ -134,6 +135,9 @@ func TestOpenIsStage97b2a(t *testing.T) {
 	cfg := testConfig(1)
 	cfg.ClosedPlaces = false
 	cfg.Wade = false
+	cfg.DeepWater = false
+	cfg.Species = append([]SpeciesSpec(nil), cfg.Species...)
+	cfg.Species[1].NoSkills = false // beasts had skills until 9-7b-4
 	w, err := NewWorld(cfg, tempMap())
 	if err != nil {
 		t.Fatal(err)

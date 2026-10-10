@@ -34,6 +34,10 @@ type Config struct {
 	// wall to it, as before the stage.
 	Wade      bool
 	WaterBurn float64
+	// DeepWater has bodies pass each other in water (stage 9-7b-4,
+	// VISION: water has depth, so creatures seldom touch unless they mean
+	// to): Collide does not hold on a water tile.
+	DeepWater bool
 	// PoolPlaces has each pool come back where the map says it does
 	// (Map.PoolFood, stage 9-7b-2); off, every pool follows the map's
 	// region shares, so species' pools lie over each other.
@@ -542,6 +546,7 @@ func DefaultConfig() Config {
 		PoolPlaces:         true,
 		Wade:               true,
 		WaterBurn:          4,
+		DeepWater:          true,
 		ClosedPlaces:       true,
 		FoodKinds:          []FoodKind{{Name: "human food", Tags: []string{"human"}}, {Name: "beast food", Tags: []string{"beast"}}},
 		Foods:              []FoodSpec{{Name: "human food", Kind: 0, Share: 0.5}, {Name: "beast food", Kind: 1, Share: 0.5}},
@@ -634,7 +639,7 @@ func DefaultConfig() Config {
 		PriorWeight:        50,
 		RegionWeight:       50,
 		Venture:            1,
-		Species:            []SpeciesSpec{{Name: "human", Share: 0.5}, {Name: "beast", Share: 0.5, Size: 1}},
+		Species:            []SpeciesSpec{{Name: "human", Share: 0.5}, {Name: "beast", Share: 0.5, Size: 1, NoSkills: true}},
 		AllotVenture:       true,
 		VentureMost:        2,
 		VentureStep:        1.5,

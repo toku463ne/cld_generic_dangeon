@@ -566,7 +566,7 @@ func TestFoodKinds(t *testing.T) {
 // With the default tables (a human pool and a beast pool) the world is
 // stage 9-7b-1: its fingerprint is pinned here.
 func TestPooledIsStage97b1(t *testing.T) {
-	const want = uint64(0x9e604303e0643f3a)
+	const want = uint64(0xa0c0c6101341676f)
 	cfg := testConfig(1)
 	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
 	w, err := NewWorld(cfg, tempMap())
