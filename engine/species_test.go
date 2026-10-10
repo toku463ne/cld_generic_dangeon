@@ -255,6 +255,7 @@ func TestHunt(t *testing.T) {
 	cfg := testConfig(14)
 	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
 	cfg.Bodies = 0
+	cfg.HuntHunger = 1      // hunger is not the question here
 	cfg.AllotCombat = false // even strength
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
@@ -360,6 +361,7 @@ func TestFear(t *testing.T) {
 		cfg := testConfig(15)
 		cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
 		cfg.Bodies, cfg.AllotCombat, cfg.Fear = 0, false, fear
+		cfg.HuntHunger = 1 // hunger is not the question here
 		w, err := NewWorld(cfg, testMap())
 		if err != nil {
 			t.Fatal(err)
@@ -418,6 +420,7 @@ func TestFight(t *testing.T) {
 		cfg := testConfig(16)
 		cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
 		cfg.Bodies, cfg.AllotCombat, cfg.Fight = 0, false, fight
+		cfg.HuntHunger = 1 // hunger is not the question here
 		w, err := NewWorld(cfg, testMap())
 		if err != nil {
 			t.Fatal(err)
@@ -527,6 +530,7 @@ func TestBlowWakes(t *testing.T) {
 	cfg := testConfig(19)
 	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
 	cfg.Bodies, cfg.AllotCombat = 0, false
+	cfg.HuntHunger = 1 // hunger is not the question here
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -548,5 +552,42 @@ func TestBlowWakes(t *testing.T) {
 	}
 	if why := w.trigger(h, h.Under, h.Saw, h.Mates, h.Threats); why != TriggerThreat {
 		t.Fatalf("struck awake, trigger %v", TriggerNames[why])
+	}
+}
+
+// A hunter hunts only when hungry enough (HuntHunger, stage 10-2g): full,
+// it is offered no attack; under the share, it is.
+func TestHuntHunger(t *testing.T) {
+	cfg := testConfig(20)
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, DefaultConfig().Foods
+	cfg.Bodies, cfg.AllotCombat = 0, false
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	beast := Body{ID: 0, X: 2.5, Y: 2.5, Energy: 90, Species: 1, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 3}
+	human := Body{ID: 1, X: 3.5, Y: 2.5, Energy: 100, Species: 0, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Male, Sight: 3}
+	w.bodies = append(w.bodies, beast, human)
+	w.nextID = 2
+	w.buildGrid()
+	b := &w.bodies[0]
+	offered := func() bool {
+		for _, a := range w.possibleActions(nil, b) {
+			if a.Kind == ActAttack {
+				return true
+			}
+		}
+		return false
+	}
+	if offered() {
+		t.Fatal("a beast at 90 of 100 hunts")
+	}
+	b.Energy = 40
+	if !offered() {
+		t.Fatal("a beast at 40 of 100 does not hunt")
+	}
+	cfg.HuntHunger = 0
+	if _, err := NewWorld(cfg, testMap()); err == nil {
+		t.Fatal("HuntHunger 0 was accepted")
 	}
 }

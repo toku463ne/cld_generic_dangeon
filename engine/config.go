@@ -546,6 +546,10 @@ type Config struct {
 	Hunt      bool
 	HitEnergy float64
 	MeatUnits int
+	// HuntHunger is the share of its most energy a hunter must be under
+	// to hunt (stage 10-2g): a hunter with more in it passes a prey by.
+	// One for hunting at any hunger.
+	HuntHunger float64
 	// HuntFrom is the tick hunting begins (zero: from the start): a
 	// measured world starts with every body at once and crashes, and the
 	// hunting of that crash is the start's, not the world's (stage
@@ -725,6 +729,7 @@ func DefaultConfig() Config {
 		RequestTicks:       100,
 		Hunt:               true,
 		HitEnergy:          50,
+		HuntHunger:         0.5,
 		MeatUnits:          2,
 		Fear:               true,
 		Fight:              true,

@@ -79,6 +79,9 @@ const (
 // twenty seeds a unit every 5 to 25 ticks and is grazed faster.)
 const PlantSeedRate = 0.005
 
+// Ravenous is Warmed with hunting at any hunger (stage 10-2f).
+const Ravenous = "ravenous"
+
 // Warmed is Roomy with hunting from tick 5000, past the crash every
 // measured world starts with (stage 10-2e); Warmedfearless is that with
 // the prey taking no notice of a hunter.
@@ -497,6 +500,11 @@ var rewrites = map[string]func(*engine.Config){
 	Warmed: func(c *engine.Config) {
 		c.FoodCap *= 2
 		c.HuntFrom = 5000
+	},
+	Ravenous: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.HuntFrom = 5000
+		c.HuntHunger = 1
 	},
 	Warmedfearless: func(c *engine.Config) {
 		c.FoodCap *= 2

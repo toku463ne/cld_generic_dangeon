@@ -54,11 +54,17 @@ func (w *World) damage(b, o *Body) float64 {
 	return w.cfg.HitEnergy * a / (a + d)
 }
 
+// hungry reports whether body b is hungry enough to hunt (HuntHunger).
+func (w *World) hungry(b *Body) bool {
+	return b.Energy < w.cfg.HuntHunger*w.maxOf(b)
+}
+
 // preyIn calls f with every prey of body b standing on a tile within its
-// sight, in the order of the grid.
+// sight, in the order of the grid; nothing to a hunter not hungry enough
+// to hunt (stage 10-2g).
 func (w *World) preyIn(b *Body, f func(*Body)) {
 	sight := w.sightOf(b)
-	if !w.hunting() || w.prey == nil || sight < 0 || w.grid == nil {
+	if !w.hunting() || w.prey == nil || sight < 0 || w.grid == nil || !w.hungry(b) {
 		return
 	}
 	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))

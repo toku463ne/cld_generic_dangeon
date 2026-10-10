@@ -133,6 +133,9 @@ func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 	if cfg.AllotVenture && (cfg.VentureMost < 1 || !(cfg.VentureStep > 0)) {
 		return nil, fmt.Errorf("AllotVenture needs VentureMost >= 1 and VentureStep above zero, got %d %v", cfg.VentureMost, cfg.VentureStep)
 	}
+	if cfg.Hunt && !(cfg.HuntHunger > 0 && cfg.HuntHunger <= 1) {
+		return nil, fmt.Errorf("HuntHunger must be within (0, 1], got %v", cfg.HuntHunger)
+	}
 	if cfg.AllotCombat && (cfg.CombatMost < 1 || !(cfg.CombatStep > 0) || !(cfg.CombatTrade >= 0)) {
 		return nil, fmt.Errorf("AllotCombat needs CombatMost >= 1, CombatStep above zero and CombatTrade at least zero, got %d %v %v", cfg.CombatMost, cfg.CombatStep, cfg.CombatTrade)
 	}
