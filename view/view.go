@@ -440,11 +440,20 @@ func (v *View) Render(dst *image.RGBA) {
 			line(dst, px(b.X)-rad, px(b.Y)-rad-2, px(b.X)+rad, px(b.Y)-rad-2, tentColor)
 		}
 		if cfg := v.W.Config(); cfg.AllotSight {
+			// The sight ring follows the body's shape: a square round a
+			// square, so that a beast never reads as round.
+			ring := func(c color.RGBA) {
+				if b.Species == 1 {
+					strokeRect(dst, px(b.X)-rad-2, px(b.Y)-rad-2, 2*rad+5, 2*rad+5, c)
+				} else {
+					strokeCircle(dst, px(b.X), px(b.Y), rad+2, c)
+				}
+			}
 			switch v.W.BodySight(b) {
 			case 0:
-				strokeCircle(dst, px(b.X), px(b.Y), rad+1, sightLowColor)
+				ring(sightLowColor)
 			case cfg.SightMost:
-				strokeCircle(dst, px(b.X), px(b.Y), rad+1, sightHighColor)
+				ring(sightHighColor)
 			}
 		}
 		if cfg := v.W.Config(); cfg.AllotFertility {
@@ -468,8 +477,11 @@ func (v *View) Render(dst *image.RGBA) {
 			continue
 		}
 		if b.Species != 0 {
-			// Any species but the first is a square (stage 9-7a); a
-			// sleeper is hollow either way.
+			// Any species but the first is a square of one hue, its sex
+			// not shown (stage 9-7a; the user's choice 2026-10-11, so
+			// that a beast is never taken for a human); a sleeper is
+			// hollow either way.
+			c = beastColor(b.Energy / full)
 			if b.Asleep {
 				strokeRect(dst, px(b.X)-rad, px(b.Y)-rad, 2*rad+1, 2*rad+1, c)
 			} else {
@@ -477,12 +489,14 @@ func (v *View) Render(dst *image.RGBA) {
 			}
 			continue
 		}
+		// A human is a triangle: a woman's points up, a man's down (the
+		// user's choice 2026-10-11); a sleeper is hollow.
+		up := b.Sex != engine.Male
 		if b.Asleep {
-			// A sleeper is a ring: its hue, hollow.
-			strokeCircle(dst, px(b.X), px(b.Y), rad, c)
+			strokeTriangle(dst, px(b.X), px(b.Y), rad+1, up, c)
 			continue
 		}
-		fillCircle(dst, px(b.X), px(b.Y), rad, c)
+		fillTriangle(dst, px(b.X), px(b.Y), rad+1, up, c)
 	}
 	if following {
 		strokeCircle(dst, px(fb.X), px(fb.Y), rad+2, followColor)
@@ -503,6 +517,16 @@ var (
 	maleHue   = color.RGBA{0x60, 0xa0, 0xff, 0xff}
 	greyHue   = color.RGBA{0xff, 0xff, 0xff, 0xff}
 )
+
+// beastHue is every body's of the species past the first: one hue, as
+// their sex is not shown.
+var beastHue = color.RGBA{0xe8, 0xb0, 0x60, 0xff}
+
+// beastColor is beastHue darker the less energy the body has (full).
+func beastColor(full float64) color.RGBA {
+	f := 0.2 + 0.8*min(max(full, 0), 1)
+	return color.RGBA{uint8(float64(beastHue.R) * f), uint8(float64(beastHue.G) * f), uint8(float64(beastHue.B) * f), 0xff}
+}
 
 // bodyColor is body b's hue at tick now, darker the less energy it has
 // (full, its energy over the config's most): the brightness still reads
@@ -856,6 +880,33 @@ func fillCircle(dst *image.RGBA, cx, cy, r int, c color.RGBA) {
 			}
 		}
 	}
+}
+
+// fillTriangle fills a triangle r pixels from its centre to its apex and
+// base, pointing up or down.
+func fillTriangle(dst *image.RGBA, cx, cy, r int, up bool, c color.RGBA) {
+	for y := -r; y <= r; y++ {
+		// The half-width grows from the apex to the base.
+		t := y + r
+		if !up {
+			t = r - y
+		}
+		h := r * t / (2 * r)
+		for x := -h; x <= h; x++ {
+			dst.SetRGBA(cx+x, cy+y, c)
+		}
+	}
+}
+
+// strokeTriangle draws the outline of the triangle fillTriangle fills.
+func strokeTriangle(dst *image.RGBA, cx, cy, r int, up bool, c color.RGBA) {
+	ax, ay, by := cx, cy-r, cy+r
+	if !up {
+		ay, by = cy+r, cy-r
+	}
+	line(dst, ax, ay, cx-r, by, c)
+	line(dst, ax, ay, cx+r, by, c)
+	line(dst, cx-r, by, cx+r, by, c)
 }
 
 func strokeCircle(dst *image.RGBA, cx, cy, r int, c color.RGBA) {
