@@ -20,7 +20,7 @@ import (
 // saved, so that a loaded world can build them before play (World.Warm).
 
 // snapshotVersion changes whenever the format does.
-const snapshotVersion = 63
+const snapshotVersion = 64
 
 type snapshot struct {
 	Version int    `json:"version"`
@@ -46,6 +46,11 @@ type snapshot struct {
 	NextPlace int64   `json:"nextPlace,omitempty"`
 	// GroundTents are the tents lying on the ground (stage 8-2a3).
 	GroundTents []GroundTent `json:"groundTents,omitempty"`
+	// GroundCoins are the coins lying on the ground, CoinDue the
+	// fraction owed and CoinsIssued the coins issued (stage 11-2a).
+	GroundCoins []GroundCoin `json:"groundCoins,omitempty"`
+	CoinDue     float64      `json:"coinDue,omitempty"`
+	CoinsIssued int64        `json:"coinsIssued,omitempty"`
 	Stats       Stats        `json:"stats"`
 
 	// Tables are the survival tables the world was reading, for a loaded
@@ -89,6 +94,9 @@ func (w *World) Save(out io.Writer) error {
 		Places:      w.places,
 		NextPlace:   w.nextPlace,
 		GroundTents: w.groundTents,
+		GroundCoins: w.GroundCoins(),
+		CoinDue:     w.coins.due,
+		CoinsIssued: w.coins.issued,
 		Stats:       w.stats,
 		Tables:      w.Tables(),
 	})
@@ -159,6 +167,9 @@ func Load(in io.Reader) (*World, error) {
 	}
 	w.places, w.nextPlace = s.Places, s.NextPlace
 	w.groundTents = s.GroundTents
+	if err := w.loadCoins(s.GroundCoins, s.CoinDue, s.CoinsIssued); err != nil {
+		return nil, err
+	}
 	w.loadPlaces()
 	w.initPrey()
 	w.initOwners()

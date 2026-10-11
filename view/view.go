@@ -135,6 +135,8 @@ var (
 	// tentColor marks tents: pitched round a sleeper, folded on the ground,
 	// or carried by a body awake (stage 8-2a).
 	tentColor = color.RGBA{0xff, 0xd0, 0x30, 0xff}
+	// coinColor marks the coins lying on the ground (stage 11-2a).
+	coinColor = color.RGBA{0xff, 0xff, 0xff, 0xff}
 	// Sight rings (stage 9-3): a body that drew sight 0 wears a dark
 	// ring, one at SightMost a white one; the neutral sight is bare.
 	sightLowColor  = color.RGBA{0x10, 0x10, 0x18, 0xff}
@@ -427,6 +429,11 @@ func (v *View) Render(dst *image.RGBA) {
 		s := max(v.scale/3, 1)
 		fillRect(dst, (g.Tile%m.Width)*v.scale+v.scale/2-s/2, (g.Tile/m.Width)*v.scale+v.scale/2-s/2, s, s, tentColor)
 	}
+	// Coins lying on the ground: a white dot in the tile's corner.
+	for _, g := range v.W.GroundCoins() {
+		s := max(v.scale/5, 1)
+		fillRect(dst, (g.Tile%m.Width)*v.scale+1, (g.Tile/m.Width)*v.scale+1, s, s, coinColor)
+	}
 	for _, b := range v.W.Bodies() {
 		switch {
 		case b.Tent.Pitched:
@@ -713,6 +720,9 @@ func (v *View) FollowText() string {
 			state = "pitched"
 		}
 		fmt.Fprintf(&sb, "  tent %s, %d nights, wears out at %d", state, b.Tent.Uses, b.Tent.Until)
+	}
+	if b.Coins > 0 {
+		fmt.Fprintf(&sb, "  coins %d", b.Coins)
 	}
 	if warm := b.Memory.Warm; warm[1] > 0 {
 		fmt.Fprintf(&sb, "  knows %d shelter tiles, warm x%.2f", len(b.Memory.Shelters), warm[0]/warm[1])

@@ -106,6 +106,8 @@ type Body struct {
 	Requested int64 `json:",omitempty"`
 	// Held is how many units of food it holds (with Carry).
 	Held int `json:",omitempty"`
+	// Coins is how many coins it holds (Coins, stage 11-2a).
+	Coins int `json:",omitempty"`
 	// HeldBorn is the tick each held unit appeared, oldest first (with
 	// FoodLife): a held unit decays like one on the ground. HeldPool is
 	// each held unit's pool, in the same order (food.go).
@@ -306,6 +308,9 @@ type Stats struct {
 	// Trades counts the tents traded for a unit of food, TradesRefused
 	// the offers the holder of the food turned down (Barter, stage 11-1).
 	Trades, TradesRefused int64 `json:",omitempty"`
+	// CoinsPicked and CoinsDropped count the coins taken up from the
+	// ground and those left there by the dead (stage 11-2a).
+	CoinsPicked, CoinsDropped int64 `json:",omitempty"`
 	// TentsDropped and TentsPicked count the tents left by the dead and
 	// those taken up (stage 8-2a3).
 	TentsDropped, TentsPicked int64 `json:",omitempty"`

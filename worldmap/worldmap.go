@@ -136,6 +136,9 @@ func Constrained(width, height int) engine.Map {
 		"human food": {ConstrainedFood[0], ConstrainedFood[1], 0, 0},
 		"beast food": {0, 0, ConstrainedFood[2], ConstrainedFood[3]},
 	}
+	// Coins are issued on the humans' ground, as their food is (stage
+	// 11-2a): beasts have nothing to buy.
+	m.RegionCoin = append([]float64(nil), m.PoolFood["human food"]...)
 	shelters(&m)
 	return m
 }
@@ -232,6 +235,7 @@ func Patches(width, height int) engine.Map {
 		"human food": {0, 1.0 / 3, 1.0 / 3, 1.0 / 3, 0},
 		"beast food": {0, 0, 0, 0, 1},
 	}
+	m.RegionCoin = append([]float64(nil), m.PoolFood["human food"]...) // as on the constrained map
 	shelters(&m)
 	return m
 }

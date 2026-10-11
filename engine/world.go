@@ -56,7 +56,9 @@ type World struct {
 	nextPlace    int64
 	// groundTents are the tents lying folded on tiles (stage 8-2a3).
 	groundTents []GroundTent
-	rates       rates // a learning body's estimates, for the decision under way
+	// coins are the coins issued and lying on the ground (stage 11-2a).
+	coins coinState
+	rates rates // a learning body's estimates, for the decision under way
 
 	// died is the tick each body died, for the provenance instrument
 	// (provenance.go). No rule reads it; it is neither saved nor
@@ -130,6 +132,9 @@ func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 	if err := validFood(cfg.FoodKinds, cfg.Foods); err != nil {
 		return nil, err
 	}
+	if err := validCoins(cfg); err != nil {
+		return nil, err
+	}
 	if cfg.Learn && !(cfg.Steady > 0) {
 		return nil, fmt.Errorf("Steady must be above zero, got %v", cfg.Steady)
 	}
@@ -171,6 +176,7 @@ func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 	}
 	w.rng, w.draws = newCountingRand(cfg.Seed)
 	w.initFood()
+	w.initCoins()
 	w.initPrey()
 	w.initOwners()
 	w.initPredict()
@@ -189,6 +195,7 @@ func (w *World) Step() {
 	w.listAsking()
 	w.decayFood()
 	w.returnFood()
+	w.issueCoins()
 	w.wearPlaces()
 	w.wearGroundTents()
 	for i := range w.bodies {
@@ -215,6 +222,7 @@ func (w *World) Step() {
 		w.sleepTick(b)
 		w.foldTent(b)
 		w.pickTent(b)
+		w.pickCoins(b)
 		w.seeLight(b)
 		w.stats.EnergyBurned += burn
 	}
@@ -249,6 +257,7 @@ func (w *World) removeDead() {
 			w.died[b.ID] = w.tick
 			w.loseHeld(&b)
 			w.dropTent(&b)
+			w.dropCoins(&b)
 			w.release(b.ID)
 			w.stats.Deaths[cause]++
 			if t := w.tileOf(b.X, b.Y); t >= 0 && w.m.Terrain[t] == TerrainWater && !w.spec(&b).Swims {
@@ -692,6 +701,18 @@ func (w *World) Fingerprint() uint64 {
 	}
 	if w.cfg.Breed {
 		put(uint64(w.stats.Births))
+	}
+	// The coins, where they are issued (stage 11-2a).
+	if w.cfg.Coins {
+		put(uint64(w.coins.issued))
+		putF(w.coins.due)
+		for _, g := range w.GroundCoins() {
+			put(uint64(g.Tile))
+			put(uint64(g.N))
+		}
+		for _, b := range w.bodies {
+			put(uint64(b.Coins))
+		}
 	}
 	return h.Sum64()
 }

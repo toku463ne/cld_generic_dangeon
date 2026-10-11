@@ -107,8 +107,13 @@ type result struct {
 	sleptAfield float64
 	// trades and tradesRefused count the tents traded for food and the
 	// offers refused (stage 11-1).
-	trades, tradesRefused    float64
-	killedAsleep, killedAway float64
+	trades, tradesRefused float64
+	// coinsIssued, coinsHeld, coinHolders, coinsPicked and coinsDropped
+	// are the coins issued by the end, those held then, the share of
+	// living bodies of a species that takes coins holding any, and the
+	// coins taken up and left by the dead over the run (stage 11-2a).
+	coinsIssued, coinsHeld, coinHolders, coinsPicked, coinsDropped float64
+	killedAsleep, killedAway                                       float64
 	// callsAttacked, callsDefeated and callsHeard count the calls of a
 	// body struck, of a hunter struck down, and the hearers (stage 10-4).
 	callsAttacked, callsDefeated, callsHeard float64
@@ -797,6 +802,22 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.blowsBack, r.huntersSlain, r.sleptSafe = float64(st.BlowsBack), float64(st.HuntersSlain), float64(st.SleptSafe)
 	r.sleptAfield = float64(st.SleptAfield)
 	r.trades, r.tradesRefused = float64(st.Trades), float64(st.TradesRefused)
+	cl := w.CoinLedger()
+	r.coinsIssued, r.coinsHeld = float64(cl.Issued), float64(cl.Held)
+	r.coinsPicked, r.coinsDropped = float64(st.CoinsPicked), float64(st.CoinsDropped)
+	if cfg := w.Config(); cfg.Coins {
+		takers, holders := 0, 0
+		for _, b := range w.Bodies() {
+			if int(b.Species) < len(cfg.Species) && cfg.Species[b.Species].NoCoins {
+				continue
+			}
+			takers++
+			if b.Coins > 0 {
+				holders++
+			}
+		}
+		r.coinHolders = float64(holders) / math.Max(float64(takers), 1)
+	}
 	r.killedAsleep, r.killedAway = float64(st.KilledAsleep), float64(st.KilledAway)
 	r.callsAttacked, r.callsDefeated, r.callsHeard = float64(st.Calls[engine.CallAttacked]), float64(st.Calls[engine.CallDefeated]), float64(st.CallsHeard)
 	for _, pl := range w.FoodLedger().Pools {
@@ -1425,6 +1446,11 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"作ったテント", 2, func(r result) float64 { return r.tentsMade }},
 		{"交換（テントと食料）", 2, func(r result) float64 { return r.trades }},
 		{"断られた交換", 2, func(r result) float64 { return r.tradesRefused }},
+		{"発行されたコイン", 2, func(r result) float64 { return r.coinsIssued }},
+		{"手持ちのコイン", 2, func(r result) float64 { return r.coinsHeld }},
+		{"コインを持つ身体の割合", 4, func(r result) float64 { return r.coinHolders }},
+		{"拾われたコイン", 2, func(r result) float64 { return r.coinsPicked }},
+		{"死んで残ったコイン", 2, func(r result) float64 { return r.coinsDropped }},
 		{"テントで眠った夜", 2, func(r result) float64 { return r.tentNights }},
 		{"使い切ったテント", 2, func(r result) float64 { return r.tentsWorn }},
 		{"死んで残ったテント", 2, func(r result) float64 { return r.tentsDropped }},

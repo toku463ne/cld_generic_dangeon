@@ -67,6 +67,11 @@ type Map struct {
 	// the temperature stays normal through the night. Empty for a map
 	// without any.
 	Shelter []bool `json:",omitempty"`
+
+	// RegionCoin is each region's share of the coins issued (stage
+	// 11-2a), indexed by RegionID as RegionFood is; empty, the coins
+	// follow RegionFood.
+	RegionCoin []float64 `json:",omitempty"`
 }
 
 // TempRange is the range a region's temperature moves in over a day.
@@ -183,6 +188,21 @@ func (m Map) Validate() error {
 			return fmt.Errorf("pool %s: no region has a food share", name)
 		}
 	}
+	if len(m.RegionCoin) > 0 {
+		if len(m.RegionCoin) != len(m.RegionFood) {
+			return fmt.Errorf("%d regions have a coin share, want %d", len(m.RegionCoin), len(m.RegionFood))
+		}
+		sum := 0.0
+		for r, f := range m.RegionCoin {
+			if !(f >= 0) {
+				return fmt.Errorf("region %d has coin share %v", r, f)
+			}
+			sum += f
+		}
+		if !(sum > 0) {
+			return fmt.Errorf("no region has a coin share")
+		}
+	}
 	for s, shares := range m.SeasonFood {
 		if len(shares) != len(m.RegionFood) {
 			return fmt.Errorf("season %d has %d shares, want %d", s, len(shares), len(m.RegionFood))
@@ -240,6 +260,7 @@ func (m Map) Clone() Map {
 	c.RegionFood = append([]float64(nil), m.RegionFood...)
 	c.RegionTemp = append([]TempRange(nil), m.RegionTemp...)
 	c.Shelter = append([]bool(nil), m.Shelter...)
+	c.RegionCoin = append([]float64(nil), m.RegionCoin...)
 	c.SeasonFood = nil
 	for _, s := range m.SeasonFood {
 		c.SeasonFood = append(c.SeasonFood, append([]float64(nil), s...))

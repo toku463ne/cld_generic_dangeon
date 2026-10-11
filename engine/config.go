@@ -586,6 +586,14 @@ type Config struct {
 	// a unit of the food it holds, each reading the trade by what it
 	// reads the things at (stage 11-1, trade.go).
 	Barter bool
+	// Coins issues coins onto the ground (stage 11-2a, coin.go): CoinRate
+	// a tick at first, halved every CoinHalving ticks, CoinCap in all,
+	// where the map's RegionCoin says. A body takes up the coins it
+	// stands on and leaves them where it dies.
+	Coins       bool
+	CoinRate    float64
+	CoinHalving int
+	CoinCap     int
 	// Hunt lets a body attack the species its row preys on (stage 10-2a,
 	// hunt.go): a blow a tick at HitEnergy times attack over attack plus
 	// defense, and MeatUnits units of the kill pool (Foods with Kill) left
@@ -750,7 +758,7 @@ func DefaultConfig() Config {
 		PriorWeight:        50,
 		RegionWeight:       50,
 		Venture:            1,
-		Species:            []SpeciesSpec{{Name: "human", Share: HumanFood, Likes: []Terrain{TerrainLand}}, {Name: "beast", Share: 1 - HumanFood, Size: 1, NoSkills: true, Preys: []string{"human"}, Likes: []Terrain{TerrainForest}}},
+		Species:            []SpeciesSpec{{Name: "human", Share: HumanFood, Likes: []Terrain{TerrainLand}}, {Name: "beast", Share: 1 - HumanFood, Size: 1, NoSkills: true, NoCoins: true, Preys: []string{"human"}, Likes: []Terrain{TerrainForest}}},
 		AllotVenture:       true,
 		VentureMost:        2,
 		VentureStep:        1.5,
@@ -806,6 +814,10 @@ func DefaultConfig() Config {
 		Wary:               true,
 		WaryWeight:         50,
 		Barter:             true,
+		Coins:              true,
+		CoinRate:           0.05,
+		CoinHalving:        10000,
+		CoinCap:            1000,
 		Hunt:               true,
 		HitEnergy:          50,
 		HuntHunger:         0.5,
