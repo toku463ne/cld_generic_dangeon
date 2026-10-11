@@ -131,12 +131,15 @@ type Memory struct {
 	// each child, Ver when it last passed them to it (tell.go, with Kin).
 	Ver  int64           `json:",omitempty"`
 	Told map[int64]int64 `json:",omitempty"`
-	// Threats is, per region, the blows its kind took there against the
-	// ticks it spent there (Wary, stage 10-6, wary.go): the alarms it
-	// heard (stage 10-4) and the blows on itself. Liking holds, per
-	// body, how well it thinks of it for the hunters it heard it strike
-	// down (stage 10-4, hunt.go); no rule reads it yet.
+	// Threats is, per region, the ticks it saw a hunter standing there
+	// against the ticks it spent awake there, and Blows the blows its
+	// kind took - on itself, or heard of (the alarms of stage 10-4) -
+	// against the ticks it had a hunter in sight (Wary, stages 10-6 and
+	// 10-6b, wary.go). Liking holds, per body, how well it thinks of it
+	// for the hunters it heard it strike down (stage 10-4, hunt.go); no
+	// rule reads it yet.
 	Threats []Tally           `json:",omitempty"`
+	Blows   Tally             `json:",omitempty"`
 	Liking  map[int64]float64 `json:",omitempty"`
 	// Haunt is one past the index of the last tile it stood on of the
 	// ground its species likes, zero for none (Homing, stage 10-5).

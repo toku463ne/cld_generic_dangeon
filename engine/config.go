@@ -570,11 +570,13 @@ type Config struct {
 	// slayer.
 	Calls     bool
 	CallRange int
-	// Wary has a hunted body keep, per region, the blows its kind took
-	// there against the ticks it spent there - its own and the calls it
-	// heard - pass the rows on, and read a region as landing those blows
-	// over the window (stage 10-6, wary.go). WaryWeight is the ticks of
-	// no blow the row is pulled toward.
+	// Wary has a hunted body keep, per region, the ticks it saw a hunter
+	// standing there against the ticks it spent awake there, and one row
+	// of the blows its kind took - on itself and heard of - against its
+	// ticks with a hunter in sight; pass the rows on; and read a region
+	// as landing sightings times blows per sighting over the window
+	// (stages 10-6 and 10-6b, wary.go). WaryWeight is the ticks, or
+	// sightings, of nothing a row is pulled toward.
 	Wary       bool
 	WaryWeight float64
 	// Hunt lets a body attack the species its row preys on (stage 10-2a,

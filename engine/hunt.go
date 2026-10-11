@@ -177,7 +177,7 @@ func (w *World) attack(i int, b *Body, id int64) {
 	o.Struck = true
 	b.Striking = w.tick + 1
 	if t := w.tileOf(o.X, o.Y); t >= 0 {
-		w.noteBlow(o, w.m.Region[t]) // it remembers where it was struck (Wary)
+		w.noteBlow(o, w.m.Region[t], false) // a sighting became a blow (Wary)
 	}
 	w.stats.Blows++
 	if back {
@@ -422,8 +422,9 @@ func (w *World) safe(b *Body, t int) bool {
 // Calls (stage 10-4, VISION "発信"): a body struck calls out, and a body
 // that has struck down a hunter calls out that it did. A call reaches
 // the bodies of its species within CallRange tiles. One who hears a
-// body struck counts the blow against the region (Memory.Threats,
-// wary.go) and decides this tick (the call trigger, intent.go); one who hears a
+// body struck counts a hunter in the region and a blow of its kind
+// (Memory.Threats and Blows, wary.go) and decides this tick (the call
+// trigger, intent.go); one who hears a
 // hunter struck down thinks better of the body that did it
 // (Memory.Liking), which is read off the knowledge, not acted on yet -
 // cooperation, trade and mating will read it. Nothing comes to help:
@@ -461,7 +462,7 @@ func (w *World) call(b *Body, k CallKind, about int64) {
 				w.stats.CallsHeard++
 				switch k {
 				case CallAttacked:
-					w.noteBlow(o, r)
+					w.noteBlow(o, r, true)
 					o.Called = true
 				case CallDefeated:
 					if o.Memory.Liking == nil {

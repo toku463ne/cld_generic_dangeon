@@ -212,7 +212,6 @@ func (w *World) Step() {
 		w.feelBurn(b)
 		w.feelWarm(b)
 		w.noteHaunt(b)
-		w.noteThreats(b)
 		w.sleepTick(b)
 		w.foldTent(b)
 		w.pickTent(b)
