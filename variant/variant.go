@@ -121,8 +121,14 @@ const (
 	Unwary  = "unwary"
 )
 
-// Nobarter is Warmed with no trading (stage 11-1).
-const Nobarter = "nobarter"
+// Nobarter is Warmed with no trading (stage 11-1); Reuse4 is Warmed
+// with a tent (and a settlement) expected to serve four nights before
+// any is used, not two (stage 11-1c: does the prior worth of a tent
+// decide whether it is traded?).
+const (
+	Nobarter = "nobarter"
+	Reuse4   = "reuse4"
+)
 
 // Skilled is stage 9-7b-3: every species is born with skills as humans
 // are; Shallow is stage 9-7b-3 too: bodies block each other in water as
@@ -579,6 +585,11 @@ var rewrites = map[string]func(*engine.Config){
 		c.FoodCap *= 2
 		c.HuntFrom = 5000
 		c.Barter = false
+	},
+	Reuse4: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.HuntFrom = 5000
+		c.ReusePrior = 4
 	},
 	Skilled: func(c *engine.Config) {
 		c.FoodCap *= 2
