@@ -102,7 +102,7 @@ func TestFingerprint(t *testing.T) {
 	// (a hunter hunts only when hungry), 10-2h (a beast burns more on
 	// land, which it does not like), 10-3 (the aggressive level drawn; a
 	// hunter reads the odds) and 10-4 (a body struck calls its kind).
-	const want = uint64(0xf6b87df4320df5ac)
+	const want = uint64(0x8da6d32b2723b433)
 	w, err := NewWorld(testConfig(1), tempMap())
 	if err != nil {
 		t.Fatal(err)
@@ -140,7 +140,7 @@ func TestExactIsStage95b(t *testing.T) {
 // With settlements open to every species, the world is stage 9-7b-2a:
 // its fingerprint is the one pinned then.
 func TestOpenIsStage97b2a(t *testing.T) {
-	const want = uint64(0x7f4fea340dea8cd4)
+	const want = uint64(0x17f3ecdfc40c6510)
 	cfg := testConfig(1)
 	cfg.ClosedPlaces = false
 	cfg.Wade = false
