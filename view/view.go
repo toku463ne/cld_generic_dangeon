@@ -842,6 +842,8 @@ func actionName(a engine.Action) string {
 		return fmt.Sprintf("mate #%d", a.Mate)
 	case engine.ActAttack:
 		return fmt.Sprintf("attack #%d", a.Mate)
+	case engine.ActTrade:
+		return fmt.Sprintf("trade #%d", a.Mate)
 	case engine.ActSleep:
 		return "sleep"
 	case engine.ActBuild:

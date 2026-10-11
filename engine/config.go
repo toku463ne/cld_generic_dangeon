@@ -579,6 +579,10 @@ type Config struct {
 	// sightings, of nothing a row is pulled toward.
 	Wary       bool
 	WaryWeight float64
+	// Barter lets a body offer its tent to one of its kind in sight for
+	// a unit of the food it holds, each reading the trade by what it
+	// reads the things at (stage 11-1, trade.go).
+	Barter bool
 	// Hunt lets a body attack the species its row preys on (stage 10-2a,
 	// hunt.go): a blow a tick at HitEnergy times attack over attack plus
 	// defense, and MeatUnits units of the kill pool (Foods with Kill) left
@@ -796,6 +800,7 @@ func DefaultConfig() Config {
 		CallRange:          5,
 		Wary:               true,
 		WaryWeight:         50,
+		Barter:             true,
 		Hunt:               true,
 		HitEnergy:          50,
 		HuntHunger:         0.5,

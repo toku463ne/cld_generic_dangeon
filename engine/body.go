@@ -176,12 +176,15 @@ const (
 	// ActAttack is a blow at, or a step towards, a prey (Hunt, stage
 	// 10-2a, hunt.go).
 	ActAttack
+	// ActTrade offers the body's tent to another for a unit of food
+	// (Barter, stage 11-1, trade.go).
+	ActTrade
 	NumActionKinds
 )
 
 // Action is one choice a body can make. Dir is used by moves only, and
-// Mate, the ID of the other body, by ActMate (the mate) and ActAttack
-// (the prey).
+// Mate, the ID of the other body, by ActMate (the mate), ActAttack (the
+// prey) and ActTrade (the partner).
 type Action struct {
 	Kind ActionKind
 	Dir  int
@@ -300,6 +303,9 @@ type Stats struct {
 	// TentsMade, TentNights and TentsWorn count the tents made, the nights
 	// one was pitched and the tents worn out (stage 8-2a).
 	TentsMade, TentNights, TentsWorn int64 `json:",omitempty"`
+	// Trades counts the tents traded for a unit of food, TradesRefused
+	// the offers the holder of the food turned down (Barter, stage 11-1).
+	Trades, TradesRefused int64 `json:",omitempty"`
 	// TentsDropped and TentsPicked count the tents left by the dead and
 	// those taken up (stage 8-2a3).
 	TentsDropped, TentsPicked int64 `json:",omitempty"`
@@ -422,7 +428,7 @@ func (w *World) possibleActions(dst []Action, b *Body) []Action {
 			dst = append(dst, Action{Kind: ActMove, Dir: d})
 		}
 	}
-	return w.huntOptions(w.mateOptions(dst, b), b)
+	return w.tradeOptions(w.huntOptions(w.mateOptions(dst, b), b), b)
 }
 
 // act carries out action a of body b, the i-th of the world's bodies; i is
@@ -461,6 +467,8 @@ func (w *World) act(i int, b *Body, a Action) {
 		w.step(i, b, a.Dir)
 	case ActAttack:
 		w.attack(i, b, a.Mate)
+	case ActTrade:
+		w.trade(b, a.Mate)
 	}
 }
 

@@ -615,6 +615,10 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 		case ActMove:
 			d := moveDirs[a.Dir]
 			x, y = b.X+d[0]*speed, b.Y+d[1]*speed
+		case ActTrade:
+			// The tent for a meal (Barter, stage 11-1): the meal eaten
+			// now, the tent's credit beyond tonight gone.
+			after = min(n+meal, most) - 1 - w.tentCredit(b)
 		case ActMate:
 			// Read as agreed and conceived: the share paid, and a child -
 			// with the chance child; otherwise, agreed but not conceived,
