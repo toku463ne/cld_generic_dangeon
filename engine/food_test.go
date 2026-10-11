@@ -450,6 +450,7 @@ func TestFoodKinds(t *testing.T) {
 	cfg := testConfig(3)
 	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds[:2], append([]FoodSpec(nil), DefaultConfig().Foods[:2]...) // the two pools, without the meat
 	cfg.Foods[1].Terrain = TerrainLand                                                                              // the test map has no forest
+	cfg.Foods[0].Share, cfg.Foods[1].Share = 0.5, 0.5                                                               // the split is not the question here
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -525,6 +526,7 @@ func TestFoodKinds(t *testing.T) {
 	cfg = testConfig(4)
 	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds[:2], append([]FoodSpec(nil), DefaultConfig().Foods[:2]...) // the two pools, without the meat
 	cfg.Foods[1].Terrain = TerrainLand                                                                              // the test map has no forest
+	cfg.Foods[0].Share, cfg.Foods[1].Share = 0.5, 0.5                                                               // the split is not the question here
 	cfg.Species = cfg.Species[:1]
 	cfg.Wade = false
 	cfg.AllotCombat = false
@@ -576,7 +578,7 @@ func TestFoodKinds(t *testing.T) {
 // With the default tables (a human pool and a beast pool) the world is
 // stage 9-7b-1: its fingerprint is pinned here.
 func TestPooledIsStage97b1(t *testing.T) {
-	const want = uint64(0x52870627a8d5d097)
+	const want = uint64(0x54f26f3cea49c823)
 	cfg := testConfig(1)
 	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds[:2], append([]FoodSpec(nil), DefaultConfig().Foods[:2]...) // the two pools, without the meat
 	cfg.Foods[1].Terrain = TerrainLand                                                                              // the test map has no forest
@@ -606,6 +608,7 @@ func TestPoolPlaces(t *testing.T) {
 	cfg := testConfig(6)
 	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds[:2], append([]FoodSpec(nil), DefaultConfig().Foods[:2]...) // the two pools, without the meat
 	cfg.Foods[1].Terrain = TerrainLand                                                                              // the test map has no forest
+	cfg.Foods[0].Share, cfg.Foods[1].Share = 0.5, 0.5                                                               // the split is not the question here
 	cfg.FoodCap, cfg.FoodReturn = 40, 1
 	cfg.TerrainBurn, cfg.AvoidBurn = 1, 1 // the config's burn on any ground
 	w, err := NewWorld(cfg, m)

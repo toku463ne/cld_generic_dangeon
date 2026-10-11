@@ -57,6 +57,25 @@ func TestConstrainedLayout(t *testing.T) {
 	if m.RegionAt(x, 0) != m.RegionAt(x-1, 0) {
 		t.Fatal("water lies on a region boundary; the layers should cut across each other")
 	}
+	// The beasts' strip at the foot is one part in nine of the height,
+	// forest, regions 2 and 3; the rest is the humans', land.
+	rows := 0
+	for y := 0; y < m.Height; y++ {
+		if m.RegionAt(0, y) >= 2 {
+			rows++
+			if m.TerrainAt(0, y) != engine.TerrainForest || m.RegionAt(m.Width-1, y) != 3 {
+				t.Fatalf("row %d of the strip is not forest regions 2 and 3", y)
+			}
+		} else if m.TerrainAt(0, y) != engine.TerrainLand {
+			t.Fatalf("row %d of the humans' ground is not land", y)
+		}
+	}
+	if want := beastRows(m.Height); rows != want {
+		t.Fatalf("the strip is %d rows, want %d", rows, want)
+	}
+	if r := float64(m.Height-rows) / float64(rows); r < 7 || r > 9 {
+		t.Fatalf("the ground is %v times the strip, want about eight", r)
+	}
 }
 
 // On the seasons map the richest quadrant goes round clockwise, one step a
@@ -123,7 +142,7 @@ func TestPoolsKeepApart(t *testing.T) {
 		human, beast []int
 	}{
 		{"constrained", Constrained(32, 24), []int{0, 1}, []int{2, 3}},
-		{"patches", Patches(64, 48), []int{1, 2}, []int{3, 4}},
+		{"patches", Patches(64, 48), []int{1, 2, 3}, []int{4}},
 	} {
 		h, b := tc.m.PoolFood["human food"], tc.m.PoolFood["beast food"]
 		if h == nil || b == nil {

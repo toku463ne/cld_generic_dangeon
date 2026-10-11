@@ -254,7 +254,8 @@ func TestDeepWater(t *testing.T) {
 func TestHunt(t *testing.T) {
 	cfg := testConfig(14)
 	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, append([]FoodSpec(nil), DefaultConfig().Foods...)
-	cfg.Foods[1].Terrain = TerrainLand // the test map has no forest
+	cfg.Foods[1].Terrain = TerrainLand                // the test map has no forest
+	cfg.Foods[0].Share, cfg.Foods[1].Share = 0.5, 0.5 // the split is not the question here
 	cfg.Bodies = 0
 	cfg.HuntHunger = 1      // hunger is not the question here
 	cfg.AllotCombat = false // even strength

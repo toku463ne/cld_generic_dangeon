@@ -622,6 +622,13 @@ type Config struct {
 	Collide bool
 }
 
+// HumanShare is the share of the world that is the first species' by
+// default - of the first bodies, of the food, and (worldmap) of the
+// ground: eight parts in nine, the beasts one (the user's choice
+// 2026-10-11: a human-centred world to measure in, the beasts at its
+// edge). Food follows ground so that the density is the same on both.
+const HumanShare = 8.0 / 9
+
 // DefaultConfig returns the rules the measurements run under unless a
 // variant rewrites them. The values are provisional; PARAMETERS.md records
 // each one and what decided it.
@@ -639,7 +646,7 @@ func DefaultConfig() Config {
 		ClosedPlaces:       true,
 		ClosedShelters:     true,
 		FoodKinds:          []FoodKind{{Name: "human food", Tags: []string{"human"}}, {Name: "beast food", Tags: []string{"beast"}}, {Name: "raw meat", Tags: []string{"beast"}}},
-		Foods:              []FoodSpec{{Name: "human food", Kind: 0, Share: 0.5}, {Name: "beast food", Kind: 1, Share: 0.5, Terrain: TerrainForest}, {Name: "raw meat", Kind: 2, Kill: true}},
+		Foods:              []FoodSpec{{Name: "human food", Kind: 0, Share: HumanShare}, {Name: "beast food", Kind: 1, Share: 1 - HumanShare, Terrain: TerrainForest}, {Name: "raw meat", Kind: 2, Kill: true}},
 		FoodEnergy:         30,
 		Grain:              0.1,
 		FoodLife:           1000,
@@ -729,7 +736,7 @@ func DefaultConfig() Config {
 		PriorWeight:        50,
 		RegionWeight:       50,
 		Venture:            1,
-		Species:            []SpeciesSpec{{Name: "human", Share: 0.5, Likes: []Terrain{TerrainLand}}, {Name: "beast", Share: 0.5, Size: 1, NoSkills: true, Preys: []string{"human"}, Likes: []Terrain{TerrainForest}}},
+		Species:            []SpeciesSpec{{Name: "human", Share: HumanShare, Likes: []Terrain{TerrainLand}}, {Name: "beast", Share: 1 - HumanShare, Size: 1, NoSkills: true, Preys: []string{"human"}, Likes: []Terrain{TerrainForest}}},
 		AllotVenture:       true,
 		VentureMost:        2,
 		VentureStep:        1.5,

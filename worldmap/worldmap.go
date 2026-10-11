@@ -73,14 +73,27 @@ func Flat(width, height int) engine.Map {
 	return m
 }
 
-// ConstrainedFood is each quadrant's share of the food on the constrained
-// map, in region ID order. Provisional; PARAMETERS.md records it.
-var ConstrainedFood = []float64{0.5, 0.1, 0.3, 0.1}
+// ConstrainedFood is each region's share of the food on the constrained
+// map, in region ID order: the humans' ground (engine.HumanShare of it)
+// five to one between left and right, the beasts' strip three to one.
+// Provisional; PARAMETERS.md records it.
+var ConstrainedFood = []float64{engine.HumanShare * 5 / 6, engine.HumanShare / 6, (1 - engine.HumanShare) * 3 / 4, (1 - engine.HumanShare) / 4}
 
-// Constrained is the map where food is meant to bind the population. It has
-// four regions (the quadrants, IDs 0 to 3 in reading order) that take unequal
-// shares of the food (ConstrainedFood), and a two-tile strip of water running
-// the full height that cuts the land in two.
+// beastRows is how many rows at the foot of a map of the given height
+// are the beasts' ground: one part in nine (engine.HumanShare), at
+// least one.
+func beastRows(height int) int {
+	return max(int(float64(height)*(1-engine.HumanShare)+0.5), 1)
+}
+
+// Constrained is the map where food is meant to bind the population. It
+// has four regions (IDs 0 to 3 in reading order): the humans' ground,
+// eight parts in nine of the height, cut in two at half the width, and
+// the beasts' strip at the foot, cut the same way, which takes unequal
+// shares of the food (ConstrainedFood); and a two-tile strip of water
+// running the full height that cuts the land in two. (Until stage 10-6
+// the beasts had the bottom half; the user chose a human-centred world
+// to measure in, 2026-10-11.)
 //
 // The water sits at five eighths of the width, not on the region boundary at
 // one half, so that terrain and region cut across each other: the two are
@@ -90,21 +103,22 @@ func Constrained(width, height int) engine.Map {
 	m := engine.NewMap(width, height)
 	m.RegionFood = append([]float64(nil), ConstrainedFood...)
 	m.RegionTemp = temps(len(ConstrainedFood))
+	split := height - beastRows(height)
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			r := 0
 			if x >= width/2 {
 				r++
 			}
-			if y >= height/2 {
+			if y >= split {
 				r += 2
 			}
 			m.SetRegion(x, y, engine.RegionID(r))
 		}
 	}
-	// The beasts' half is forest (stage 10-2h): their food returns in
+	// The beasts' strip is forest (stage 10-2h): their food returns in
 	// it, and each species burns more off its own ground.
-	for y := height / 2; y < height; y++ {
+	for y := split; y < height; y++ {
 		for x := 0; x < width; x++ {
 			m.SetTerrain(x, y, engine.TerrainForest)
 		}
@@ -115,9 +129,9 @@ func Constrained(width, height int) engine.Map {
 			m.SetTerrain(x, y, engine.TerrainWater)
 		}
 	}
-	// The species keep apart (stage 9-7b-2): human food comes back in the
-	// top half (regions 0 and 1), beast food in the bottom (2 and 3), each
-	// at the map's ratio between its two regions.
+	// The species keep apart (stage 9-7b-2): human food comes back on
+	// the humans' ground (regions 0 and 1), beast food in the strip (2
+	// and 3), each at the map's ratio between its two regions.
 	m.PoolFood = map[string][]float64{
 		"human food": {ConstrainedFood[0], ConstrainedFood[1], 0, 0},
 		"beast food": {0, 0, ConstrainedFood[2], ConstrainedFood[3]},
@@ -191,7 +205,8 @@ const PatchSize = 10
 // anything when food holds bodies to a place.
 func Patches(width, height int) engine.Map {
 	m := engine.NewMap(width, height)
-	m.RegionFood = []float64{0, 0.25, 0.25, 0.25, 0.25}
+	h := engine.HumanShare / 3
+	m.RegionFood = []float64{0, h, h, h, 1 - engine.HumanShare}
 	m.RegionTemp = temps(len(m.RegionFood))
 	centres := [][2]int{{width / 2, height / 4}, {width / 4, height / 2}, {3 * width / 4, height / 2}, {width / 2, 3 * height / 4}}
 	for i, c := range centres {
@@ -203,17 +218,19 @@ func Patches(width, height int) engine.Map {
 			}
 		}
 	}
-	// The species keep apart (stage 9-7b-2): human food comes back in the
-	// top and left patches (regions 1 and 2), beast food in the right and
-	// bottom (3 and 4), which are forest (stage 10-2h).
+	// The species keep apart (stage 9-7b-2): human food comes back in
+	// the top, left and right patches (regions 1 to 3), beast food in
+	// the bottom one (4), which is forest (stage 10-2h; the beasts had
+	// the right patch too until the user chose a human-centred world,
+	// 2026-10-11).
 	for i := range m.Region {
-		if m.Region[i] == 3 || m.Region[i] == 4 {
+		if m.Region[i] == 4 {
 			m.Terrain[i] = engine.TerrainForest
 		}
 	}
 	m.PoolFood = map[string][]float64{
-		"human food": {0, 0.5, 0.5, 0, 0},
-		"beast food": {0, 0, 0, 0.5, 0.5},
+		"human food": {0, 1.0 / 3, 1.0 / 3, 1.0 / 3, 0},
+		"beast food": {0, 0, 0, 0, 1},
 	}
 	shelters(&m)
 	return m
