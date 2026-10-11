@@ -131,12 +131,13 @@ type Memory struct {
 	// each child, Ver when it last passed them to it (tell.go, with Kin).
 	Ver  int64           `json:",omitempty"`
 	Told map[int64]int64 `json:",omitempty"`
-	// Alarms counts, per region, the calls of its kind struck it has
-	// heard, and Liking holds, per body, how well it thinks of it for the
-	// hunters it heard it strike down (stage 10-4, hunt.go). Neither is
-	// read by a rule yet.
-	Alarms map[int]int64     `json:",omitempty"`
-	Liking map[int64]float64 `json:",omitempty"`
+	// Threats is, per region, the blows its kind took there against the
+	// ticks it spent there (Wary, stage 10-6, wary.go): the alarms it
+	// heard (stage 10-4) and the blows on itself. Liking holds, per
+	// body, how well it thinks of it for the hunters it heard it strike
+	// down (stage 10-4, hunt.go); no rule reads it yet.
+	Threats []Tally           `json:",omitempty"`
+	Liking  map[int64]float64 `json:",omitempty"`
 	// Haunt is one past the index of the last tile it stood on of the
 	// ground its species likes, zero for none (Homing, stage 10-5).
 	Haunt int `json:",omitempty"`
@@ -225,6 +226,14 @@ func (w *World) age(t *Tally) {
 	if w.cfg.AgeBand > 0 {
 		return
 	}
+	w.ageBy(t)
+}
+
+// ageBy ages tally t by EvidenceHalfLife from when it was last brought
+// up to date, whatever AgeBand: the rows that pass between bodies as
+// heard evidence (the threat rows, wary.go) age this way, since the age
+// bands keep no observer.
+func (w *World) ageBy(t *Tally) {
 	f := w.decay(t.T)
 	t.T = w.tick
 	if f == 1 {

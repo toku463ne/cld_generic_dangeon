@@ -114,8 +114,12 @@ const (
 )
 
 // Roaming is Warmed with no homing (stage 10-5): a body keeps no tile of
-// the ground it likes and sleeps where its sleep finds it.
-const Roaming = "roaming"
+// the ground it likes and sleeps where its sleep finds it. Unwary is
+// Warmed with no memory of where blows fell (stage 10-6).
+const (
+	Roaming = "roaming"
+	Unwary  = "unwary"
+)
 
 // Skilled is stage 9-7b-3: every species is born with skills as humans
 // are; Shallow is stage 9-7b-3 too: bodies block each other in water as
@@ -562,6 +566,11 @@ var rewrites = map[string]func(*engine.Config){
 		c.FoodCap *= 2
 		c.HuntFrom = 5000
 		c.Homing = false
+	},
+	Unwary: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.HuntFrom = 5000
+		c.Wary = false
 	},
 	Skilled: func(c *engine.Config) {
 		c.FoodCap *= 2

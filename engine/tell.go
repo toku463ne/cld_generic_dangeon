@@ -102,6 +102,15 @@ func (w *World) pass(from, to *Body) {
 		}
 		w.passTally(&to.Memory.Regions[r], from.Memory.Regions[r], from.ID, to.ID)
 	}
+	if w.cfg.Wary {
+		// Where its kind took blows (stage 10-6): hearsay of the threats.
+		for r := range from.Memory.Threats {
+			row := w.threatRow(&to.Memory, RegionID(r))
+			w.ageBy(&from.Memory.Threats[r])
+			w.ageBy(row)
+			w.passTally(row, from.Memory.Threats[r], from.ID, to.ID)
+		}
+	}
 	if w.cfg.PassShelters {
 		// Where the places to rest are (stage 6-5a).
 		for t := range from.Memory.Shelters {

@@ -570,6 +570,13 @@ type Config struct {
 	// slayer.
 	Calls     bool
 	CallRange int
+	// Wary has a hunted body keep, per region, the blows its kind took
+	// there against the ticks it spent there - its own and the calls it
+	// heard - pass the rows on, and read a region as landing those blows
+	// over the window (stage 10-6, wary.go). WaryWeight is the ticks of
+	// no blow the row is pulled toward.
+	Wary       bool
+	WaryWeight float64
 	// Hunt lets a body attack the species its row preys on (stage 10-2a,
 	// hunt.go): a blow a tick at HitEnergy times attack over attack plus
 	// defense, and MeatUnits units of the kill pool (Foods with Kill) left
@@ -771,6 +778,8 @@ func DefaultConfig() Config {
 		Odds:               true,
 		Calls:              true,
 		CallRange:          5,
+		Wary:               true,
+		WaryWeight:         50,
 		Hunt:               true,
 		HitEnergy:          50,
 		HuntHunger:         0.5,

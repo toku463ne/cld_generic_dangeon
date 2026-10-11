@@ -795,10 +795,10 @@ func TestCalls(t *testing.T) {
 	b, h := &w.bodies[0], &w.bodies[1]
 	w.act(0, b, Action{Kind: ActAttack, Mate: 1})
 	n, f, o := &w.bodies[2], &w.bodies[3], &w.bodies[4]
-	if w.Alarms(*n, 0) != 1 || !n.Called {
-		t.Fatalf("the near human heard %d alarms, called %v", w.Alarms(*n, 0), n.Called)
+	if w.Threat(*n, 0) <= 0 || !n.Called {
+		t.Fatalf("the near human reads a threat of %v, called %v", w.Threat(*n, 0), n.Called)
 	}
-	if w.Alarms(*f, 0) != 0 || f.Called || o.Called || w.Alarms(*o, 0) != 0 {
+	if w.Threat(*f, 0) != 0 || f.Called || o.Called || w.Threat(*o, 0) != 0 {
 		t.Fatal("a far human or a beast heard the call")
 	}
 	if why := w.trigger(n, n.Under, n.Saw, n.Mates, n.Threats); why != TriggerCall {
@@ -823,7 +823,7 @@ func TestCalls(t *testing.T) {
 	h.Energy = 100
 	w.bodies[0].Slain, w.bodies[0].Energy = false, 40
 	w.act(0, b, Action{Kind: ActAttack, Mate: 1})
-	if n.Called || w.Alarms(*n, 0) != 1 {
+	if n.Called || n.Memory.Threats[0].K != 1 {
 		t.Fatal("a call was heard with Calls off")
 	}
 }
@@ -866,5 +866,101 @@ func TestForcedSleepUnderThreat(t *testing.T) {
 	w.decide(h)
 	if a := w.dueSleep(h, away); a.Kind != ActSleep {
 		t.Fatalf("not seeing the hunter past ForceMax it did %v, want sleep", a)
+	}
+}
+
+// A hunted body keeps a row per region of the blows its kind took there
+// against the ticks it spent there (Wary, stage 10-6): a blow on itself
+// or a call heard counts one, a tick there counts the tick; the row ages
+// and passes to a body met without doubling on the way back. The
+// valuation reads a region of blows as landing them over the window: a
+// step into it reads riskier than a step that stays out, and nothing of
+// this without Wary. A species nothing hunts keeps no rows.
+func TestWary(t *testing.T) {
+	cfg := testConfig(27)
+	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, append([]FoodSpec(nil), DefaultConfig().Foods...)
+	cfg.Foods[1].Terrain = TerrainLand
+	cfg.Bodies, cfg.AllotCombat = 0, false
+	w, err := NewWorld(cfg, testMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A human at the foot of region 0, a step from region 2 to the south
+	// (a step is a quarter tile).
+	human := Body{ID: 0, X: 3.5, Y: 4.9, Energy: 100, Species: 0, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Male, Sight: 3}
+	other := Body{ID: 1, X: 1.5, Y: 1.5, Energy: 100, Species: 0, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 3}
+	beast := Body{ID: 2, X: 10.5, Y: 7.5, Energy: 100, Species: 1, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sex: Female, Sight: 3}
+	w.bodies = append(w.bodies, human, other, beast)
+	w.nextID = 3
+	w.buildGrid()
+	h, o, b := &w.bodies[0], &w.bodies[1], &w.bodies[2]
+	if !w.wary(h) || w.wary(b) {
+		t.Fatal("the human is not wary, or the beast is")
+	}
+	w.noteThreats(h)
+	if row := h.Memory.Threats[0]; row.N != 1 || row.K != 0 {
+		t.Fatalf("a tick in region 0 counted %v", row)
+	}
+	if w.Threat(*h, 2) != 0 || w.regionLoss(h, 3.5, 5.5) != 0 {
+		t.Fatal("a region of no blows reads a threat")
+	}
+	w.noteBlow(h, 2)
+	want := 1 / (1 + w.cfg.WaryWeight)
+	if got := w.Threat(*h, 2); math.Abs(got-want) > 1e-12 {
+		t.Fatalf("one blow in one tick reads a rate %v, want %v", got, want)
+	}
+	if loss := w.regionLoss(h, 3.5, 5.5); math.Abs(loss-want*float64(w.cfg.Window)*w.cfg.HitEnergy/2) > 1e-9 {
+		t.Fatalf("the region's loss reads %v", loss)
+	}
+	risk := func() (into, stay float64) {
+		w.decide(h)
+		v := &w.valuation
+		into, stay = -1, -1
+		for j, a := range v.Options {
+			if a.Kind != ActMove {
+				continue
+			}
+			d, s := moveDirs[a.Dir], w.speedOf(h)
+			if w.m.RegionAt(int(math.Floor(h.X+d[0]*s)), int(math.Floor(h.Y+d[1]*s))) == 2 {
+				into = math.Max(into, v.Risk[0][j])
+			} else {
+				stay = math.Max(stay, v.Risk[0][j])
+			}
+		}
+		return into, stay
+	}
+	if into, stay := risk(); !(into > stay) {
+		t.Fatalf("a step into the region of blows reads %v, a step staying out %v", into, stay)
+	}
+	w.cfg.Wary = false
+	if into, stay := risk(); into != stay {
+		t.Fatalf("without Wary a step into the region reads %v, out %v", into, stay)
+	}
+	if w.regionLoss(h, 3.5, 5.5) != 0 {
+		t.Fatal("read without Wary")
+	}
+	w.cfg.Wary = true
+	// The row ages by EvidenceHalfLife.
+	before := w.Threat(*h, 2)
+	h.Memory.Threats[2].T = w.tick - int64(w.cfg.EvidenceHalfLife)
+	if after := w.Threat(*h, 2); !(after < before) {
+		t.Fatalf("aged a half-life the rate is %v, was %v", after, before)
+	}
+	h.Memory.Threats[2].T = w.tick
+	// Told, the other knows of the blow; told back, the human's row does
+	// not double.
+	w.pass(h, o)
+	if w.Threat(*o, 2) <= 0 {
+		t.Fatal("the row did not pass")
+	}
+	w.pass(o, h)
+	if row := h.Memory.Threats[2]; row.N != 1 || row.K != 1 {
+		t.Fatalf("told back, the row is %v", row)
+	}
+	// A beast counts nothing.
+	w.noteBlow(b, 3)
+	w.noteThreats(b)
+	if len(b.Memory.Threats) != 0 {
+		t.Fatal("a species nothing hunts keeps rows")
 	}
 }

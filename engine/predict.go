@@ -627,9 +627,13 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 		if len(w.threats) > 0 && a.Kind != ActAttack {
 			// The blows the hunters in sight would land over the window
 			// (stage 10-2b): within reach, every tick until dead.
-			if lost = w.threatLoss(b, x, y, w.cfg.Window); lost > 0 {
-				after -= w.units(lost)
-			}
+			lost = w.threatLoss(b, x, y, w.cfg.Window)
+		}
+		// And the blows the region is remembered to land (Wary, stage
+		// 10-6), read where the option leaves the body.
+		lost += w.regionLoss(b, x, y)
+		if lost > 0 {
+			after -= w.units(lost)
 		}
 		c := 0.0
 		if a.Kind == ActMate {
