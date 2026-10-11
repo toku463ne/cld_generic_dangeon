@@ -141,6 +141,11 @@ type Memory struct {
 	Threats []Tally           `json:",omitempty"`
 	Blows   Tally             `json:",omitempty"`
 	Liking  map[int64]float64 `json:",omitempty"`
+	// Offers and Traded count the tents it offered and the offers taken
+	// (Barter, stage 11-1b); with AgeBand, Trade holds the same by when.
+	// The trade row: how likely an offer is to be taken.
+	Offers, Traded float64 `json:",omitempty"`
+	Trade          Tally   `json:",omitempty"`
 	// Haunt is one past the index of the last tile it stood on of the
 	// ground its species likes, zero for none (Homing, stage 10-5).
 	Haunt int `json:",omitempty"`
@@ -381,6 +386,19 @@ func (w *World) mateRate(b *Body) float64 {
 	}
 	return Tally{N: b.Memory.Asks, K: b.Memory.Mated}.estimate(w.cfg.PriorChild, w.cfg.ChildWeight)
 }
+
+// tradeRate is a body's estimate of the chance an offer of its tent is
+// taken (Barter, stage 11-1b): its trade row pulled toward PriorTrade by
+// TradeWeight offers.
+func (w *World) tradeRate(b *Body) float64 {
+	if w.cfg.AgeBand > 0 {
+		return w.Fresh(b.Memory.Trade).estimate(w.cfg.PriorTrade, w.cfg.TradeWeight)
+	}
+	return Tally{N: b.Memory.Offers, K: b.Memory.Traded}.estimate(w.cfg.PriorTrade, w.cfg.TradeWeight)
+}
+
+// TradeRate is tradeRate read off body b, for the trace.
+func (w *World) TradeRate(b Body) float64 { return w.tradeRate(&b) }
 
 // Belief is what body b's memory makes of the world now (with Learn), as
 // the trace shows it.

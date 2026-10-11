@@ -696,6 +696,13 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 				continue
 			}
 			risk, plan, arrive := read(a, x, y, after, eaten, win)
+			if a.Kind == ActTrade {
+				// Taken with the chance the trade row gives, else a
+				// tick spent as a wait (stage 11-1b).
+				taken := w.tradeRate(b)
+				unpaid, _, _ := read(a, x, y, n-1, eaten, win)
+				risk = taken*risk + (1-taken)*unpaid
+			}
 			if a.Kind == ActMate && c < 1 {
 				unpaid, _, _ := read(a, x, y, n-1, eaten, win)
 				agreed := risk

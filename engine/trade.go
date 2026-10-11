@@ -12,12 +12,15 @@ import "math"
 // trade happens only where both come out ahead by their own reading:
 // the offerer takes the trade option where the meal now outweighs the
 // tent's credit, and the holder of the food agrees where the tent's
-// credit, as it reads it, outweighs a meal. Nothing is learned of the
-// trade itself: the things traded are read as they always are (the
-// coin of stage 11-2 is what has to be learned). A body that has felt
-// neither the cold nor the warmth of a place to rest reads a tent as
-// worth nothing and refuses: the difference in experience is what makes
-// a trade.
+// credit, as it reads it, outweighs a meal. The things traded are read
+// as they always are (the coin of stage 11-2 is what has to be learned);
+// what the offerer learns is how often its offers are taken (the trade
+// row, as the mate row learns how often a mate agrees), since an offer
+// refused is a tick spent hungry - without the row, bodies offered
+// every tick to holders that read a tent as worth nothing, and starved
+// doing it (stage 11-1). A body that has felt neither the cold nor the
+// warmth of a place to rest reads a tent as worth nothing and refuses:
+// the difference in experience is what makes a trade.
 
 // traders calls f for each body of b's kind in b's sight that holds food
 // and no tent, awake: those b may offer its tent to.
@@ -78,7 +81,10 @@ func (w *World) accepts(p *Body) bool {
 // trade has body b offer its tent to body id for a unit: if the partner
 // is still a trader in sight and agrees, the tent passes to it (folded,
 // wearing out when it would have) and the oldest unit it holds passes to
-// b, which eats it as it eats what it holds.
+// b, which eats it as it eats what it holds. The offer and its outcome
+// go into b's trade row (stage 11-1b): an offer refused is a tick spent
+// hungry, and a body that keeps being refused reads its offers as worth
+// less until the row ages.
 func (w *World) trade(b *Body, id int64) {
 	var p *Body
 	w.traders(b, func(o *Body) {
@@ -89,11 +95,23 @@ func (w *World) trade(b *Body, id int64) {
 	if p == nil || !w.canOffer(b) {
 		return
 	}
+	if w.cfg.Learn {
+		b.Memory.Offers++
+		if w.cfg.AgeBand > 0 {
+			w.observe(&b.Memory.Trade, 1, 0)
+		}
+	}
 	if !w.accepts(p) {
 		w.stats.TradesRefused++
 		return
 	}
 	w.stats.Trades++
+	if w.cfg.Learn {
+		b.Memory.Traded++
+		if w.cfg.AgeBand > 0 {
+			w.observe(&b.Memory.Trade, 0, 1)
+		}
+	}
 	p.Tent, b.Tent = Tent{Has: true, Until: b.Tent.Until, Uses: b.Tent.Uses}, Tent{}
 	born := p.HeldBorn[0]
 	pool := w.dropHeld(p)

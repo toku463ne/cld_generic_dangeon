@@ -72,6 +72,23 @@ func TestBarter(t *testing.T) {
 	if w.stats.TradesRefused != 1 || w.stats.Trades != 0 || !b.Tent.Has || p.Held != 1 {
 		t.Fatalf("refused %d, traded %d, tent %v, held %d", w.stats.TradesRefused, w.stats.Trades, b.Tent.Has, p.Held)
 	}
+	// The offer refused goes into the trade row (stage 11-1b): the
+	// chance of an offer taken falls below the prior, and the trade
+	// option reads nearer to waiting.
+	if b.Memory.Offers != 1 || b.Memory.Traded != 0 || !(w.tradeRate(b) < w.cfg.PriorTrade) {
+		t.Fatalf("after a refusal the row is %v/%v, rate %v", b.Memory.Traded, b.Memory.Offers, w.tradeRate(b))
+	}
+	w.decide(b)
+	v = &w.valuation
+	again := -1.0
+	for j, a := range v.Options {
+		if a.Kind == ActTrade {
+			again = v.Risk[0][j]
+		}
+	}
+	if again < 0 || !(again > trade) || !(again <= wait) {
+		t.Fatalf("after a refusal the trade reads %v, was %v, waiting %v", again, trade, wait)
+	}
 	// One that expects six nights in a tent, each saving a third of its
 	// burn, reads it above a meal and agrees.
 	p.Memory.Cold, p.Memory.Warm, p.Memory.TentUses = [2]float64{1.3, 1}, [2]float64{1, 1}, [2]float64{10, 1}
@@ -85,6 +102,9 @@ func TestBarter(t *testing.T) {
 	}
 	if p.Held != 0 || b.Held != 0 || b.Energy != 70 {
 		t.Fatalf("after the trade the holder holds %d, the offerer holds %d at energy %v", p.Held, b.Held, b.Energy)
+	}
+	if b.Memory.Offers != 2 || b.Memory.Traded != 1 {
+		t.Fatalf("after a trade the row is %v/%v", b.Memory.Traded, b.Memory.Offers)
 	}
 	checkFood(t, w)
 	if !w.FoodLedger().Balanced() {

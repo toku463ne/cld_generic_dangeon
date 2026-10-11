@@ -477,6 +477,9 @@ type Config struct {
 	// PriorChild is the chance a body is born expecting a mate to make a
 	// child, worth ChildWeight asks.
 	PriorChild, ChildWeight float64
+	// PriorTrade is the chance a body is born expecting an offer of its
+	// tent to be taken, worth TradeWeight offers (Barter, stage 11-1b).
+	PriorTrade, TradeWeight float64
 	// EvidenceHalfLife is how many ticks it takes evidence of the world -
 	// a body's own and what it heard - to weigh half as much (learn.go).
 	// The world changes; evidence of how it was misleads. Zero keeps all
@@ -757,6 +760,8 @@ func DefaultConfig() Config {
 		PathAhead:          8,
 		PriorChild:         1,
 		ChildWeight:        2,
+		PriorTrade:         1,
+		TradeWeight:        2,
 		BeliefStep:         1.1,
 		FullStep:           5,
 		Tell:               true,
