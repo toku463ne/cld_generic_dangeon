@@ -403,9 +403,10 @@ func (w *World) tileOf(x, y float64) int {
 }
 
 // placeBodies puts the starting bodies on the centres of land tiles drawn at
-// random: Config.Bodies of them with drawn genomes, or, given genomes, one
-// with each (NewWorldFrom).
-func (w *World) placeBodies(genomes []Genome) {
+// random: Config.Bodies of them with drawn genomes, or, given stocks, one
+// with each stock's genome (NewWorldFrom), and its skills where skilled
+// (NewWorldFromStocks).
+func (w *World) placeBodies(stocks []Stock, skilled bool) {
 	// Each species' first bodies land where its food comes back (Home),
 	// or anywhere on land where it comes back nowhere.
 	var land []int
@@ -438,13 +439,13 @@ func (w *World) placeBodies(genomes []Genome) {
 		}
 	}
 	n := w.cfg.Bodies
-	if genomes != nil {
-		n = len(genomes)
+	if stocks != nil {
+		n = len(stocks)
 	}
 	for i := 0; i < n; i++ {
 		species := 0
-		if genomes != nil {
-			species = genomes[i].Species
+		if stocks != nil {
+			species = stocks[i].Genome.Species
 		} else {
 			species = w.drawSpecies()
 		}
@@ -463,12 +464,16 @@ func (w *World) placeBodies(genomes []Genome) {
 			Sex:     w.drawSex(),
 			Partner: -1,
 		}
-		if genomes != nil {
-			w.endow(&b, genomes[i])
+		if stocks != nil {
+			w.endow(&b, stocks[i].Genome)
 		} else {
 			w.allot(&b)
 		}
-		w.drawSkills(&b)
+		if skilled {
+			b.Skill = stocks[i].Skill
+		} else {
+			w.drawSkills(&b)
+		}
 		b.Energy = w.maxOf(&b)
 		w.noteGeneration(0, b.Budget)
 		w.bodies = append(w.bodies, b)

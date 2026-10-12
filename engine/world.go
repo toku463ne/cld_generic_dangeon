@@ -109,20 +109,30 @@ type World struct {
 // NewWorld builds a world on the given map: the food cap laid out by region
 // share, then Config.Bodies bodies with drawn genomes. The map is copied,
 // so the caller may reuse it.
-func NewWorld(cfg Config, m Map) (*World, error) { return newWorld(cfg, m, nil) }
+func NewWorld(cfg Config, m Map) (*World, error) { return newWorld(cfg, m, nil, false) }
 
 // NewWorldFrom builds a world like NewWorld, but its first bodies are one
 // per genome given, in that order, in place of Config.Bodies drawn ones
 // (genome.go); none given, none placed. This is how a world begins from
 // bodies bred elsewhere.
 func NewWorldFrom(cfg Config, m Map, genomes []Genome) (*World, error) {
-	if genomes == nil {
-		genomes = []Genome{}
+	stocks := make([]Stock, len(genomes))
+	for i, g := range genomes {
+		stocks[i].Genome = g
 	}
-	return newWorld(cfg, m, genomes)
+	return newWorld(cfg, m, stocks, false)
 }
 
-func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
+// NewWorldFromStocks builds a world like NewWorldFrom, but each first body
+// has the skills its stock gives in place of drawn ones (stock.go): the
+// world begins from a save of bodies bred elsewhere.
+func NewWorldFromStocks(cfg Config, m Map, stocks []Stock) (*World, error) {
+	return newWorld(cfg, m, append([]Stock{}, stocks...), true)
+}
+
+// newWorld builds a world whose first bodies are drawn (stocks nil) or one
+// per stock, with the stock's skills where skilled, else drawn ones.
+func newWorld(cfg Config, m Map, stocks []Stock, skilled bool) (*World, error) {
 	if err := m.Validate(); err != nil {
 		return nil, err
 	}
@@ -190,8 +200,8 @@ func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 		return nil, fmt.Errorf("Grain must be above zero")
 	}
 	w := &World{cfg: cfg, m: m.Clone()}
-	for _, g := range genomes {
-		if err := w.validGenome(g); err != nil {
+	for _, st := range stocks {
+		if err := w.validStock(st, skilled); err != nil {
 			return nil, err
 		}
 	}
@@ -204,7 +214,7 @@ func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 	w.initOwners()
 	w.initPredict()
 	w.fillFood()
-	w.placeBodies(genomes)
+	w.placeBodies(stocks, skilled)
 	w.buildGrid()
 	return w, nil
 }
