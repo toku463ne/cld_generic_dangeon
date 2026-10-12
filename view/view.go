@@ -437,6 +437,12 @@ func (v *View) Render(dst *image.RGBA) {
 		fillRect(dst, s.X*v.scale, s.Y*v.scale, v.scale, v.scale, shopColor)
 		strokeRect(dst, (s.X-1)*v.scale, (s.Y-1)*v.scale, 3*v.scale, 3*v.scale, shopColor)
 	}
+	// Ornaments lying on the ground: a purple dot in the tile's other
+	// corner (stage 11-4).
+	for _, g := range v.W.GroundOrnaments() {
+		s := max(v.scale/5, 1)
+		fillRect(dst, (g.Tile%m.Width)*v.scale+v.scale-1-s, (g.Tile/m.Width)*v.scale+1, s, s, shopColor)
+	}
 	// Coins lying on the ground: a white dot in the tile's corner.
 	for _, g := range v.W.GroundCoins() {
 		s := max(v.scale/5, 1)
@@ -762,6 +768,12 @@ func (v *View) FollowText() string {
 	}
 	if b.Coins > 0 {
 		fmt.Fprintf(&sb, "  coins %d", b.Coins)
+	}
+	if cfg := v.W.Config(); b.Taste > 0 {
+		fmt.Fprintf(&sb, "  taste %d", b.Taste-1)
+		for _, k := range b.Ornaments {
+			fmt.Fprintf(&sb, " %s", cfg.Ornaments[k].Name)
+		}
 	}
 	if warm := b.Memory.Warm; warm[1] > 0 {
 		fmt.Fprintf(&sb, "  knows %d shelter tiles, warm x%.2f", len(b.Memory.Shelters), warm[0]/warm[1])

@@ -47,13 +47,17 @@ type Genome struct {
 	// with and passed on, but not drawn or mutated - a child is of its
 	// parents' species.
 	Species int
+	// Taste is the taste it is born with (0 to Tastes-1; stage 11-4,
+	// VISION "好み"): outside the budget, it says which ornaments it
+	// wants. Zero without ornaments.
+	Taste int
 }
 
 // GenomeOf is the genome body b was born with.
 func (w *World) GenomeOf(b Body) Genome { return w.genomeOf(&b) }
 
 func (w *World) genomeOf(b *Body) Genome {
-	return Genome{Level: b.Level, Sight: w.sightOf(b), Fert: w.fertOf(b), Size: w.sizeOf(b), Bold: w.boldOf(b), Attack: w.attackOf(b), Defense: w.defenseOf(b), Fierce: w.fierceOf(b), Species: b.Species}
+	return Genome{Level: b.Level, Sight: w.sightOf(b), Fert: w.fertOf(b), Size: w.sizeOf(b), Bold: w.boldOf(b), Attack: w.attackOf(b), Defense: w.defenseOf(b), Fierce: w.fierceOf(b), Species: b.Species, Taste: max(w.tasteOf(b), 0)}
 }
 
 // sizeNeutral is the budget level that buys Config.Budget.
@@ -78,6 +82,9 @@ func (w *World) budgetOf(b *Body, size int) float64 {
 // validGenome reports whether g lies within the levels the config has, in
 // the slots that are in the budget.
 func (w *World) validGenome(g Genome) error {
+	if w.ornaments() && (g.Taste < 0 || g.Taste >= w.cfg.Tastes) {
+		return fmt.Errorf("genome taste %d is not within 0..%d", g.Taste, w.cfg.Tastes-1)
+	}
 	if g.Level < 0 || g.Level >= max(w.cfg.AllotLevels, 1) {
 		return fmt.Errorf("genome level %d is not within 0..%d", g.Level, max(w.cfg.AllotLevels, 1)-1)
 	}
@@ -140,6 +147,9 @@ func (w *World) drawGenome() Genome {
 	if w.cfg.AllotFierce {
 		g.Fierce = w.rng.Intn(w.cfg.FierceMost + 1)
 	}
+	if w.ornaments() {
+		g.Taste = w.rng.Intn(w.cfg.Tastes)
+	}
 	return g
 }
 
@@ -187,6 +197,14 @@ func (w *World) inherit(a, b Genome) Genome {
 		pick()
 		g.Fierce = w.mutate(from.Fierce, w.cfg.FierceMost+1)
 	}
+	if w.ornaments() {
+		// A taste is a kind, not a level: a mutation draws any taste.
+		pick()
+		g.Taste = from.Taste
+		if w.rng.Float64() < w.cfg.AllotMutation {
+			g.Taste = w.rng.Intn(w.cfg.Tastes)
+		}
+	}
 	return g
 }
 
@@ -212,6 +230,9 @@ func (w *World) endow(b *Body, g Genome) {
 		}
 	}
 	w.stats.BudgetIn += b.Budget
+	if w.ornaments() {
+		b.Taste = g.Taste + 1 // outside the budget, it buys nothing
+	}
 	if !w.cfg.Allot {
 		return
 	}

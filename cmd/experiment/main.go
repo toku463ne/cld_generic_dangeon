@@ -13,6 +13,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -124,7 +125,12 @@ type result struct {
 	// sales, salesRefused and salesCoins count the things one body sold
 	// another, the offers refused and the coins paid (stage 11-3).
 	sales, salesRefused, salesCoins float64
-	killedAsleep, killedAway        float64
+	// ornamentsMade, ornamentsPicked, ornamentsBought and ornamentSales
+	// count the ornaments made, taken up, bought at shops and sold between
+	// bodies; satisfied is the share of living bodies with a taste that
+	// hold an ornament they like at the end (stage 11-4).
+	ornamentsMade, ornamentsPicked, ornamentsBought, ornamentSales, satisfied float64
+	killedAsleep, killedAway                                                  float64
 	// callsAttacked, callsDefeated and callsHeard count the calls of a
 	// body struck, of a hunter struck down, and the hearers (stage 10-4).
 	callsAttacked, callsDefeated, callsHeard float64
@@ -820,6 +826,24 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.tentsBought, r.sent, r.sold = float64(st.TentsBought), float64(st.Sent), float64(st.Sold)
 	r.sentRefused, r.sentSpoiled = float64(st.SentRefused), float64(st.SentSpoiled)
 	r.sales, r.salesRefused, r.salesCoins = float64(st.Sales), float64(st.SalesRefused), float64(st.SalesCoins)
+	r.ornamentsMade, r.ornamentsPicked = float64(st.OrnamentsMade), float64(st.OrnamentsPicked)
+	r.ornamentsBought, r.ornamentSales = float64(st.OrnamentsBought), float64(st.OrnamentSales)
+	if cfg := w.Config(); len(cfg.Ornaments) > 0 {
+		tasted, pleased := 0, 0
+		for _, b := range w.Bodies() {
+			if b.Taste == 0 || int(b.Species) < len(cfg.Species) && cfg.Species[b.Species].NoCoins {
+				continue
+			}
+			tasted++
+			for _, k := range b.Ornaments {
+				if slices.Contains(cfg.Ornaments[k].Tastes, b.Taste-1) {
+					pleased++
+					break
+				}
+			}
+		}
+		r.satisfied = float64(pleased) / math.Max(float64(tasted), 1)
+	}
 	if cfg := w.Config(); cfg.Coins {
 		takers, holders := 0, 0
 		for _, b := range w.Bodies() {
@@ -1207,6 +1231,11 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 			{"身体どうしの売買", 2, func(r result) float64 { return r.sales }},
 			{"断られた売る申し出", 2, func(r result) float64 { return r.salesRefused }},
 			{"身体どうしの売買で払われたコイン", 2, func(r result) float64 { return r.salesCoins }},
+			{"作った飾り物", 2, func(r result) float64 { return r.ornamentsMade }},
+			{"拾われた飾り物", 2, func(r result) float64 { return r.ornamentsPicked }},
+			{"店で買った飾り物", 2, func(r result) float64 { return r.ornamentsBought }},
+			{"身体どうしで売られた飾り物", 2, func(r result) float64 { return r.ornamentSales }},
+			{"好みの飾り物を持つ身体の割合", 4, func(r result) float64 { return r.satisfied }},
 		} {
 			p("| %s | %s |\n", e.name, fmtMeanSE(collect(rs, e.f), e.prec))
 		}
@@ -1500,6 +1529,11 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"身体どうしの売買", 2, func(r result) float64 { return r.sales }},
 		{"断られた売る申し出", 2, func(r result) float64 { return r.salesRefused }},
 		{"身体どうしの売買で払われたコイン", 2, func(r result) float64 { return r.salesCoins }},
+		{"作った飾り物", 2, func(r result) float64 { return r.ornamentsMade }},
+		{"拾われた飾り物", 2, func(r result) float64 { return r.ornamentsPicked }},
+		{"店で買った飾り物", 2, func(r result) float64 { return r.ornamentsBought }},
+		{"身体どうしで売られた飾り物", 2, func(r result) float64 { return r.ornamentSales }},
+		{"好みの飾り物を持つ身体の割合", 4, func(r result) float64 { return r.satisfied }},
 		{"テントで眠った夜", 2, func(r result) float64 { return r.tentNights }},
 		{"使い切ったテント", 2, func(r result) float64 { return r.tentsWorn }},
 		{"死んで残ったテント", 2, func(r result) float64 { return r.tentsDropped }},

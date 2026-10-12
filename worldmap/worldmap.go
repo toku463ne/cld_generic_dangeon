@@ -81,14 +81,23 @@ const (
 	TentPrice = 4
 	TentOffer = 2
 	TentCap   = 20
-	ShopFund  = 500
+	// Each kind of ornament (stage 11-4): sold at OrnamentPrice, bought
+	// at OrnamentOffer, OrnamentCap at most, none at first.
+	OrnamentPrice = 3
+	OrnamentOffer = 2
+	OrnamentCap   = 10
+	ShopFund      = 500
 )
 
 func shop(x, y int) engine.Shop {
-	return engine.Shop{X: x, Y: y, FundCap: ShopFund, Goods: []engine.Good{
+	s := engine.Shop{X: x, Y: y, FundCap: ShopFund, Goods: []engine.Good{
 		{Item: "human food", Price: ShopPrice, Offer: ShopOffer, Stock: ShopStock, StockCap: ShopCap},
 		{Item: engine.TentGood, Price: TentPrice, Offer: TentOffer, StockCap: TentCap},
 	}}
+	for _, o := range engine.DefaultOrnaments() {
+		s.Goods = append(s.Goods, engine.Good{Item: o.Name, Price: OrnamentPrice, Offer: OrnamentOffer, StockCap: OrnamentCap})
+	}
+	return s
 }
 
 // Flat is the calibration map: all land, one region.

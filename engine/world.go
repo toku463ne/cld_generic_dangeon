@@ -62,7 +62,9 @@ type World struct {
 	shops []shopState
 	// parcels are the things on their way to the shops (stage 11-2c).
 	parcels []Parcel
-	rates   rates // a learning body's estimates, for the decision under way
+	// groundOrnaments are the ornaments lying on the ground (stage 11-4).
+	groundOrnaments []GroundOrnament
+	rates           rates // a learning body's estimates, for the decision under way
 
 	// died is the tick each body died, for the provenance instrument
 	// (provenance.go). No rule reads it; it is neither saved nor
@@ -137,6 +139,9 @@ func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 		return nil, err
 	}
 	if err := validCoins(cfg); err != nil {
+		return nil, err
+	}
+	if err := validOrnaments(cfg); err != nil {
 		return nil, err
 	}
 	if cfg.Learn && !(cfg.Steady > 0) {
@@ -229,6 +234,8 @@ func (w *World) Step() {
 		w.foldTent(b)
 		w.pickTent(b)
 		w.pickCoins(b)
+		w.pickOrnaments(b)
+		w.shopOrnaments(b)
 		w.seeLight(b)
 		w.stats.EnergyBurned += burn
 	}
@@ -264,6 +271,7 @@ func (w *World) removeDead() {
 			w.loseHeld(&b)
 			w.dropTent(&b)
 			w.dropCoins(&b)
+			w.dropOrnaments(&b)
 			w.release(b.ID)
 			w.stats.Deaths[cause]++
 			if t := w.tileOf(b.X, b.Y); t >= 0 && w.m.Terrain[t] == TerrainWater && !w.spec(&b).Swims {
@@ -735,6 +743,18 @@ func (w *World) Fingerprint() uint64 {
 		put(uint64(pc.Seller))
 		put(uint64(pc.Arrive))
 		put(uint64(pc.Born))
+	}
+	// The tastes and ornaments (stage 11-4).
+	if w.ornaments() {
+		for _, b := range w.bodies {
+			put(uint64(b.Taste))
+			for _, k := range b.Ornaments {
+				put(uint64(k))
+			}
+		}
+		for _, g := range w.groundOrnaments {
+			put(uint64(g.Tile)<<16 | uint64(g.Kind))
+		}
 	}
 	if len(w.shops) > 0 {
 		for _, b := range w.bodies {

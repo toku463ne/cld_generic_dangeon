@@ -150,6 +150,8 @@ func (w *World) initShops() {
 				for k := 0; k < g.Stock; k++ {
 					gs.lives = append(gs.lives, int64(w.cfg.TentLife))
 				}
+			case gs.pool <= goodOrnament:
+				gs.stock = g.Stock // out of nothing, as a tent
 			}
 			st.goods = append(st.goods, gs)
 		}
@@ -168,6 +170,9 @@ func (w *World) goodKind(item string) goodState {
 	}
 	if p := w.poolNamed(item); p >= 0 {
 		return goodState{pool: p}
+	}
+	if k := w.ornamentNamed(item); k >= 0 {
+		return goodState{pool: goodOrnament - k} // stage 11-4
 	}
 	return goodState{pool: goodShut}
 }
@@ -353,6 +358,8 @@ func (w *World) maySell(b *Body, i, g int) bool {
 		return heldOf(b, p) >= 0
 	case p == goodTent:
 		return b.Tent.Has && !b.Tent.Pitched && b.Tent.Until > w.tick
+	case p <= goodOrnament:
+		return heldOrnament(b, goodOrnament-p) >= 0
 	}
 	return false
 }
@@ -398,6 +405,8 @@ func (w *World) sell(b *Body, i, g int) {
 		b.Held--
 		w.food.pools[p].held--
 		w.food.pools[p].stocked++
+	} else if p <= goodOrnament {
+		dropOrnament(b, goodOrnament-p) // an ornament neither rots nor wears
 	} else {
 		pc.Born = b.Tent.Until
 		b.Tent = Tent{}
@@ -427,7 +436,7 @@ func (w *World) deliver() {
 		s, gs, good := &w.shops[pc.Shop], &w.shops[pc.Shop].goods[pc.Good], w.m.Shops[pc.Shop].Goods[pc.Good]
 		food := gs.pool >= 0
 		switch {
-		case food && w.cfg.FoodLife > 0 && pc.Born <= w.tick-int64(w.cfg.FoodLife), !food && pc.Born <= w.tick:
+		case food && w.cfg.FoodLife > 0 && pc.Born <= w.tick-int64(w.cfg.FoodLife), gs.pool == goodTent && pc.Born <= w.tick:
 			w.stats.SentSpoiled++
 			if food {
 				w.food.pools[gs.pool].stocked--
@@ -441,7 +450,7 @@ func (w *World) deliver() {
 			}
 		default:
 			gs.stock++
-			if !food {
+			if gs.pool == goodTent {
 				gs.lives = append(gs.lives, pc.Born-w.tick)
 			}
 			if seller := w.bodyNamed(pc.Seller); seller != nil {
@@ -649,8 +658,11 @@ func (w *World) loadShops(saved []ShopState, parcels []Parcel) error {
 // grains: a tent's credit, or a meal for a unit of food - nothing for a
 // unit that will rot in its hand before a meal fits (itemLoss).
 func (w *World) sellLoss(b *Body, a Action) int {
-	if p := w.shops[a.Mate].goods[a.Dir].pool; p >= 0 {
+	switch p := w.shops[a.Mate].goods[a.Dir].pool; {
+	case p >= 0:
 		return w.itemLoss(b, p+1)
+	case p <= goodOrnament:
+		return w.itemLoss(b, ornamentItem+goodOrnament-p)
 	}
 	return w.itemLoss(b, saleTent)
 }

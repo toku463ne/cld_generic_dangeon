@@ -38,6 +38,8 @@ import "math"
 const (
 	SkillBuild = iota
 	SkillTent
+	// SkillCraft is making ornaments (stage 11-4).
+	SkillCraft
 	NumSkills
 )
 
@@ -78,6 +80,9 @@ func (w *World) drawSkills(b *Body) {
 	}
 	if w.cfg.Tents && w.rng.Float64() < w.cfg.TentBorn {
 		b.Skill[SkillTent] = 1
+	}
+	if w.ornaments() && w.rng.Float64() < w.cfg.CraftBorn {
+		b.Skill[SkillCraft] = 1
 	}
 }
 

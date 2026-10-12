@@ -36,6 +36,13 @@ func (w *World) saleItems(b *Body, f func(item int)) {
 	if w.cfg.Tents && b.Tent.Has && !b.Tent.Pitched && b.Tent.Until > w.tick {
 		f(saleTent)
 	}
+	kinds := 0
+	for _, k := range b.Ornaments {
+		if k < 62 && kinds&(1<<k) == 0 {
+			kinds |= 1 << k
+			f(ornamentItem + k)
+		}
+	}
 }
 
 // itemLoss is what body b reads parting with item at, in grains (as
@@ -43,6 +50,9 @@ func (w *World) saleItems(b *Body, f func(item int)) {
 func (w *World) itemLoss(b *Body, item int) int {
 	if item == saleTent {
 		return w.tentCredit(b)
+	}
+	if item >= ornamentItem {
+		return w.ornamentLoss(b, item-ornamentItem)
 	}
 	k := heldOf(b, item-1)
 	if k < 0 {
@@ -73,6 +83,9 @@ func (w *World) askOf(b *Body, item int) int {
 func (w *World) usesItem(o *Body, item int) bool {
 	if item == saleTent {
 		return !o.Tent.Has && !w.spec(o).NoSkills
+	}
+	if item >= ornamentItem {
+		return w.wants(o, item-ornamentItem)
 	}
 	return w.eats(o, item-1) && o.Held < w.cfg.Carry
 }
@@ -145,8 +158,11 @@ func (w *World) takesAt(p *Body, item, price int) bool {
 		return false
 	}
 	worth := w.pred.meal
-	if item == saleTent {
+	switch {
+	case item == saleTent:
 		worth = w.tentCredit(p)
+	case item >= ornamentItem:
+		worth = w.wantGrains() // the want, read only against the coins
 	}
 	return float64(worth) > float64(price)*w.coinWorth(p)
 }
@@ -197,6 +213,12 @@ func (w *World) sellTo(b *Body, id int64, item int) {
 	b.Coins += ask
 	if item == saleTent {
 		p.Tent, b.Tent = Tent{Has: true, Until: b.Tent.Until, Uses: b.Tent.Uses}, Tent{}
+		return
+	}
+	if item >= ornamentItem {
+		dropOrnament(b, item-ornamentItem)
+		p.Ornaments = append(p.Ornaments, item-ornamentItem)
+		w.stats.OrnamentSales++
 		return
 	}
 	k := heldOf(b, item-1)

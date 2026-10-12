@@ -613,6 +613,18 @@ type Config struct {
 	// SellMargin (stage 11-3, sale.go).
 	SellTo     bool
 	SellMargin int
+	// Ornaments are the kinds of ornament and Tastes the number of tastes
+	// (stage 11-4, ornament.go): a body is born with a taste, wants an
+	// ornament its taste answers to while it holds none, at WantEnergy;
+	// a body born with the skill (CraftBorn) makes one for CraftEnergy
+	// as it falls asleep where it reads the ornament at more; a body
+	// carries OrnamentCarry at most. No kinds: no ornaments, no taste.
+	Ornaments     []OrnamentSpec `json:",omitempty"`
+	Tastes        int
+	CraftBorn     float64
+	CraftEnergy   float64
+	WantEnergy    float64
+	OrnamentCarry int
 	// Hunt lets a body attack the species its row preys on (stage 10-2a,
 	// hunt.go): a blow a tick at HitEnergy times attack over attack plus
 	// defense, and MeatUnits units of the kill pool (Foods with Kill) left
@@ -843,6 +855,12 @@ func DefaultConfig() Config {
 		ShopSight:          true,
 		SellTo:             true,
 		SellMargin:         1,
+		Ornaments:          DefaultOrnaments(),
+		Tastes:             3,
+		CraftBorn:          0.25,
+		CraftEnergy:        10,
+		WantEnergy:         60,
+		OrnamentCarry:      2,
 		Hunt:               true,
 		HitEnergy:          50,
 		HuntHunger:         0.5,
@@ -858,4 +876,11 @@ func DefaultConfig() Config {
 		CombatTrade:        0,
 		Collide:            true,
 	}
+}
+
+// DefaultOrnaments is the default kinds of ornament (stage 11-4): three,
+// each answering to two of the three tastes, so that every taste is
+// answered by two kinds and every kind wanted by two tastes.
+func DefaultOrnaments() []OrnamentSpec {
+	return []OrnamentSpec{{Name: "bead", Tastes: []int{0, 1}}, {Name: "shell", Tastes: []int{1, 2}}, {Name: "feather", Tastes: []int{2, 0}}}
 }

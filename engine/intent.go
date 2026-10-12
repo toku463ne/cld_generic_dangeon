@@ -112,6 +112,7 @@ func (w *World) turn(b *Body) Action {
 	}
 	a = w.settleInstead(b, a)
 	w.howSleep(b, a)
+	w.craft(b, a)
 	if w.trace != nil {
 		w.trace(*b, w.valuation, a)
 	}

@@ -108,6 +108,10 @@ type Body struct {
 	Held int `json:",omitempty"`
 	// Coins is how many coins it holds (Coins, stage 11-2a).
 	Coins int `json:",omitempty"`
+	// Taste is its taste plus one (zero: none), and Ornaments the kinds
+	// of the ornaments it holds (stage 11-4).
+	Taste     int   `json:",omitempty"`
+	Ornaments []int `json:",omitempty"`
 	// HeldBorn is the tick each held unit appeared, oldest first (with
 	// FoodLife): a held unit decays like one on the ground. HeldPool is
 	// each held unit's pool, in the same order (food.go).
@@ -331,6 +335,10 @@ type Stats struct {
 	// Sales counts the things one body sold another, SalesRefused the
 	// offers turned down and SalesCoins the coins paid (stage 11-3).
 	Sales, SalesRefused, SalesCoins int64 `json:",omitempty"`
+	// OrnamentsMade, OrnamentsPicked and OrnamentsBought count the
+	// ornaments made, taken up from the ground and bought at shops;
+	// OrnamentSales those sold between bodies (stage 11-4).
+	OrnamentsMade, OrnamentsPicked, OrnamentsBought, OrnamentSales int64 `json:",omitempty"`
 	// TentsDropped and TentsPicked count the tents left by the dead and
 	// those taken up (stage 8-2a3).
 	TentsDropped, TentsPicked int64 `json:",omitempty"`

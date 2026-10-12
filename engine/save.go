@@ -20,7 +20,7 @@ import (
 // saved, so that a loaded world can build them before play (World.Warm).
 
 // snapshotVersion changes whenever the format does.
-const snapshotVersion = 66
+const snapshotVersion = 67
 
 type snapshot struct {
 	Version int    `json:"version"`
@@ -55,7 +55,9 @@ type snapshot struct {
 	Shops []ShopState `json:"shops,omitempty"`
 	// Parcels are the things on their way to the shops (stage 11-2c).
 	Parcels []Parcel `json:"parcels,omitempty"`
-	Stats   Stats    `json:"stats"`
+	// GroundOrnaments are the ornaments lying on the ground (stage 11-4).
+	GroundOrnaments []GroundOrnament `json:"groundOrnaments,omitempty"`
+	Stats           Stats            `json:"stats"`
 
 	// Tables are the survival tables the world was reading, for a loaded
 	// world to build ahead (World.Warm). They are the only part of the
@@ -84,27 +86,28 @@ func (w *World) Save(out io.Writer) error {
 			Provisioned: p.provisioned, Picked: p.picked, Lost: p.lost, Decayed: p.decayed})
 	}
 	return json.NewEncoder(out).Encode(snapshot{
-		Version:     snapshotVersion,
-		Config:      w.cfg,
-		Map:         w.m,
-		Tick:        w.tick,
-		Draws:       w.draws.draws,
-		Foods:       w.food.foods,
-		FoodBorn:    w.food.born,
-		FoodOwner:   w.food.owner,
-		Pools:       pools,
-		Bodies:      w.bodies,
-		NextID:      w.nextID,
-		Places:      w.places,
-		NextPlace:   w.nextPlace,
-		GroundTents: w.groundTents,
-		GroundCoins: w.GroundCoins(),
-		CoinDue:     w.coins.due,
-		CoinsIssued: w.coins.issued,
-		Shops:       w.Shops(),
-		Parcels:     w.parcels,
-		Stats:       w.stats,
-		Tables:      w.Tables(),
+		Version:         snapshotVersion,
+		Config:          w.cfg,
+		Map:             w.m,
+		Tick:            w.tick,
+		Draws:           w.draws.draws,
+		Foods:           w.food.foods,
+		FoodBorn:        w.food.born,
+		FoodOwner:       w.food.owner,
+		Pools:           pools,
+		Bodies:          w.bodies,
+		NextID:          w.nextID,
+		Places:          w.places,
+		NextPlace:       w.nextPlace,
+		GroundTents:     w.groundTents,
+		GroundCoins:     w.GroundCoins(),
+		CoinDue:         w.coins.due,
+		CoinsIssued:     w.coins.issued,
+		Shops:           w.Shops(),
+		Parcels:         w.parcels,
+		GroundOrnaments: w.groundOrnaments,
+		Stats:           w.stats,
+		Tables:          w.Tables(),
 	})
 }
 
@@ -179,6 +182,7 @@ func Load(in io.Reader) (*World, error) {
 	if err := w.loadShops(s.Shops, s.Parcels); err != nil {
 		return nil, err
 	}
+	w.groundOrnaments = s.GroundOrnaments
 	w.loadPlaces()
 	w.initPrey()
 	w.initOwners()
