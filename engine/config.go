@@ -599,6 +599,11 @@ type Config struct {
 	// that meal with the chance its buy row gives (on PriorTrade and
 	// TradeWeight, the trade row's prior).
 	Shops bool
+	// Sell lets a body send a thing it holds to a shop it knows, which
+	// pays the good's Offer when it arrives after the distance at
+	// CarrySpeed tiles a tick (stage 11-2c, shop.go).
+	Sell       bool
+	CarrySpeed float64
 	// Hunt lets a body attack the species its row preys on (stage 10-2a,
 	// hunt.go): a blow a tick at HitEnergy times attack over attack plus
 	// defense, and MeatUnits units of the kill pool (Foods with Kill) left
@@ -824,6 +829,8 @@ func DefaultConfig() Config {
 		CoinHalving:        10000,
 		CoinCap:            1000,
 		Shops:              true,
+		Sell:               true,
+		CarrySpeed:         0.5,
 		Hunt:               true,
 		HitEnergy:          50,
 		HuntHunger:         0.5,

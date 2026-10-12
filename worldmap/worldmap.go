@@ -65,18 +65,30 @@ func shelters(m *engine.Map) {
 	}
 }
 
-// The shop a map sets (stage 11-2b, the user's design: price, number
-// and goods are the map's; for now one shop at a fixed price): it sells
-// human food at ShopPrice coins a unit, starts with ShopStock units and
-// takes up to ShopFund coins. Provisional; PARAMETERS.md records them.
+// The shop a map sets (stages 11-2b and 11-2c, the user's design:
+// prices, number and goods are the map's; for now one shop at fixed
+// prices). It sells human food at ShopPrice coins a unit and pays
+// ShopOffer for one sent, starts with ShopStock units and holds ShopCap
+// at most; it sells tents at TentPrice and pays TentOffer, holding up to
+// TentCap, none at first; and it takes up to ShopFund coins. The offers
+// are under the prices (the shop's margin), which is why food costs 2:
+// coins are whole. Provisional; PARAMETERS.md records them.
 const (
 	ShopPrice = 2
+	ShopOffer = 1
 	ShopStock = 50
+	ShopCap   = 100
+	TentPrice = 4
+	TentOffer = 2
+	TentCap   = 20
 	ShopFund  = 500
 )
 
 func shop(x, y int) engine.Shop {
-	return engine.Shop{X: x, Y: y, Food: "human food", Price: ShopPrice, Stock: ShopStock, FundCap: ShopFund}
+	return engine.Shop{X: x, Y: y, FundCap: ShopFund, Goods: []engine.Good{
+		{Item: "human food", Price: ShopPrice, Offer: ShopOffer, Stock: ShopStock, StockCap: ShopCap},
+		{Item: engine.TentGood, Price: TentPrice, Offer: TentOffer, StockCap: TentCap},
+	}}
 }
 
 // Flat is the calibration map: all land, one region.

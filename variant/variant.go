@@ -134,6 +134,10 @@ const (
 // issued and picked up but buy nothing.
 const Noshop = "noshop"
 
+// Nosell is Warmed with nothing sent to the shop (stage 11-2c): the
+// shop sells what it starts with, as at 11-2b.
+const Nosell = "nosell"
+
 // Skilled is stage 9-7b-3: every species is born with skills as humans
 // are; Shallow is stage 9-7b-3 too: bodies block each other in water as
 // on land. Both are the controls of stage 9-7b-4 on Roomy's cap.
@@ -589,6 +593,11 @@ var rewrites = map[string]func(*engine.Config){
 		c.FoodCap *= 2
 		c.HuntFrom = 5000
 		c.Barter = false
+	},
+	Nosell: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.HuntFrom = 5000
+		c.Sell = false
 	},
 	Noshop: func(c *engine.Config) {
 		c.FoodCap *= 2

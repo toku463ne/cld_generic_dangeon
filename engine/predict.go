@@ -501,7 +501,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 	// A shop to walk to and buy a meal at, and coins in sight to pick up
 	// on the way when the body cannot pay yet (stage 11-2b).
 	v.Shop, v.Coin, v.CoinRest = v.Shop[:0], v.Coin[:0], v.CoinRest[:0]
-	if f, _, ok := w.shopAhead(b); ok {
+	if f, ok := w.shopAhead(b); ok {
 		v.Shop = append(v.Shop, f)
 	}
 	w.coinsAhead(b, func(x, y, rest, shop int) {
@@ -678,10 +678,20 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			// now, the tent's credit beyond tonight gone.
 			after = min(n+meal, most) - 1 - w.tentCredit(b)
 		case ActBuy:
+			if w.shops[a.Mate].goods[a.Dir].pool == goodTent {
+				// Coins for a tent (stage 11-2c): its credit gained, the
+				// coins read at what they buy.
+				after = n - 1 + w.tentCredit(b) - int(float64(w.m.Shops[a.Mate].Goods[a.Dir].Price)*w.coinWorth(b))
+				break
+			}
 			// Coins for a unit, held and eaten as one picked up (stage
 			// 11-2b).
 			after = n + meal - 1
 			top, room = most+meal, b.Held+1 < w.cfg.Carry
+		case ActSell:
+			// A thing sent for coins (stage 11-2c): what it is worth to
+			// the body gone, the offer read at what coins buy.
+			after = n - 1 - w.sellLoss(b, a) + int(float64(w.m.Shops[a.Mate].Goods[a.Dir].Offer)*w.coinWorth(b))
 		case ActMate:
 			// Read as agreed and conceived: the share paid, and a child -
 			// with the chance child; otherwise, agreed but not conceived,
@@ -759,17 +769,21 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 				continue
 			}
 			risk, plan, arrive := read(a, x, y, after, eaten, win)
-			if a.Kind == ActTrade || a.Kind == ActBuy {
+			if a.Kind == ActTrade || a.Kind == ActBuy || a.Kind == ActSell {
 				// Taken with the chance the trade row gives, else a
 				// tick spent as a wait (stage 11-1b); a buy with the
-				// chance its own row gives (stage 11-2b).
-				taken := w.tradeRate(b)
-				if a.Kind == ActBuy {
-					taken = v.BuyP
+				// chance its own row gives (stage 11-2b), a sale with
+				// its sell row's, the thing gone unpaid (stage 11-2c).
+				taken, left := w.tradeRate(b), n-1
+				switch a.Kind {
+				case ActBuy:
+					taken = w.buyRate(b)
+				case ActSell:
+					taken, left = w.sellRate(b), n-1-w.sellLoss(b, a)
 				}
 				t0, r0 := top, room
 				top, room = most, b.Held < w.cfg.Carry // turned down, it holds nothing more
-				unpaid, _, _ := read(a, x, y, n-1, eaten, win)
+				unpaid, _, _ := read(a, x, y, left, eaten, win)
 				top, room = t0, r0
 				risk = taken*risk + (1-taken)*unpaid
 			}

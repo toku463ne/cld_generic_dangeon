@@ -117,7 +117,11 @@ type result struct {
 	// tries turned down; coinsFunds are the coins the shops hold at the
 	// end (stage 11-2b).
 	bought, buysFailed, coinsFunds float64
-	killedAsleep, killedAway       float64
+	// tentsBought, sent, sold, sentRefused and sentSpoiled count the
+	// tents bought at shops and the things sent to them, paid for,
+	// refused, and rotten on the way (stage 11-2c).
+	tentsBought, sent, sold, sentRefused, sentSpoiled float64
+	killedAsleep, killedAway                          float64
 	// callsAttacked, callsDefeated and callsHeard count the calls of a
 	// body struck, of a hunter struck down, and the hearers (stage 10-4).
 	callsAttacked, callsDefeated, callsHeard float64
@@ -810,6 +814,8 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.coinsIssued, r.coinsHeld = float64(cl.Issued), float64(cl.Held)
 	r.coinsPicked, r.coinsDropped = float64(st.CoinsPicked), float64(st.CoinsDropped)
 	r.bought, r.buysFailed, r.coinsFunds = float64(st.Bought), float64(st.BuysFailed), float64(cl.Funds)
+	r.tentsBought, r.sent, r.sold = float64(st.TentsBought), float64(st.Sent), float64(st.Sold)
+	r.sentRefused, r.sentSpoiled = float64(st.SentRefused), float64(st.SentSpoiled)
 	if cfg := w.Config(); cfg.Coins {
 		takers, holders := 0, 0
 		for _, b := range w.Bodies() {
@@ -1189,6 +1195,11 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 			{"死んで残ったコイン", 2, func(r result) float64 { return r.coinsDropped }},
 			{"店に断られた", 2, func(r result) float64 { return r.buysFailed }},
 			{"店のコイン", 2, func(r result) float64 { return r.coinsFunds }},
+			{"店で買ったテント", 2, func(r result) float64 { return r.tentsBought }},
+			{"店に送った", 2, func(r result) float64 { return r.sent }},
+			{"送って代金を受け取った", 2, func(r result) float64 { return r.sold }},
+			{"送って断られた", 2, func(r result) float64 { return r.sentRefused }},
+			{"送るあいだに傷んだ", 2, func(r result) float64 { return r.sentSpoiled }},
 		} {
 			p("| %s | %s |\n", e.name, fmtMeanSE(collect(rs, e.f), e.prec))
 		}
@@ -1474,6 +1485,11 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"店で買った", 2, func(r result) float64 { return r.bought }},
 		{"店に断られた", 2, func(r result) float64 { return r.buysFailed }},
 		{"店のコイン", 2, func(r result) float64 { return r.coinsFunds }},
+		{"店で買ったテント", 2, func(r result) float64 { return r.tentsBought }},
+		{"店に送った", 2, func(r result) float64 { return r.sent }},
+		{"送って代金を受け取った", 2, func(r result) float64 { return r.sold }},
+		{"送って断られた", 2, func(r result) float64 { return r.sentRefused }},
+		{"送るあいだに傷んだ", 2, func(r result) float64 { return r.sentSpoiled }},
 		{"テントで眠った夜", 2, func(r result) float64 { return r.tentNights }},
 		{"使い切ったテント", 2, func(r result) float64 { return r.tentsWorn }},
 		{"死んで残ったテント", 2, func(r result) float64 { return r.tentsDropped }},

@@ -60,7 +60,9 @@ type World struct {
 	coins coinState
 	// shops are the map's shops as they stand (stage 11-2b).
 	shops []shopState
-	rates rates // a learning body's estimates, for the decision under way
+	// parcels are the things on their way to the shops (stage 11-2c).
+	parcels []Parcel
+	rates   rates // a learning body's estimates, for the decision under way
 
 	// died is the tick each body died, for the provenance instrument
 	// (provenance.go). No rule reads it; it is neither saved nor
@@ -199,6 +201,7 @@ func (w *World) Step() {
 	w.decayFood()
 	w.returnFood()
 	w.issueCoins()
+	w.deliver()
 	w.wearPlaces()
 	w.wearGroundTents()
 	for i := range w.bodies {
@@ -719,14 +722,27 @@ func (w *World) Fingerprint() uint64 {
 	}
 	// The shops and what bodies know of them (stage 11-2b).
 	for _, s := range w.shops {
-		put(uint64(s.stock))
+		for _, g := range s.goods {
+			put(uint64(g.stock))
+			for _, l := range g.lives {
+				put(uint64(l))
+			}
+		}
 		put(uint64(s.fund))
+	}
+	for _, pc := range w.parcels {
+		put(uint64(pc.Shop)<<32 | uint64(pc.Good))
+		put(uint64(pc.Seller))
+		put(uint64(pc.Arrive))
+		put(uint64(pc.Born))
 	}
 	if len(w.shops) > 0 {
 		for _, b := range w.bodies {
 			put(uint64(len(b.Memory.Shops)))
 			putF(b.Memory.Buys)
 			putF(b.Memory.Bought)
+			putF(b.Memory.Sends)
+			putF(b.Memory.Paid)
 		}
 	}
 	return h.Sum64()

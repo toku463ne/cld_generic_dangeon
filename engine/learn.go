@@ -153,6 +153,11 @@ type Memory struct {
 	Shops        []int   `json:",omitempty"`
 	Buys, Bought float64 `json:",omitempty"`
 	Buy          Tally   `json:",omitempty"`
+	// Sends and Paid count the things it sent to shops and those paid
+	// for, and with AgeBand Sell holds the same by when (stage 11-2c):
+	// the sell row.
+	Sends, Paid float64 `json:",omitempty"`
+	Sell        Tally   `json:",omitempty"`
 	// Haunt is one past the index of the last tile it stood on of the
 	// ground its species likes, zero for none (Homing, stage 10-5).
 	Haunt int `json:",omitempty"`
