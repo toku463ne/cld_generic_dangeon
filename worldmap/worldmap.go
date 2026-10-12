@@ -258,8 +258,11 @@ func constrainedWith(width, height int, share float64) engine.Map {
 // "トレーニングと本番"): the species alone, on one region of the terrain
 // it likes (land for humans, forest for beasts), with its own food - the
 // one kind that species eats, which on a stage of one species is the
-// generic food - at the share of FoodCap it has on the 1:1 map
-// (EvenShare), and the places to rest of the other maps. No shop, no
+// generic food - at the density it has on the 1:1 map: there it holds
+// half the ground and half of FoodCap, so here all of FoodCap over all
+// the ground. (Half the cap over all the ground, the 1:1 map's share,
+// halves the density, and the humans collapsed in half the seeds.) And
+// the places to rest of the other maps. No shop, no
 // coins and no water: a save carries the body and its skills, not what it
 // learned of a world (NODE.md), so the stage holds only what a body needs
 // to live and breed.
@@ -275,7 +278,7 @@ func Train(width, height int, species string) engine.Map {
 		}
 	}
 	m.PoolCap = map[string]float64{"human food": 0, "beast food": 0}
-	m.PoolCap[food[species]] = EvenShare
+	m.PoolCap[food[species]] = 1
 	m.SpeciesShare = map[string]float64{"human": 0, "beast": 0}
 	m.SpeciesShare[species] = 1
 	shelters(&m)
