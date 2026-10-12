@@ -298,24 +298,30 @@ func (w *World) sawThreats(b *Body) uint64 {
 func (w *World) threatLoss(b *Body, x, y float64, ticks int) float64 {
 	worst := 0.0
 	for _, h := range w.threats {
-		reach := 1 + w.speedOf(h)
-		d := math.Max(math.Abs(h.X-x), math.Abs(h.Y-y))
-		catch := 0.0
-		if d > reach {
-			closing := w.speedOf(h) - w.speedOf(b)
-			if closing <= 0 {
-				continue
-			}
-			catch = (d - reach) / closing
-		}
-		blows := float64(ticks) - catch
-		if blows <= 0 {
-			continue
-		}
-		blow := w.damage(h, b)
-		worst = math.Max(worst, math.Min(blows, math.Ceil(b.Energy/blow))*blow)
+		worst = math.Max(worst, w.lossFrom(b, h, x, y, ticks))
 	}
 	return worst
+}
+
+// lossFrom is the energy hunter h would take off body b, left at (x, y),
+// over the next ticks (threatLoss, for one hunter).
+func (w *World) lossFrom(b, h *Body, x, y float64, ticks int) float64 {
+	reach := 1 + w.speedOf(h)
+	d := math.Max(math.Abs(h.X-x), math.Abs(h.Y-y))
+	catch := 0.0
+	if d > reach {
+		closing := w.speedOf(h) - w.speedOf(b)
+		if closing <= 0 {
+			return 0
+		}
+		catch = (d - reach) / closing
+	}
+	blows := float64(ticks) - catch
+	if blows <= 0 {
+		return 0
+	}
+	blow := w.damage(h, b)
+	return math.Min(blows, math.Ceil(b.Energy/blow)) * blow
 }
 
 // Striking back, together (stages 10-2c and 10-2e, the user's choice: a

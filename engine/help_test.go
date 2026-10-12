@@ -5,9 +5,11 @@ import "testing"
 // A body that hears one of its kind struck may walk to fight the hunter
 // with it (stage 12-5). It reads the walk as worth something only where
 // the caller lives through it and is its child (the second currency) or
-// a body it likes (its liking, in energy); a stranger's call is worth
-// nothing to it, and so is a call it cannot reach before the caller is
-// down. Two of a band striking the same hunter within
+// a body it likes (its liking, in energy), or where the hunter is a
+// threat to itself (what it would take off it, a gain once it is down);
+// a stranger's call against a hunter that cannot catch it is worth
+// nothing to it, and a caller it cannot reach before it is down is worth
+// only the hunter less. Two of a band striking the same hunter within
 // FightTicks is counted as fighting together.
 func TestHelp(t *testing.T) {
 	cfg := testConfig(19)
@@ -55,6 +57,13 @@ func TestHelp(t *testing.T) {
 	if _, _, _, gain, _ := w.helpRead(f); gain != 40 {
 		t.Fatalf("friend reads gain %v, want its liking 40", gain)
 	}
+	// A hunter faster than the stranger would catch it: downing it is a
+	// gain to the stranger itself, a hunter less (the user's choice).
+	b.Build = Build{Speed: 2 * w.speedOf(s), EnergyMax: w.cfg.EnergyMax, EnergyBurn: w.cfg.EnergyBurn}
+	if _, _, _, gain, kid := w.helpRead(s); kid || !(gain > 0) {
+		t.Fatalf("stranger reads kid %v gain %v from a faster hunter", kid, gain)
+	}
+	b.Build = Build{}
 	far := *p
 	far.X = 6.5 // four tiles off: the child is down before it comes
 	if _, _, _, _, kid := w.helpRead(&far); kid {

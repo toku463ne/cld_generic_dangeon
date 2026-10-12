@@ -11,13 +11,16 @@ import "math"
 // walk is valued in the two currencies as any option is. It costs the
 // ticks of walking and the blows the hunter lands on the helper until the
 // band, the helper among it, has it down - read as death where the hunter
-// would down the helper first. It gains only if the caller lives through
-// it (the band downs the hunter before the hunter downs the caller), and
-// then what the caller is worth to the helper: what the helper gained by
-// it so far (its liking, stage 12-3) as energy, and, for its own child,
-// the child itself - the second currency, as a child made is. A caller
-// that is neither liked nor its child is worth nothing to it, and it does
-// not come.
+// would down the helper first. It gains, if the band downs the hunter,
+// a hunter less for itself (the user's choice, 2026-10-12): what that
+// hunter would take off it over the window from where it stands, as fear
+// reads a hunter in sight (threatLoss). And if the caller lives through
+// it (the band downs the hunter before the hunter downs the caller), what
+// the caller is worth to the helper: what the helper gained by it so far
+// (its liking, stage 12-3) as energy, and, for its own child, the child
+// itself - the second currency, as a child made is. A body the hunter
+// could not catch, with no friend and no child in the fight, has nothing
+// to gain and does not come.
 
 // HelpCall is the call a body last heard and may go to: from Caller,
 // struck by Hunter, open until tick Until.
@@ -72,12 +75,17 @@ func (w *World) helpRead(b *Body) (walk int, loss float64, down bool, gain float
 	ticks := max(int(math.Ceil(h.Energy/(n*w.damage(b, h)))), 1)
 	loss = float64(ticks) * w.damage(h, b) / n / w.fierceness(b)
 	down = loss >= b.Energy
+	if down {
+		return walk, loss, true, 0, false
+	}
+	// The hunter down: what it would take off b over the window, gone.
+	gain = w.lossFrom(b, h, b.X, b.Y, w.cfg.Window)
 	// The caller lives if it outlasts the hunter's share of blows on it,
 	// once b has come.
-	if down || float64(walk+ticks)*w.damage(h, c)/n >= c.Energy {
-		return walk, loss, down, 0, false
+	if float64(walk+ticks)*w.damage(h, c)/n >= c.Energy {
+		return walk, loss, false, gain, false
 	}
-	return walk, loss, false, math.Max(w.Liking(*b, c.ID), 0), c.Parents[0] == b.ID || c.Parents[1] == b.ID
+	return walk, loss, false, gain + math.Max(w.Liking(*b, c.ID), 0), c.Parents[0] == b.ID || c.Parents[1] == b.ID
 }
 
 // help has body b take a step towards the hunter of its call.
