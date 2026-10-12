@@ -158,9 +158,10 @@ func TestShopSaveLoad(t *testing.T) {
 // With a shop, the world is stage 11-3: its fingerprint is pinned here
 // (re-pinned at 11-2c: things are sent to the shop, which deals in tents;
 // 11-2d: a body at the shop sees its stock; 11-3: bodies sell to each
-// other; and the shop made a building with four doors).
+// other; the shop made a building with four doors; and 12-1: calls to
+// sell).
 func TestShopFingerprint(t *testing.T) {
-	const want = uint64(0x3cdd4c0b7f4490cc)
+	const want = uint64(0x2e2f63a526786973)
 	w, err := NewWorld(shopConfig(1), shopMap(20, 100))
 	if err != nil {
 		t.Fatal(err)

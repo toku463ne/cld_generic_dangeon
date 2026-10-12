@@ -207,10 +207,17 @@ func (w *World) sellTo(b *Body, id int64, item int) {
 			w.observe(&b.Memory.Trade, 0, 1)
 		}
 	}
+	w.hand(b, p, item, ask)
+}
+
+// hand passes item from seller b to buyer p for price coins: a unit with
+// the tick it appeared, eaten as held food is; a tent as it was; an
+// ornament.
+func (w *World) hand(b, p *Body, item, price int) {
 	w.stats.Sales++
-	w.stats.SalesCoins += int64(ask)
-	p.Coins -= ask
-	b.Coins += ask
+	w.stats.SalesCoins += int64(price)
+	p.Coins -= price
+	b.Coins += price
 	if item == saleTent {
 		p.Tent, b.Tent = Tent{Has: true, Until: b.Tent.Until, Uses: b.Tent.Uses}, Tent{}
 		return

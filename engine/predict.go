@@ -693,6 +693,18 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			// A thing sent for coins (stage 11-2c): what it is worth to
 			// the body gone, the offer read at what coins buy.
 			after = n - 1 - w.sellLoss(b, a) + int(float64(w.m.Shops[a.Mate].Goods[a.Dir].Offer)*w.coinWorth(b))
+		case ActBuyFrom:
+			// A thing called for sale (stage 12-1): reached after the
+			// ticks of walking to the caller, a meal (eaten as one held)
+			// or a tent's credit; the coins paid are read as a buy at the
+			// shop reads them, not at all.
+			k := grainsOf(w.toCaller[a.Mate])
+			if a.Dir == saleTent {
+				after = n - 1 - k + w.tentCredit(b)
+			} else {
+				after = n + meal - 1 - k
+				top, room = most+meal, b.Held+1 < w.cfg.Carry
+			}
 		case ActSellTo:
 			// A thing sold to a body in sight (stage 11-3): its worth
 			// gone, the price asked read at what coins buy.

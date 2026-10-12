@@ -110,8 +110,10 @@ type Body struct {
 	Coins int `json:",omitempty"`
 	// Taste is its taste plus one (zero: none), and Ornaments the kinds
 	// of the ornaments it holds (stage 11-4).
-	Taste     int   `json:",omitempty"`
-	Ornaments []int `json:",omitempty"`
+	Taste int `json:",omitempty"`
+	// Selling is its open call to sell (SaleCalls, stage 12-1).
+	Selling   SaleCall `json:",omitempty"`
+	Ornaments []int    `json:",omitempty"`
 	// HeldBorn is the tick each held unit appeared, oldest first (with
 	// FoodLife): a held unit decays like one on the ground. HeldPool is
 	// each held unit's pool, in the same order (food.go).
@@ -194,6 +196,10 @@ const (
 	// ActSellTo offers a thing the body holds to another for coins
 	// (SellTo, stage 11-3, sale.go); Mate is the partner, Dir the item.
 	ActSellTo
+	// ActBuyFrom buys what a body calls to sell (SaleCalls, stage 12-1,
+	// salecall.go), walking to it while out of sight; Mate is the
+	// caller, Dir the item.
+	ActBuyFrom
 	NumActionKinds
 )
 
@@ -339,6 +345,9 @@ type Stats struct {
 	// ornaments made, taken up from the ground and bought at shops;
 	// OrnamentSales those sold between bodies (stage 11-4).
 	OrnamentsMade, OrnamentsPicked, OrnamentsBought, OrnamentSales int64 `json:",omitempty"`
+	// SaleCalls counts the calls to sell, CallSales the sales a call
+	// brought about (stage 12-1); these are in Sales too.
+	SaleCalls, CallSales int64 `json:",omitempty"`
 	// TentsDropped and TentsPicked count the tents left by the dead and
 	// those taken up (stage 8-2a3).
 	TentsDropped, TentsPicked int64 `json:",omitempty"`
@@ -461,7 +470,7 @@ func (w *World) possibleActions(dst []Action, b *Body) []Action {
 			dst = append(dst, Action{Kind: ActMove, Dir: d})
 		}
 	}
-	return w.saleOptions(w.sellOptions(w.buyOptions(w.tradeOptions(w.huntOptions(w.mateOptions(dst, b), b), b), b), b), b)
+	return w.callOptions(w.saleOptions(w.sellOptions(w.buyOptions(w.tradeOptions(w.huntOptions(w.mateOptions(dst, b), b), b), b), b), b), b)
 }
 
 // act carries out action a of body b, the i-th of the world's bodies; i is
@@ -508,6 +517,8 @@ func (w *World) act(i int, b *Body, a Action) {
 		w.sell(b, int(a.Mate), a.Dir)
 	case ActSellTo:
 		w.sellTo(b, a.Mate, a.Dir)
+	case ActBuyFrom:
+		w.buyFrom(i, b, a.Mate)
 	}
 }
 

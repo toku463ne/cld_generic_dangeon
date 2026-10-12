@@ -97,6 +97,11 @@ type World struct {
 	// requester out of sight among the options (breed.go).
 	far    map[int64]int
 	asking []int
+	// calling lists the bodies with a call to sell open, and toCaller the
+	// ticks of walking to each caller out of sight for the decision under
+	// way (stage 12-1).
+	calling  []int
+	toCaller map[int64]int
 }
 
 // NewWorld builds a world on the given map: the food cap laid out by region
@@ -206,6 +211,7 @@ func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 func (w *World) Step() {
 	w.tick++
 	w.listAsking()
+	w.listCalling()
 	w.decayFood()
 	w.returnFood()
 	w.issueCoins()
@@ -226,6 +232,7 @@ func (w *World) Step() {
 		} else {
 			w.eatHeld(b)
 			w.request(b)
+			w.callSale(b)
 			w.act(i, b, w.turn(b))
 		}
 		burn := w.burnOf(b)
@@ -757,6 +764,14 @@ func (w *World) Fingerprint() uint64 {
 		}
 		for _, g := range w.groundOrnaments {
 			put(uint64(g.Tile)<<16 | uint64(g.Kind))
+		}
+	}
+	if w.cfg.SaleCalls && w.cfg.Coins {
+		for _, b := range w.bodies {
+			if b.Selling.Until > 0 {
+				put(uint64(b.Selling.Until))
+				put(uint64(b.Selling.Item)<<32 | uint64(b.Selling.Price))
+			}
 		}
 	}
 	if len(w.shops) > 0 {

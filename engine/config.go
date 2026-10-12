@@ -613,6 +613,11 @@ type Config struct {
 	// SellMargin (stage 11-3, sale.go).
 	SellTo     bool
 	SellMargin int
+	// SaleCalls has a body with a thing to sell and no buyer in sight
+	// call it out with its price, within RequestRange for RequestTicks,
+	// and a body that would buy it walk there and buy (stage 12-1,
+	// salecall.go).
+	SaleCalls bool
 	// Ornaments are the kinds of ornament and Tastes the number of tastes
 	// (stage 11-4, ornament.go): a body is born with a taste, wants an
 	// ornament its taste answers to while it holds none, at WantEnergy;
@@ -855,6 +860,7 @@ func DefaultConfig() Config {
 		ShopSight:          true,
 		SellTo:             true,
 		SellMargin:         1,
+		SaleCalls:          true,
 		Ornaments:          DefaultOrnaments(),
 		Tastes:             3,
 		CraftBorn:          0.25,

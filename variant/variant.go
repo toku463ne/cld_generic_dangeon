@@ -152,6 +152,9 @@ const Noornament = "noornament"
 // VISION_CHECKS "more kinds, more trades").
 const Ornament6 = "ornament6"
 
+// Nosalecall is Warmed with no calls to sell (stage 12-1).
+const Nosalecall = "nosalecall"
+
 // Skilled is stage 9-7b-3: every species is born with skills as humans
 // are; Shallow is stage 9-7b-3 too: bodies block each other in water as
 // on land. Both are the controls of stage 9-7b-4 on Roomy's cap.
@@ -607,6 +610,11 @@ var rewrites = map[string]func(*engine.Config){
 		c.FoodCap *= 2
 		c.HuntFrom = 5000
 		c.Barter = false
+	},
+	Nosalecall: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.HuntFrom = 5000
+		c.SaleCalls = false
 	},
 	Ornament6: func(c *engine.Config) {
 		c.FoodCap *= 2
