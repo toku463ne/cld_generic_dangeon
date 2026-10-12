@@ -137,6 +137,8 @@ var (
 	tentColor = color.RGBA{0xff, 0xd0, 0x30, 0xff}
 	// coinColor marks the coins lying on the ground (stage 11-2a).
 	coinColor = color.RGBA{0xff, 0xff, 0xff, 0xff}
+	// shopColor outlines the map's shops (stage 11-2b).
+	shopColor = color.RGBA{0xc0, 0x40, 0xff, 0xff}
 	// Sight rings (stage 9-3): a body that drew sight 0 wears a dark
 	// ring, one at SightMost a white one; the neutral sight is bare.
 	sightLowColor  = color.RGBA{0x10, 0x10, 0x18, 0xff}
@@ -428,6 +430,10 @@ func (v *View) Render(dst *image.RGBA) {
 	for _, g := range v.W.GroundTents() {
 		s := max(v.scale/3, 1)
 		fillRect(dst, (g.Tile%m.Width)*v.scale+v.scale/2-s/2, (g.Tile/m.Width)*v.scale+v.scale/2-s/2, s, s, tentColor)
+	}
+	// The map's shops: a purple outline.
+	for _, s := range m.Shops {
+		strokeRect(dst, s.X*v.scale, s.Y*v.scale, v.scale, v.scale, shopColor)
 	}
 	// Coins lying on the ground: a white dot in the tile's corner.
 	for _, g := range v.W.GroundCoins() {
@@ -854,6 +860,8 @@ func actionName(a engine.Action) string {
 		return fmt.Sprintf("attack #%d", a.Mate)
 	case engine.ActTrade:
 		return fmt.Sprintf("trade #%d", a.Mate)
+	case engine.ActBuy:
+		return fmt.Sprintf("buy at shop %d", a.Mate)
 	case engine.ActSleep:
 		return "sleep"
 	case engine.ActBuild:

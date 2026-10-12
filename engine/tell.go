@@ -127,6 +127,10 @@ func (w *World) pass(from, to *Body) {
 			to.Memory.Shelters[t] = true
 			w.stats.SheltersPassed++
 		}
+		// And where the shops are (stage 11-2b).
+		for _, i := range from.Memory.Shops {
+			w.rememberShop(to, i)
+		}
 	}
 	if w.cfg.PassPath {
 		w.agePath(&from.Memory.Path)

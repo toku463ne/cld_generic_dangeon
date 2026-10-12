@@ -65,6 +65,20 @@ func shelters(m *engine.Map) {
 	}
 }
 
+// The shop a map sets (stage 11-2b, the user's design: price, number
+// and goods are the map's; for now one shop at a fixed price): it sells
+// human food at ShopPrice coins a unit, starts with ShopStock units and
+// takes up to ShopFund coins. Provisional; PARAMETERS.md records them.
+const (
+	ShopPrice = 2
+	ShopStock = 50
+	ShopFund  = 500
+)
+
+func shop(x, y int) engine.Shop {
+	return engine.Shop{X: x, Y: y, Food: "human food", Price: ShopPrice, Stock: ShopStock, FundCap: ShopFund}
+}
+
 // Flat is the calibration map: all land, one region.
 func Flat(width, height int) engine.Map {
 	m := engine.NewMap(width, height)
@@ -139,6 +153,9 @@ func Constrained(width, height int) engine.Map {
 	// Coins are issued on the humans' ground, as their food is (stage
 	// 11-2a): beasts have nothing to buy.
 	m.RegionCoin = append([]float64(nil), m.PoolFood["human food"]...)
+	// One shop (stage 11-2b), in the middle of the richer human region,
+	// between its two places to rest.
+	m.Shops = []engine.Shop{shop(width/4, (height-beastRows(height))/2)}
 	shelters(&m)
 	return m
 }
@@ -236,6 +253,7 @@ func Patches(width, height int) engine.Map {
 		"beast food": {0, 0, 0, 0, 1},
 	}
 	m.RegionCoin = append([]float64(nil), m.PoolFood["human food"]...) // as on the constrained map
+	m.Shops = []engine.Shop{shop(width/2, height/2)}                   // in the middle, between the patches
 	shelters(&m)
 	return m
 }

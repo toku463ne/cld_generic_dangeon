@@ -113,7 +113,11 @@ type result struct {
 	// living bodies of a species that takes coins holding any, and the
 	// coins taken up and left by the dead over the run (stage 11-2a).
 	coinsIssued, coinsHeld, coinHolders, coinsPicked, coinsDropped float64
-	killedAsleep, killedAway                                       float64
+	// bought and buysFailed count the units bought at shops and the
+	// tries turned down; coinsFunds are the coins the shops hold at the
+	// end (stage 11-2b).
+	bought, buysFailed, coinsFunds float64
+	killedAsleep, killedAway       float64
 	// callsAttacked, callsDefeated and callsHeard count the calls of a
 	// body struck, of a hunter struck down, and the hearers (stage 10-4).
 	callsAttacked, callsDefeated, callsHeard float64
@@ -805,6 +809,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	cl := w.CoinLedger()
 	r.coinsIssued, r.coinsHeld = float64(cl.Issued), float64(cl.Held)
 	r.coinsPicked, r.coinsDropped = float64(st.CoinsPicked), float64(st.CoinsDropped)
+	r.bought, r.buysFailed, r.coinsFunds = float64(st.Bought), float64(st.BuysFailed), float64(cl.Funds)
 	if cfg := w.Config(); cfg.Coins {
 		takers, holders := 0, 0
 		for _, b := range w.Bodies() {
@@ -1170,8 +1175,23 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	p("| 交配 | %s |\n| 出生 | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.matings }), 2), births)
 	p("| 種族内の戦い | 0 |\n")
 	p("| 種族間の戦い（攻撃の回数） | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.blows }), 2))
-	for _, e := range []string{"コインを拾った", "売買"} {
-		p("| %s | 0 |\n", e)
+	p("| コインを拾った | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.coinsPicked }), 2))
+	p("| 売買（店で買った） | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.bought }), 2))
+	if collect(rs, func(r result) float64 { return r.coinsIssued })[0] > 0 {
+		for _, e := range []struct {
+			name string
+			prec int
+			f    func(result) float64
+		}{
+			{"発行されたコイン", 2, func(r result) float64 { return r.coinsIssued }},
+			{"手持ちのコイン", 2, func(r result) float64 { return r.coinsHeld }},
+			{"コインを持つ身体の割合", 4, func(r result) float64 { return r.coinHolders }},
+			{"死んで残ったコイン", 2, func(r result) float64 { return r.coinsDropped }},
+			{"店に断られた", 2, func(r result) float64 { return r.buysFailed }},
+			{"店のコイン", 2, func(r result) float64 { return r.coinsFunds }},
+		} {
+			p("| %s | %s |\n", e.name, fmtMeanSE(collect(rs, e.f), e.prec))
+		}
 	}
 	p("| 休んでいる母に配られた食料 | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.provisioned }), 2))
 	p("| 交配要求 | %s |\n| 交配要求で成り立った出生 | %s |\n", fmtMeanSE(collect(rs, func(r result) float64 { return r.requests }), 2), fmtMeanSE(collect(rs, func(r result) float64 { return r.requestBirths }), 2))
@@ -1451,6 +1471,9 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"コインを持つ身体の割合", 4, func(r result) float64 { return r.coinHolders }},
 		{"拾われたコイン", 2, func(r result) float64 { return r.coinsPicked }},
 		{"死んで残ったコイン", 2, func(r result) float64 { return r.coinsDropped }},
+		{"店で買った", 2, func(r result) float64 { return r.bought }},
+		{"店に断られた", 2, func(r result) float64 { return r.buysFailed }},
+		{"店のコイン", 2, func(r result) float64 { return r.coinsFunds }},
 		{"テントで眠った夜", 2, func(r result) float64 { return r.tentNights }},
 		{"使い切ったテント", 2, func(r result) float64 { return r.tentsWorn }},
 		{"死んで残ったテント", 2, func(r result) float64 { return r.tentsDropped }},

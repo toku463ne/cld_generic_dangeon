@@ -103,11 +103,16 @@ type PoolLedger struct {
 	// Decayed counts the units that decayed (FoodLife), on the ground or
 	// held.
 	Decayed int64
+	// Stocked is the units the shops hold now, Bought the units bought
+	// from them since the world was built (stage 11-2b).
+	Stocked int
+	Bought  int64
 }
 
 // Balanced reports whether the pool's account closes.
 func (l PoolLedger) Balanced() bool {
-	return int64(l.OnGround+l.Held) == l.Appeared-l.Eaten-l.Lost-l.Decayed && l.OnGround+l.Held <= l.Cap && l.OnGround >= 0 && l.Held >= 0
+	in := l.OnGround + l.Held + l.Stocked
+	return int64(in) == l.Appeared-l.Eaten-l.Lost-l.Decayed && in <= l.Cap && l.OnGround >= 0 && l.Held >= 0 && l.Stocked >= 0
 }
 
 // FoodLedger is the running account of the food: the sum of the pools,
@@ -128,6 +133,9 @@ type FoodLedger struct {
 	// Decayed counts the units that decayed (FoodLife), on the ground or
 	// held.
 	Decayed int64
+	// Stocked and Bought are the pools' (stage 11-2b).
+	Stocked int
+	Bought  int64
 	// Pools is the account of each pool, in the order of Config.Foods.
 	Pools []PoolLedger
 }
@@ -143,7 +151,8 @@ func (l FoodLedger) Balanced() bool {
 		}
 		sum += p.Cap
 	}
-	return int64(l.OnGround+l.Held) == l.Appeared-l.Eaten-l.Lost-l.Decayed && l.OnGround+l.Held <= l.Cap && sum == l.Cap
+	in := l.OnGround + l.Held + l.Stocked
+	return int64(in) == l.Appeared-l.Eaten-l.Lost-l.Decayed && in <= l.Cap && sum == l.Cap
 }
 
 // pool is the state of one pool of food.
@@ -174,7 +183,15 @@ type pool struct {
 	// built.
 	count, held                                         int
 	appeared, eaten, provisioned, picked, lost, decayed int64
+	// stocked is the units the shops hold for sale (stage 11-2b,
+	// shop.go), and bought those bodies have bought from them.
+	stocked int
+	bought  int64
 }
+
+// used is the units of the pool that are somewhere: on the ground, held,
+// or in a shop. The rest are vacant.
+func (pl *pool) used() int { return pl.count + pl.held + pl.stocked }
 
 // foodState is the world's food. foodAt maps a tile to the index of the unit
 // on it plus one, zero for none.
@@ -368,7 +385,7 @@ func (w *World) fillFood() {
 		if s := w.cfg.Foods; p < len(s) && s[p].Start > 0 {
 			want = min(s[p].Start, want)
 		}
-		for w.food.pools[p].count < want {
+		for w.food.pools[p].count < want && w.food.pools[p].used() < w.food.pools[p].cap {
 			if !w.placeFood(w.drawRegion(w.poolShares(p), w.food.pools[p].terrain), p) {
 				break
 			}
@@ -443,7 +460,7 @@ func (w *World) spreadFood(p int, vacant int) {
 	if pl.count < pl.start {
 		if w.shareSum(shares, pl.terrain) > 0 {
 			pl.bed += pl.ret * float64(vacant)
-			for pl.bed >= 1 && pl.count < pl.start && pl.count+pl.held < pl.cap {
+			for pl.bed >= 1 && pl.count < pl.start && pl.used() < pl.cap {
 				if !w.placeFood(w.drawRegion(shares, pl.terrain), p) {
 					break
 				}
@@ -458,7 +475,7 @@ func (w *World) spreadFood(p int, vacant int) {
 	const tries = 8
 	for pl.sown >= 1 {
 		pl.sown--
-		if pl.count+pl.held >= pl.cap {
+		if pl.used() >= pl.cap {
 			continue // a seed past the cap does not grow
 		}
 		// The unit that dropped it, by rejection among all units.
@@ -495,7 +512,7 @@ func (w *World) returnFood() {
 	var resting [][]int // per region, the indices of the mothers resting there
 	for p := range f.pools {
 		pl := &f.pools[p]
-		vacant := pl.cap - pl.count - pl.held
+		vacant := pl.cap - pl.used()
 		if vacant <= 0 || pl.kill {
 			continue
 		}
@@ -517,7 +534,7 @@ func (w *World) returnFood() {
 				continue
 			}
 			pl.owed[r] += pl.ret * float64(vacant) * s / sum
-			for pl.owed[r] >= 1 && pl.count+pl.held < pl.cap {
+			for pl.owed[r] >= 1 && pl.used() < pl.cap {
 				if resting == nil {
 					resting = w.restingMothers()
 				}
@@ -805,7 +822,8 @@ func (w *World) FoodLedger() FoodLedger {
 	var l FoodLedger
 	for _, p := range w.food.pools {
 		pl := PoolLedger{Name: p.name, Kind: p.kind, Cap: p.cap, OnGround: p.count, Appeared: p.appeared, Eaten: p.eaten,
-			Provisioned: p.provisioned, Held: p.held, Picked: p.picked, Lost: p.lost, Decayed: p.decayed}
+			Provisioned: p.provisioned, Held: p.held, Picked: p.picked, Lost: p.lost, Decayed: p.decayed,
+			Stocked: p.stocked, Bought: p.bought}
 		l.Pools = append(l.Pools, pl)
 		l.Cap += pl.Cap
 		l.OnGround += pl.OnGround
@@ -816,6 +834,8 @@ func (w *World) FoodLedger() FoodLedger {
 		l.Picked += pl.Picked
 		l.Lost += pl.Lost
 		l.Decayed += pl.Decayed
+		l.Stocked += pl.Stocked
+		l.Bought += pl.Bought
 	}
 	return l
 }

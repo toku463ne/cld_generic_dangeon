@@ -146,6 +146,13 @@ type Memory struct {
 	// The trade row: how likely an offer is to be taken.
 	Offers, Traded float64 `json:",omitempty"`
 	Trade          Tally   `json:",omitempty"`
+	// Shops are the shops it knows, by index (stage 11-2b); Buys and
+	// Bought count its tries to buy and those that got a unit, and with
+	// AgeBand Buy holds the same by when. The buy row: how likely coins
+	// are to buy a meal.
+	Shops        []int   `json:",omitempty"`
+	Buys, Bought float64 `json:",omitempty"`
+	Buy          Tally   `json:",omitempty"`
 	// Haunt is one past the index of the last tile it stood on of the
 	// ground its species likes, zero for none (Homing, stage 10-5).
 	Haunt int `json:",omitempty"`

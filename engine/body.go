@@ -181,6 +181,9 @@ const (
 	// ActTrade offers the body's tent to another for a unit of food
 	// (Barter, stage 11-1, trade.go).
 	ActTrade
+	// ActBuy pays a shop in reach for a unit of its food (Shops, stage
+	// 11-2b, shop.go); Mate is the shop's index.
+	ActBuy
 	NumActionKinds
 )
 
@@ -311,6 +314,9 @@ type Stats struct {
 	// CoinsPicked and CoinsDropped count the coins taken up from the
 	// ground and those left there by the dead (stage 11-2a).
 	CoinsPicked, CoinsDropped int64 `json:",omitempty"`
+	// Bought counts the units bought at shops, BuysFailed the tries a
+	// shop turned down, empty or full of coins (stage 11-2b).
+	Bought, BuysFailed int64 `json:",omitempty"`
 	// TentsDropped and TentsPicked count the tents left by the dead and
 	// those taken up (stage 8-2a3).
 	TentsDropped, TentsPicked int64 `json:",omitempty"`
@@ -433,7 +439,7 @@ func (w *World) possibleActions(dst []Action, b *Body) []Action {
 			dst = append(dst, Action{Kind: ActMove, Dir: d})
 		}
 	}
-	return w.tradeOptions(w.huntOptions(w.mateOptions(dst, b), b), b)
+	return w.buyOptions(w.tradeOptions(w.huntOptions(w.mateOptions(dst, b), b), b), b)
 }
 
 // act carries out action a of body b, the i-th of the world's bodies; i is
@@ -474,6 +480,8 @@ func (w *World) act(i int, b *Body, a Action) {
 		w.attack(i, b, a.Mate)
 	case ActTrade:
 		w.trade(b, a.Mate)
+	case ActBuy:
+		w.buy(b, int(a.Mate))
 	}
 }
 

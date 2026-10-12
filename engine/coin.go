@@ -36,10 +36,12 @@ type GroundCoin struct {
 // CoinLedger is the coins of the world: those issued, and where they are.
 type CoinLedger struct {
 	Issued, Ground, Held int64
+	// Funds are the coins the shops have taken (stage 11-2b).
+	Funds int64
 }
 
 // Balanced reports whether every coin issued is on the ground or held.
-func (l CoinLedger) Balanced() bool { return l.Issued == l.Ground+l.Held }
+func (l CoinLedger) Balanced() bool { return l.Issued == l.Ground+l.Held+l.Funds }
 
 // validCoins checks the issue's settings.
 func validCoins(cfg Config) error {
@@ -185,6 +187,9 @@ func (w *World) CoinLedger() CoinLedger {
 	}
 	for i := range w.bodies {
 		l.Held += int64(w.bodies[i].Coins)
+	}
+	for _, s := range w.shops {
+		l.Funds += int64(s.fund)
 	}
 	return l
 }

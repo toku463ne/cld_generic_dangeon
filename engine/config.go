@@ -594,6 +594,11 @@ type Config struct {
 	CoinRate    float64
 	CoinHalving int
 	CoinCap     int
+	// Shops opens the map's shops (Map.Shops, stage 11-2b, shop.go): a
+	// body pays coins for a unit of food there, and reads its coins as
+	// that meal with the chance its buy row gives (on PriorTrade and
+	// TradeWeight, the trade row's prior).
+	Shops bool
 	// Hunt lets a body attack the species its row preys on (stage 10-2a,
 	// hunt.go): a blow a tick at HitEnergy times attack over attack plus
 	// defense, and MeatUnits units of the kill pool (Foods with Kill) left
@@ -818,6 +823,7 @@ func DefaultConfig() Config {
 		CoinRate:           0.05,
 		CoinHalving:        10000,
 		CoinCap:            1000,
+		Shops:              true,
 		Hunt:               true,
 		HitEnergy:          50,
 		HuntHunger:         0.5,

@@ -72,6 +72,9 @@ type Map struct {
 	// 11-2a), indexed by RegionID as RegionFood is; empty, the coins
 	// follow RegionFood.
 	RegionCoin []float64 `json:",omitempty"`
+
+	// Shops are the shops the map sets (stage 11-2b, shop.go).
+	Shops []Shop `json:",omitempty"`
 }
 
 // TempRange is the range a region's temperature moves in over a day.
@@ -188,6 +191,9 @@ func (m Map) Validate() error {
 			return fmt.Errorf("pool %s: no region has a food share", name)
 		}
 	}
+	if err := m.validShops(); err != nil {
+		return err
+	}
 	if len(m.RegionCoin) > 0 {
 		if len(m.RegionCoin) != len(m.RegionFood) {
 			return fmt.Errorf("%d regions have a coin share, want %d", len(m.RegionCoin), len(m.RegionFood))
@@ -261,6 +267,7 @@ func (m Map) Clone() Map {
 	c.RegionTemp = append([]TempRange(nil), m.RegionTemp...)
 	c.Shelter = append([]bool(nil), m.Shelter...)
 	c.RegionCoin = append([]float64(nil), m.RegionCoin...)
+	c.Shops = append([]Shop(nil), m.Shops...)
 	c.SeasonFood = nil
 	for _, s := range m.SeasonFood {
 		c.SeasonFood = append(c.SeasonFood, append([]float64(nil), s...))

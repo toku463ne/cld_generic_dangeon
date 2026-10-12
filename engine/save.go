@@ -20,7 +20,7 @@ import (
 // saved, so that a loaded world can build them before play (World.Warm).
 
 // snapshotVersion changes whenever the format does.
-const snapshotVersion = 64
+const snapshotVersion = 65
 
 type snapshot struct {
 	Version int    `json:"version"`
@@ -51,7 +51,9 @@ type snapshot struct {
 	GroundCoins []GroundCoin `json:"groundCoins,omitempty"`
 	CoinDue     float64      `json:"coinDue,omitempty"`
 	CoinsIssued int64        `json:"coinsIssued,omitempty"`
-	Stats       Stats        `json:"stats"`
+	// Shops are the map's shops as they stand (stage 11-2b).
+	Shops []ShopState `json:"shops,omitempty"`
+	Stats Stats       `json:"stats"`
 
 	// Tables are the survival tables the world was reading, for a loaded
 	// world to build ahead (World.Warm). They are the only part of the
@@ -97,6 +99,7 @@ func (w *World) Save(out io.Writer) error {
 		GroundCoins: w.GroundCoins(),
 		CoinDue:     w.coins.due,
 		CoinsIssued: w.coins.issued,
+		Shops:       w.Shops(),
 		Stats:       w.stats,
 		Tables:      w.Tables(),
 	})
@@ -168,6 +171,9 @@ func Load(in io.Reader) (*World, error) {
 	w.places, w.nextPlace = s.Places, s.NextPlace
 	w.groundTents = s.GroundTents
 	if err := w.loadCoins(s.GroundCoins, s.CoinDue, s.CoinsIssued); err != nil {
+		return nil, err
+	}
+	if err := w.loadShops(s.Shops); err != nil {
 		return nil, err
 	}
 	w.loadPlaces()

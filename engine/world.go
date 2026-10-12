@@ -58,6 +58,8 @@ type World struct {
 	groundTents []GroundTent
 	// coins are the coins issued and lying on the ground (stage 11-2a).
 	coins coinState
+	// shops are the map's shops as they stand (stage 11-2b).
+	shops []shopState
 	rates rates // a learning body's estimates, for the decision under way
 
 	// died is the tick each body died, for the provenance instrument
@@ -177,6 +179,7 @@ func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 	w.rng, w.draws = newCountingRand(cfg.Seed)
 	w.initFood()
 	w.initCoins()
+	w.initShops()
 	w.initPrey()
 	w.initOwners()
 	w.initPredict()
@@ -712,6 +715,18 @@ func (w *World) Fingerprint() uint64 {
 		}
 		for _, b := range w.bodies {
 			put(uint64(b.Coins))
+		}
+	}
+	// The shops and what bodies know of them (stage 11-2b).
+	for _, s := range w.shops {
+		put(uint64(s.stock))
+		put(uint64(s.fund))
+	}
+	if len(w.shops) > 0 {
+		for _, b := range w.bodies {
+			put(uint64(len(b.Memory.Shops)))
+			putF(b.Memory.Buys)
+			putF(b.Memory.Bought)
 		}
 	}
 	return h.Sum64()

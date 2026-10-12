@@ -397,6 +397,16 @@ type Valuation struct {
 	// warmth learned of a place to rest, the ground's for a haunt
 	// (Homing, stage 10-5).
 	ShelterBurn []float64
+	// Shop is the nearest shop the body knows and could pay at (stage
+	// 11-2b), if any, and Coin the coin tiles in sight that would make up
+	// its price, CoinRest the ticks from each on to the shop; a Plan past
+	// Shelter points to them; CoinShop is that shop's tile. BuyP is the chance a buy goes through, from
+	// the buy row.
+	Shop     []Food
+	Coin     []Food
+	CoinRest []int
+	CoinShop Food
+	BuyP     float64
 	// Spend is, for each option, the energy the plan its risk was read
 	// from spends over Window ticks (stage 6-3a): what TieSpend breaks
 	// ties by.
@@ -415,7 +425,13 @@ func (v *Valuation) unit(i int) Food {
 	if i -= len(v.Seen); i < len(v.Recalled) {
 		return v.Recalled[i]
 	}
-	return v.Shelter[i-len(v.Recalled)]
+	if i -= len(v.Recalled); i < len(v.Shelter) {
+		return v.Shelter[i]
+	}
+	if i -= len(v.Shelter); i < len(v.Shop) {
+		return v.Shop[i]
+	}
+	return v.Coin[i-len(v.Shop)]
 }
 
 // Value predicts and values every option body b has now. survival is the
@@ -481,6 +497,19 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 		if f, burn, ok := w.hauntAhead(b); ok {
 			v.Shelter, v.ShelterBurn = append(v.Shelter, f), append(v.ShelterBurn, burn)
 		}
+	}
+	// A shop to walk to and buy a meal at, and coins in sight to pick up
+	// on the way when the body cannot pay yet (stage 11-2b).
+	v.Shop, v.Coin, v.CoinRest = v.Shop[:0], v.Coin[:0], v.CoinRest[:0]
+	if f, _, ok := w.shopAhead(b); ok {
+		v.Shop = append(v.Shop, f)
+	}
+	w.coinsAhead(b, func(x, y, rest, shop int) {
+		v.Coin, v.CoinRest = append(v.Coin, Food{X: x, Y: y}), append(v.CoinRest, rest)
+		v.CoinShop = Food{X: w.m.Shops[shop].X, Y: w.m.Shops[shop].Y}
+	})
+	if len(v.Shop) > 0 || len(v.Coin) > 0 {
+		v.BuyP = w.buyRate(b)
 	}
 	// What a plan spends over Window ticks (stage 6-3a): searching burns
 	// as now; a sleep SleepTicks at its burn and the rest of the window at
@@ -596,6 +625,35 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 				risk, plan, arrive = r, len(v.Seen)+len(v.Recalled)+f, k
 			}
 		}
+		// Or walk to a shop and buy a meal there, or to coins and on to
+		// the shop (stage 11-2b): bought with chance BuyP and eaten as a
+		// remembered unit is; turned down, the body keeps on the move
+		// from the shop.
+		buyAt := func(k int, shop Food) float64 {
+			ku := grainsOf(k)
+			if after-ku <= 0 {
+				return 1
+			}
+			fill := top
+			if room {
+				fill += meal
+			}
+			at := alive(w.m.RegionAt(shop.X, shop.Y))
+			return v.BuyP*at.deadAtLeast(win-1-ku, min(after-ku+meal, fill)-1) + (1-v.BuyP)*at.deadAtLeast(win-ku, after-ku)
+		}
+		base := len(v.Seen) + len(v.Recalled) + len(v.Shelter)
+		for f, shop := range v.Shop {
+			k := walkTicks(gapTo(x, shop.X), gapTo(y, shop.Y), speed)
+			if r := buyAt(k, shop); r < risk {
+				risk, plan, arrive = r, base+f, k
+			}
+		}
+		for f, coin := range v.Coin {
+			k := walkTicks(gapTo(x, coin.X), gapTo(y, coin.Y), speed)
+			if r := buyAt(k+v.CoinRest[f], v.CoinShop); r < risk {
+				risk, plan, arrive = r, base+len(v.Shop)+f, k
+			}
+		}
 		return risk, plan, arrive
 	}
 	for _, a := range v.Options {
@@ -619,6 +677,11 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			// The tent for a meal (Barter, stage 11-1): the meal eaten
 			// now, the tent's credit beyond tonight gone.
 			after = min(n+meal, most) - 1 - w.tentCredit(b)
+		case ActBuy:
+			// Coins for a unit, held and eaten as one picked up (stage
+			// 11-2b).
+			after = n + meal - 1
+			top, room = most+meal, b.Held+1 < w.cfg.Carry
 		case ActMate:
 			// Read as agreed and conceived: the share paid, and a child -
 			// with the chance child; otherwise, agreed but not conceived,
@@ -696,11 +759,18 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 				continue
 			}
 			risk, plan, arrive := read(a, x, y, after, eaten, win)
-			if a.Kind == ActTrade {
+			if a.Kind == ActTrade || a.Kind == ActBuy {
 				// Taken with the chance the trade row gives, else a
-				// tick spent as a wait (stage 11-1b).
+				// tick spent as a wait (stage 11-1b); a buy with the
+				// chance its own row gives (stage 11-2b).
 				taken := w.tradeRate(b)
+				if a.Kind == ActBuy {
+					taken = v.BuyP
+				}
+				t0, r0 := top, room
+				top, room = most, b.Held < w.cfg.Carry // turned down, it holds nothing more
 				unpaid, _, _ := read(a, x, y, n-1, eaten, win)
+				top, room = t0, r0
 				risk = taken*risk + (1-taken)*unpaid
 			}
 			if a.Kind == ActMate && c < 1 {
