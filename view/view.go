@@ -862,6 +862,8 @@ func actionName(a engine.Action) string {
 		return fmt.Sprintf("trade #%d", a.Mate)
 	case engine.ActBuy:
 		return fmt.Sprintf("buy good %d at shop %d", a.Dir, a.Mate)
+	case engine.ActSellTo:
+		return fmt.Sprintf("sell item %d to #%d", a.Dir, a.Mate)
 	case engine.ActSell:
 		return fmt.Sprintf("send good %d to shop %d", a.Dir, a.Mate)
 	case engine.ActSleep:

@@ -692,6 +692,10 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			// A thing sent for coins (stage 11-2c): what it is worth to
 			// the body gone, the offer read at what coins buy.
 			after = n - 1 - w.sellLoss(b, a) + int(float64(w.m.Shops[a.Mate].Goods[a.Dir].Offer)*w.coinWorth(b))
+		case ActSellTo:
+			// A thing sold to a body in sight (stage 11-3): its worth
+			// gone, the price asked read at what coins buy.
+			after = n - 1 - w.itemLoss(b, a.Dir) + int(float64(w.askOf(b, a.Dir))*w.coinWorth(b))
 		case ActMate:
 			// Read as agreed and conceived: the share paid, and a child -
 			// with the chance child; otherwise, agreed but not conceived,
@@ -769,7 +773,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 				continue
 			}
 			risk, plan, arrive := read(a, x, y, after, eaten, win)
-			if a.Kind == ActTrade || a.Kind == ActBuy || a.Kind == ActSell {
+			if a.Kind == ActTrade || a.Kind == ActBuy || a.Kind == ActSell || a.Kind == ActSellTo {
 				// Taken with the chance the trade row gives, else a
 				// tick spent as a wait (stage 11-1b); a buy with the
 				// chance its own row gives (stage 11-2b), a sale with
@@ -781,6 +785,8 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 				case ActSell:
 					taken, left = w.sellRate(b), n-1-w.sellLoss(b, a)
 				}
+				// A sale refused is a tick spent as a wait, the thing kept
+				// (stage 11-3).
 				t0, r0 := top, room
 				top, room = most, b.Held < w.cfg.Carry // turned down, it holds nothing more
 				unpaid, _, _ := read(a, x, y, left, eaten, win)

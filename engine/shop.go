@@ -647,22 +647,10 @@ func (w *World) loadShops(saved []ShopState, parcels []Parcel) error {
 
 // sellLoss is what body b reads sending the thing of sale a costs it, in
 // grains: a tent's credit, or a meal for a unit of food - nothing for a
-// unit that will rot in its hand before a meal fits.
+// unit that will rot in its hand before a meal fits (itemLoss).
 func (w *World) sellLoss(b *Body, a Action) int {
-	p := w.shops[a.Mate].goods[a.Dir].pool
-	if p == goodTent {
-		return w.tentCredit(b)
+	if p := w.shops[a.Mate].goods[a.Dir].pool; p >= 0 {
+		return w.itemLoss(b, p+1)
 	}
-	k := heldOf(b, p)
-	if k < 0 {
-		return 0
-	}
-	if w.cfg.FoodLife > 0 {
-		// The ticks until a meal fits, at the burn it reads now.
-		over := b.Energy - (w.maxOf(b) - w.cfg.FoodEnergy)
-		if burn := w.planBurn(b); over > 0 && burn > 0 && b.HeldBorn[k]+int64(w.cfg.FoodLife)-w.tick <= int64(over/burn) {
-			return 0
-		}
-	}
-	return w.pred.meal
+	return w.itemLoss(b, saleTent)
 }

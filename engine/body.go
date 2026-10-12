@@ -187,6 +187,9 @@ const (
 	// ActSell sends a thing the body holds to a shop it knows (Sell,
 	// stage 11-2c); Mate is the shop's index, Dir the good's.
 	ActSell
+	// ActSellTo offers a thing the body holds to another for coins
+	// (SellTo, stage 11-3, sale.go); Mate is the partner, Dir the item.
+	ActSellTo
 	NumActionKinds
 )
 
@@ -325,6 +328,9 @@ type Stats struct {
 	// or coins for and SentSpoiled those that rotted or wore out on the
 	// way (stage 11-2c).
 	TentsBought, Sent, Sold, SentRefused, SentSpoiled int64 `json:",omitempty"`
+	// Sales counts the things one body sold another, SalesRefused the
+	// offers turned down and SalesCoins the coins paid (stage 11-3).
+	Sales, SalesRefused, SalesCoins int64 `json:",omitempty"`
 	// TentsDropped and TentsPicked count the tents left by the dead and
 	// those taken up (stage 8-2a3).
 	TentsDropped, TentsPicked int64 `json:",omitempty"`
@@ -447,7 +453,7 @@ func (w *World) possibleActions(dst []Action, b *Body) []Action {
 			dst = append(dst, Action{Kind: ActMove, Dir: d})
 		}
 	}
-	return w.sellOptions(w.buyOptions(w.tradeOptions(w.huntOptions(w.mateOptions(dst, b), b), b), b), b)
+	return w.saleOptions(w.sellOptions(w.buyOptions(w.tradeOptions(w.huntOptions(w.mateOptions(dst, b), b), b), b), b), b)
 }
 
 // act carries out action a of body b, the i-th of the world's bodies; i is
@@ -492,6 +498,8 @@ func (w *World) act(i int, b *Body, a Action) {
 		w.buy(b, int(a.Mate), a.Dir)
 	case ActSell:
 		w.sell(b, int(a.Mate), a.Dir)
+	case ActSellTo:
+		w.sellTo(b, a.Mate, a.Dir)
 	}
 }
 

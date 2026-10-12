@@ -189,7 +189,7 @@ func (w *World) sawMates(b *Body) uint64 {
 		// range: to any other it is no option.
 		w.requesters(b, func(o *Body) { h += mix(uint64(o.ID)) })
 	}
-	return h + w.sawTraders(b) + w.sawCoins(b) // and those it could offer its tent to (Barter), and coins to buy with (Shops)
+	return h + w.sawTraders(b) + w.sawCoins(b) + w.sawBuyers(b) // and those it could offer its tent to (Barter), and coins to buy with (Shops)
 }
 
 // mix scrambles x (the finalizer of SplitMix64), so that a sum of mixed IDs
