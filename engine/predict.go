@@ -408,10 +408,6 @@ type Valuation struct {
 	CoinRest []int
 	CoinShop Food
 	BuyP     float64
-	// Sign is the nearest sign the body remembers whose thing it would
-	// buy (stage 12-2), walked to as a shop is; a Plan past Coin points
-	// to it.
-	Sign []Food
 	// Spend is, for each option, the energy the plan its risk was read
 	// from spends over Window ticks (stage 6-3a): what TieSpend breaks
 	// ties by.
@@ -436,10 +432,7 @@ func (v *Valuation) unit(i int) Food {
 	if i -= len(v.Shelter); i < len(v.Shop) {
 		return v.Shop[i]
 	}
-	if i -= len(v.Shop); i < len(v.Coin) {
-		return v.Coin[i]
-	}
-	return v.Sign[i-len(v.Coin)]
+	return v.Coin[i-len(v.Shop)]
 }
 
 // Value predicts and values every option body b has now. survival is the
@@ -516,11 +509,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 		v.Coin, v.CoinRest = append(v.Coin, Food{X: x, Y: y}), append(v.CoinRest, rest)
 		v.CoinShop = w.nearestDoor(shop, float64(x)+0.5, float64(y)+0.5)
 	})
-	v.Sign = v.Sign[:0]
-	if f, ok := w.signAhead(b); ok {
-		v.Sign = append(v.Sign, f)
-	}
-	if len(v.Shop) > 0 || len(v.Coin) > 0 || len(v.Sign) > 0 {
+	if len(v.Shop) > 0 || len(v.Coin) > 0 {
 		v.BuyP = w.buyRate(b)
 	}
 	// What a plan spends over Window ticks (stage 6-3a): searching burns
@@ -666,13 +655,6 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 				risk, plan, arrive = r, base+len(v.Shop)+f, k
 			}
 		}
-		// Or walk to a sign and buy there (stage 12-2), as at a shop.
-		for f, sign := range v.Sign {
-			k := walkTicks(gapTo(x, sign.X), gapTo(y, sign.Y), speed)
-			if r := buyAt(k, sign); r < risk {
-				risk, plan, arrive = r, base+len(v.Shop)+len(v.Coin)+f, k
-			}
-		}
 		return risk, plan, arrive
 	}
 	for _, a := range v.Options {
@@ -721,6 +703,20 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 				after = n - 1 - k + w.tentCredit(b)
 			} else {
 				after = n + meal - 1 - k
+				top, room = most+meal, b.Held+1 < w.cfg.Carry
+			}
+		case ActList:
+			// A thing left on a shop's board (stage 12-2), read as one
+			// sent: its worth gone, the price read at what coins buy.
+			after = n - 1 - w.itemLoss(b, a.Dir) + int(float64(w.askOf(b, a.Dir))*w.coinWorth(b))
+		case ActBuyListed:
+			// A thing bought off a board: a unit held and eaten as one
+			// picked up, or a tent's credit for the coins read at what
+			// they buy.
+			if a.Dir == saleTent {
+				after = n - 1 + w.tentCredit(b) - int(float64(w.listings[a.Mate].Price)*w.coinWorth(b))
+			} else {
+				after = n + meal - 1
 				top, room = most+meal, b.Held+1 < w.cfg.Carry
 			}
 		case ActSellTo:
@@ -804,7 +800,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 				continue
 			}
 			risk, plan, arrive := read(a, x, y, after, eaten, win)
-			if a.Kind == ActTrade || a.Kind == ActBuy || a.Kind == ActSell || a.Kind == ActSellTo {
+			if a.Kind == ActTrade || a.Kind == ActBuy || a.Kind == ActSell || a.Kind == ActSellTo || a.Kind == ActList {
 				// Taken with the chance the trade row gives, else a
 				// tick spent as a wait (stage 11-1b); a buy with the
 				// chance its own row gives (stage 11-2b), a sale with
@@ -815,6 +811,8 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 					taken = w.buyRate(b)
 				case ActSell:
 					taken, left = w.sellRate(b), n-1-w.sellLoss(b, a)
+				case ActList:
+					taken, left = w.sellRate(b), n-1-w.itemLoss(b, a.Dir)
 				}
 				// A sale refused is a tick spent as a wait, the thing kept
 				// (stage 11-3).

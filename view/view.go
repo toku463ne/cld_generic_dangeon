@@ -440,10 +440,6 @@ func (v *View) Render(dst *image.RGBA) {
 			strokeRect(dst, d[0]*v.scale, d[1]*v.scale, v.scale, v.scale, shopColor)
 		}
 	}
-	// Signs (stage 12-2): a purple post in the middle of the tile.
-	for _, s := range v.W.Signs() {
-		fillRect(dst, (s.Tile%m.Width)*v.scale+v.scale/2-max(v.scale/8, 1)/2, (s.Tile/m.Width)*v.scale+1, max(v.scale/8, 1), v.scale-2, shopColor)
-	}
 	// Ornaments lying on the ground: a purple dot in the tile's other
 	// corner (stage 11-4).
 	for _, g := range v.W.GroundOrnaments() {
@@ -720,6 +716,13 @@ func (v *View) ShopStatus() string {
 			fmt.Fprintf(&sb, " %s %d/%d", name, gs.Stock, m.Shops[i].Goods[g].StockCap)
 		}
 		fmt.Fprintf(&sb, "  fund %d/%d  on the way %d", s.Fund, m.Shops[i].FundCap, coming[i])
+		board := 0
+		for _, l := range v.W.Listings() {
+			if l.Shop == i {
+				board++
+			}
+		}
+		fmt.Fprintf(&sb, "  board %d", board)
 	}
 	return sb.String()
 }
@@ -914,6 +917,10 @@ func actionName(a engine.Action) string {
 		return fmt.Sprintf("trade #%d", a.Mate)
 	case engine.ActBuy:
 		return fmt.Sprintf("buy good %d at shop %d", a.Dir, a.Mate)
+	case engine.ActList:
+		return fmt.Sprintf("list item %d at shop %d", a.Dir, a.Mate)
+	case engine.ActBuyListed:
+		return fmt.Sprintf("buy listing %d", a.Mate)
 	case engine.ActBuyFrom:
 		return fmt.Sprintf("buy item %d from #%d", a.Dir, a.Mate)
 	case engine.ActSellTo:

@@ -623,12 +623,11 @@ type Config struct {
 	// and a body that would buy it walk there and buy (stage 12-1,
 	// salecall.go).
 	SaleCalls bool
-	// Signs has a body that calls out food to sell put up a sign at its
-	// settlement, standing SignTicks; a body remembers SignMemory signs
-	// it saw (stage 12-2, sign.go).
-	Signs      bool
-	SignTicks  int
-	SignMemory int
+	// Market opens a board at each shop (stage 12-2, market.go): a body
+	// at a door leaves food or a tent there at its own price, MarketCap
+	// things a shop at most, and a body at a door buys at the price listed.
+	Market    bool
+	MarketCap int
 	// Ornaments are the kinds of ornament and Tastes the number of tastes
 	// (stage 11-4, ornament.go): a body is born with a taste, wants an
 	// ornament its taste answers to while it holds none, at WantEnergy;
@@ -873,9 +872,8 @@ func DefaultConfig() Config {
 		SellTo:             true,
 		SellMargin:         1,
 		SaleCalls:          true,
-		Signs:              true,
-		SignTicks:          1000,
-		SignMemory:         4,
+		Market:             true,
+		MarketCap:          20,
 		Ornaments:          DefaultOrnaments(),
 		Tastes:             3,
 		CraftBorn:          0.25,

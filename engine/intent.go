@@ -102,7 +102,6 @@ func (w *World) turn(b *Body) Action {
 	w.noteSpots(b)
 	w.noteShelters(b)
 	w.noteShops(b)
-	w.noteSigns(b)
 	w.valuation.Why = why
 	a := w.decide(b)
 	if taken {
@@ -191,7 +190,7 @@ func (w *World) trigger(b *Body, under bool, saw, mates, threats uint64) Trigger
 		return TriggerSight
 	case mates != b.Mates:
 		return TriggerPartner
-	case b.Intent.Kind == ActWait, b.Intent.Kind == ActMate, b.Intent.Kind == ActPick, b.Intent.Kind == ActAttack, b.Intent.Kind == ActTrade, b.Intent.Kind == ActBuy, b.Intent.Kind == ActSell, b.Intent.Kind == ActSellTo, b.Intent.Kind == ActBuyFrom:
+	case b.Intent.Kind == ActWait, b.Intent.Kind == ActMate, b.Intent.Kind == ActPick, b.Intent.Kind == ActAttack, b.Intent.Kind == ActTrade, b.Intent.Kind == ActBuy, b.Intent.Kind == ActSell, b.Intent.Kind == ActSellTo, b.Intent.Kind == ActBuyFrom, b.Intent.Kind == ActList, b.Intent.Kind == ActBuyListed:
 		return TriggerWaited
 	}
 	if a := b.Intent; a.Kind == ActMove {

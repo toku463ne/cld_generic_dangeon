@@ -200,6 +200,11 @@ const (
 	// salecall.go), walking to it while out of sight; Mate is the
 	// caller, Dir the item.
 	ActBuyFrom
+	// ActList leaves a thing on the board of the shop at whose door the
+	// body stands, and ActBuyListed buys one there (Market, stage 12-2,
+	// market.go); Mate is the shop, or the listing's index, Dir the item.
+	ActList
+	ActBuyListed
 	NumActionKinds
 )
 
@@ -348,9 +353,9 @@ type Stats struct {
 	// SaleCalls counts the calls to sell, CallSales the sales a call
 	// brought about (stage 12-1); these are in Sales too.
 	SaleCalls, CallSales int64 `json:",omitempty"`
-	// Signs counts the signs put up, SignSales the sales at a sign and
-	// SignMisses the walks to a sign that found no sale (stage 12-2).
-	Signs, SignSales, SignMisses int64 `json:",omitempty"`
+	// Listed counts the things left on the shops' boards and ListedSales
+	// those bought there (in Sales too; stage 12-2).
+	Listed, ListedSales int64 `json:",omitempty"`
 	// TentsDropped and TentsPicked count the tents left by the dead and
 	// those taken up (stage 8-2a3).
 	TentsDropped, TentsPicked int64 `json:",omitempty"`
@@ -473,7 +478,7 @@ func (w *World) possibleActions(dst []Action, b *Body) []Action {
 			dst = append(dst, Action{Kind: ActMove, Dir: d})
 		}
 	}
-	return w.callOptions(w.saleOptions(w.sellOptions(w.buyOptions(w.tradeOptions(w.huntOptions(w.mateOptions(dst, b), b), b), b), b), b), b)
+	return w.boardOptions(w.listOptions(w.callOptions(w.saleOptions(w.sellOptions(w.buyOptions(w.tradeOptions(w.huntOptions(w.mateOptions(dst, b), b), b), b), b), b), b), b), b)
 }
 
 // act carries out action a of body b, the i-th of the world's bodies; i is
@@ -522,6 +527,10 @@ func (w *World) act(i int, b *Body, a Action) {
 		w.sellTo(b, a.Mate, a.Dir)
 	case ActBuyFrom:
 		w.buyFrom(i, b, a.Mate)
+	case ActList:
+		w.list(b, int(a.Mate), a.Dir)
+	case ActBuyListed:
+		w.buyListed(b, int(a.Mate))
 	}
 }
 

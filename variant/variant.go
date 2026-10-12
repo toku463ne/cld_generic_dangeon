@@ -159,8 +159,8 @@ const Nosalecall = "nosalecall"
 // before 2026-10-12.
 const Wadefast = "wadefast"
 
-// Nosign is Warmed with no signs (stage 12-2).
-const Nosign = "nosign"
+// Nomarket is Warmed with no board at the shop (stage 12-2).
+const Nomarket = "nomarket"
 
 // Skilled is stage 9-7b-3: every species is born with skills as humans
 // are; Shallow is stage 9-7b-3 too: bodies block each other in water as
@@ -618,10 +618,10 @@ var rewrites = map[string]func(*engine.Config){
 		c.HuntFrom = 5000
 		c.Barter = false
 	},
-	Nosign: func(c *engine.Config) {
+	Nomarket: func(c *engine.Config) {
 		c.FoodCap *= 2
 		c.HuntFrom = 5000
-		c.Signs = false
+		c.Market = false
 	},
 	Wadefast: func(c *engine.Config) {
 		c.FoodCap *= 2
