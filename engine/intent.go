@@ -102,6 +102,7 @@ func (w *World) turn(b *Body) Action {
 	w.noteSpots(b)
 	w.noteShelters(b)
 	w.noteShops(b)
+	w.noteSigns(b)
 	w.valuation.Why = why
 	a := w.decide(b)
 	if taken {

@@ -134,7 +134,10 @@ type result struct {
 	// sales they brought about and the ticks spent walking to callers or
 	// buying from them (stage 12-1).
 	saleCalls, callSales, buyFromTicks float64
-	killedAsleep, killedAway           float64
+	// signs, signSales and signMisses count the signs put up, the sales
+	// at a sign and the walks to one that found no sale (stage 12-2).
+	signs, signSales, signMisses float64
+	killedAsleep, killedAway     float64
 	// callsAttacked, callsDefeated and callsHeard count the calls of a
 	// body struck, of a hunter struck down, and the hearers (stage 10-4).
 	callsAttacked, callsDefeated, callsHeard float64
@@ -833,6 +836,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.ornamentsMade, r.ornamentsPicked = float64(st.OrnamentsMade), float64(st.OrnamentsPicked)
 	r.ornamentsBought, r.ornamentSales = float64(st.OrnamentsBought), float64(st.OrnamentSales)
 	r.saleCalls, r.callSales, r.buyFromTicks = float64(st.SaleCalls), float64(st.CallSales), float64(st.Actions[engine.ActBuyFrom])
+	r.signs, r.signSales, r.signMisses = float64(st.Signs), float64(st.SignSales), float64(st.SignMisses)
 	if cfg := w.Config(); len(cfg.Ornaments) > 0 {
 		tasted, pleased := 0, 0
 		for _, b := range w.Bodies() {
@@ -1239,6 +1243,9 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 			{"売りの声", 2, func(r result) float64 { return r.saleCalls }},
 			{"声で成り立った売買", 2, func(r result) float64 { return r.callSales }},
 			{"声の売り手へ向かった tick", 2, func(r result) float64 { return r.buyFromTicks }},
+			{"立てた看板", 2, func(r result) float64 { return r.signs }},
+			{"看板で成り立った売買", 2, func(r result) float64 { return r.signSales }},
+			{"看板へ行って空振り", 2, func(r result) float64 { return r.signMisses }},
 			{"作った飾り物", 2, func(r result) float64 { return r.ornamentsMade }},
 			{"拾われた飾り物", 2, func(r result) float64 { return r.ornamentsPicked }},
 			{"店で買った飾り物", 2, func(r result) float64 { return r.ornamentsBought }},
@@ -1540,6 +1547,9 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"売りの声", 2, func(r result) float64 { return r.saleCalls }},
 		{"声で成り立った売買", 2, func(r result) float64 { return r.callSales }},
 		{"声の売り手へ向かった tick", 2, func(r result) float64 { return r.buyFromTicks }},
+		{"立てた看板", 2, func(r result) float64 { return r.signs }},
+		{"看板で成り立った売買", 2, func(r result) float64 { return r.signSales }},
+		{"看板へ行って空振り", 2, func(r result) float64 { return r.signMisses }},
 		{"作った飾り物", 2, func(r result) float64 { return r.ornamentsMade }},
 		{"拾われた飾り物", 2, func(r result) float64 { return r.ornamentsPicked }},
 		{"店で買った飾り物", 2, func(r result) float64 { return r.ornamentsBought }},

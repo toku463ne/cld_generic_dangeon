@@ -100,7 +100,9 @@ type World struct {
 	// calling lists the bodies with a call to sell open, and toCaller the
 	// ticks of walking to each caller out of sight for the decision under
 	// way (stage 12-1).
-	calling  []int
+	calling []int
+	// signs are the signs standing (stage 12-2).
+	signs    []Sign
 	toCaller map[int64]int
 }
 
@@ -215,6 +217,7 @@ func (w *World) Step() {
 	w.tick++
 	w.listAsking()
 	w.listCalling()
+	w.wearSigns()
 	w.decayFood()
 	w.returnFood()
 	w.issueCoins()
@@ -769,8 +772,15 @@ func (w *World) Fingerprint() uint64 {
 			put(uint64(g.Tile)<<16 | uint64(g.Kind))
 		}
 	}
+	for _, s := range w.signs {
+		put(uint64(s.Tile))
+		put(uint64(s.Seller))
+		put(uint64(s.Item)<<32 | uint64(s.Price))
+		put(uint64(s.Until))
+	}
 	if w.cfg.SaleCalls && w.cfg.Coins {
 		for _, b := range w.bodies {
+			put(uint64(len(b.Memory.Signs)))
 			if b.Selling.Until > 0 {
 				put(uint64(b.Selling.Until))
 				put(uint64(b.Selling.Item)<<32 | uint64(b.Selling.Price))

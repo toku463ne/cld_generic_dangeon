@@ -440,6 +440,10 @@ func (v *View) Render(dst *image.RGBA) {
 			strokeRect(dst, d[0]*v.scale, d[1]*v.scale, v.scale, v.scale, shopColor)
 		}
 	}
+	// Signs (stage 12-2): a purple post in the middle of the tile.
+	for _, s := range v.W.Signs() {
+		fillRect(dst, (s.Tile%m.Width)*v.scale+v.scale/2-max(v.scale/8, 1)/2, (s.Tile/m.Width)*v.scale+1, max(v.scale/8, 1), v.scale-2, shopColor)
+	}
 	// Ornaments lying on the ground: a purple dot in the tile's other
 	// corner (stage 11-4).
 	for _, g := range v.W.GroundOrnaments() {

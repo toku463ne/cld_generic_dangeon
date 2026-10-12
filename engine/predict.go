@@ -408,6 +408,10 @@ type Valuation struct {
 	CoinRest []int
 	CoinShop Food
 	BuyP     float64
+	// Sign is the nearest sign the body remembers whose thing it would
+	// buy (stage 12-2), walked to as a shop is; a Plan past Coin points
+	// to it.
+	Sign []Food
 	// Spend is, for each option, the energy the plan its risk was read
 	// from spends over Window ticks (stage 6-3a): what TieSpend breaks
 	// ties by.
@@ -432,7 +436,10 @@ func (v *Valuation) unit(i int) Food {
 	if i -= len(v.Shelter); i < len(v.Shop) {
 		return v.Shop[i]
 	}
-	return v.Coin[i-len(v.Shop)]
+	if i -= len(v.Shop); i < len(v.Coin) {
+		return v.Coin[i]
+	}
+	return v.Sign[i-len(v.Coin)]
 }
 
 // Value predicts and values every option body b has now. survival is the
@@ -509,7 +516,11 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 		v.Coin, v.CoinRest = append(v.Coin, Food{X: x, Y: y}), append(v.CoinRest, rest)
 		v.CoinShop = w.nearestDoor(shop, float64(x)+0.5, float64(y)+0.5)
 	})
-	if len(v.Shop) > 0 || len(v.Coin) > 0 {
+	v.Sign = v.Sign[:0]
+	if f, ok := w.signAhead(b); ok {
+		v.Sign = append(v.Sign, f)
+	}
+	if len(v.Shop) > 0 || len(v.Coin) > 0 || len(v.Sign) > 0 {
 		v.BuyP = w.buyRate(b)
 	}
 	// What a plan spends over Window ticks (stage 6-3a): searching burns
@@ -653,6 +664,13 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 			k := walkTicks(gapTo(x, coin.X), gapTo(y, coin.Y), speed)
 			if r := buyAt(k+v.CoinRest[f], v.CoinShop); r < risk {
 				risk, plan, arrive = r, base+len(v.Shop)+f, k
+			}
+		}
+		// Or walk to a sign and buy there (stage 12-2), as at a shop.
+		for f, sign := range v.Sign {
+			k := walkTicks(gapTo(x, sign.X), gapTo(y, sign.Y), speed)
+			if r := buyAt(k, sign); r < risk {
+				risk, plan, arrive = r, base+len(v.Shop)+len(v.Coin)+f, k
 			}
 		}
 		return risk, plan, arrive

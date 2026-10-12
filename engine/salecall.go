@@ -54,6 +54,7 @@ func (w *World) callSale(b *Body) {
 		}
 		b.Selling = SaleCall{Until: w.tick + int64(w.cfg.RequestTicks), Item: item, Price: ask}
 		w.stats.SaleCalls++
+		w.putSign(b, item, ask)
 		w.calling = append(w.calling, w.indexOf(b))
 	})
 }

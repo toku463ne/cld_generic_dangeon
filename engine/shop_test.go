@@ -161,7 +161,7 @@ func TestShopSaveLoad(t *testing.T) {
 // other; the shop made a building with four doors; and 12-1: calls to
 // sell).
 func TestShopFingerprint(t *testing.T) {
-	const want = uint64(0xac4c95ec13851b4f)
+	const want = uint64(0xa5881a23aea8504f)
 	w, err := NewWorld(shopConfig(1), shopMap(20, 100))
 	if err != nil {
 		t.Fatal(err)

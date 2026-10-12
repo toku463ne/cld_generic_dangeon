@@ -348,6 +348,9 @@ type Stats struct {
 	// SaleCalls counts the calls to sell, CallSales the sales a call
 	// brought about (stage 12-1); these are in Sales too.
 	SaleCalls, CallSales int64 `json:",omitempty"`
+	// Signs counts the signs put up, SignSales the sales at a sign and
+	// SignMisses the walks to a sign that found no sale (stage 12-2).
+	Signs, SignSales, SignMisses int64 `json:",omitempty"`
 	// TentsDropped and TentsPicked count the tents left by the dead and
 	// those taken up (stage 8-2a3).
 	TentsDropped, TentsPicked int64 `json:",omitempty"`

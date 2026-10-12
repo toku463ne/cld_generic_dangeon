@@ -150,9 +150,11 @@ type Memory struct {
 	// Bought count its tries to buy and those that got a unit, and with
 	// AgeBand Buy holds the same by when. The buy row: how likely coins
 	// are to buy a meal.
-	Shops        []int   `json:",omitempty"`
-	Buys, Bought float64 `json:",omitempty"`
-	Buy          Tally   `json:",omitempty"`
+	Shops []int `json:",omitempty"`
+	// Signs are the signs it has seen, newest first (Signs, stage 12-2).
+	Signs        []SignNote `json:",omitempty"`
+	Buys, Bought float64    `json:",omitempty"`
+	Buy          Tally      `json:",omitempty"`
 	// Sends and Paid count the things it sent to shops and those paid
 	// for, and with AgeBand Sell holds the same by when (stage 11-2c):
 	// the sell row.

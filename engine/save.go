@@ -20,7 +20,7 @@ import (
 // saved, so that a loaded world can build them before play (World.Warm).
 
 // snapshotVersion changes whenever the format does.
-const snapshotVersion = 67
+const snapshotVersion = 68
 
 type snapshot struct {
 	Version int    `json:"version"`
@@ -57,7 +57,9 @@ type snapshot struct {
 	Parcels []Parcel `json:"parcels,omitempty"`
 	// GroundOrnaments are the ornaments lying on the ground (stage 11-4).
 	GroundOrnaments []GroundOrnament `json:"groundOrnaments,omitempty"`
-	Stats           Stats            `json:"stats"`
+	// Signs are the signs standing (stage 12-2).
+	Signs []Sign `json:"signs,omitempty"`
+	Stats Stats  `json:"stats"`
 
 	// Tables are the survival tables the world was reading, for a loaded
 	// world to build ahead (World.Warm). They are the only part of the
@@ -106,6 +108,7 @@ func (w *World) Save(out io.Writer) error {
 		Shops:           w.Shops(),
 		Parcels:         w.parcels,
 		GroundOrnaments: w.groundOrnaments,
+		Signs:           w.signs,
 		Stats:           w.stats,
 		Tables:          w.Tables(),
 	})
@@ -184,6 +187,7 @@ func Load(in io.Reader) (*World, error) {
 		return nil, err
 	}
 	w.groundOrnaments = s.GroundOrnaments
+	w.signs = s.Signs
 	w.loadPlaces()
 	w.initPrey()
 	w.initOwners()
