@@ -31,7 +31,7 @@ go run ./cmd/experiment -map flat -w 64 -h 48
 
 | オプション | 意味 |
 | --- | --- |
-| `-map` | 地図。`flat`（全面が陸・地域1つ）/ `constrained`（地域4つ・陸を二分する水の帯）/ `seasons`（constrained の取り分が 1000 tick ごとに1象限ずつ時計回りに移る） / `patches`（全面が陸、食料は菱形に並ぶ 10 四方の4か所だけに戻る。8-1b）。constrained と patches では人間の食料と獣の食料が別の地域に戻る（constrained は上 9 分の 8 と足元の帯、patches は上・左・右と下。9-7b-2、8:1 は 2026-10-11）。flat と seasons では全部の池が地図全体に戻る。`waters` は constrained の水の帯を 8 タイル幅にし、魚の食料が水の中に戻る（9-7b-2c。魚は条件 `fish` で足す） |
+| `-map` | 地図。`flat`（全面が陸・地域1つ）/ `constrained`（地域4つ・陸を二分する水の帯）/ `seasons`（constrained の取り分が 1000 tick ごとに1象限ずつ時計回りに移る） / `patches`（全面が陸、食料は菱形に並ぶ 10 四方の4か所だけに戻る。8-1b）。constrained と patches では人間の食料と獣の食料が別の地域に戻る（constrained は上 9 分の 8 と足元の帯、patches は上・左・右と下。9-7b-2、8:1 は 2026-10-11）。flat と seasons では全部の池が地図全体に戻る。`waters` は constrained の水の帯を 8 タイル幅にし、魚の食料が水の中に戻る（9-7b-2c。魚は条件 `fish` で足す）。`constrainedeven` は人間と獣が 1:1（`constrainedeven75`・`constrainedeven50` は獣の食料を 75%・50% に）。`trainhuman`・`trainbeast` は種族ごとの訓練ステージ（その種族だけ・好む地形・自分の食料。13-1） |
 | `-w` / `-h` | 地図の幅・高さ（タイル数）。必須 |
 | `-seeds` | シード数（既定 12。1-5 で確定、`PARAMETERS.md`） |
 | `-seed0` | 最初のシード（既定 1） |

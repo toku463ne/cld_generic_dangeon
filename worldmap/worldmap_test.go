@@ -196,3 +196,44 @@ func TestWaters(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A training stage holds its species alone, on the terrain it likes, with
+// all the food it is given its own (stage 13-1).
+func TestTrainHoldsOneSpecies(t *testing.T) {
+	for _, c := range []struct {
+		species, food string
+		terrain       engine.Terrain
+	}{{"human", "human food", engine.TerrainLand}, {"beast", "beast food", engine.TerrainForest}} {
+		m := Train(32, 24, c.species)
+		for i := range m.Terrain {
+			if m.Terrain[i] != c.terrain {
+				t.Fatalf("%s: tile %d is terrain %d", c.species, i, m.Terrain[i])
+			}
+		}
+		cfg := engine.DefaultConfig()
+		cfg.Seed = 1
+		w, err := engine.NewWorld(cfg, m)
+		if err != nil {
+			t.Fatalf("%s: %v", c.species, err)
+		}
+		for i := 0; i < 200; i++ {
+			w.Step()
+		}
+		if len(w.Bodies()) == 0 {
+			t.Fatalf("%s: no body left", c.species)
+		}
+		for _, b := range w.Bodies() {
+			if w.SpeciesName(b.Species) != c.species {
+				t.Fatalf("%s: a body of species %s", c.species, w.SpeciesName(b.Species))
+			}
+		}
+		for _, p := range w.FoodLedger().Pools {
+			if p.Name != c.food && p.Appeared > 0 {
+				t.Fatalf("%s: %d units of %s appeared", c.species, p.Appeared, p.Name)
+			}
+			if p.Name == c.food && p.Appeared == 0 {
+				t.Fatalf("%s: none of its food appeared", c.species)
+			}
+		}
+	}
+}

@@ -106,6 +106,10 @@ type result struct {
 	// sleptAfield counts the sleeps begun on ground the sleeper's species
 	// does not like (stage 10-5).
 	sleptAfield float64
+	// genoStart and genoEnd count the living of each species at each
+	// level of each slot of the genome at tick 0, halfway and at the end
+	// (stage 13-1, genotype.go).
+	genoStart, genoHalf, genoEnd [][]map[int]float64
 	// trades and tradesRefused count the tents traded for food and the
 	// offers refused (stage 11-1).
 	trades, tradesRefused float64
@@ -365,6 +369,18 @@ func run(out, log io.Writer, o options, command string) error {
 		}
 		fmt.Fprint(out, "\n"+rep[i:i+end])
 	}
+	// And the genotype instrument (stage 13-1): the question of a
+	// training stage, read in every size of measurement.
+	for _, v := range o.variants {
+		h := "### 補助の表: 遺伝子型の分布（" + v + "、"
+		if i := strings.Index(rep, h); i >= 0 {
+			end := strings.Index(rep[i+len(h):], "### ")
+			if end < 0 {
+				end = len(rep) - i - len(h)
+			}
+			fmt.Fprint(out, "\n"+rep[i:i+len(h)+end])
+		}
+	}
 	return nil
 }
 
@@ -405,6 +421,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		r.surviving = append(r.surviving, n > floor)
 	}
 	record()
+	r.genoStart = genoHist(w, species)
 	r.series = append(r.series, int32(len(w.Bodies())))
 	r.valley = math.Inf(1)
 	r.lives, r.lifeKids = map[float64]float64{}, map[float64]float64{}
@@ -465,6 +482,9 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		}
 		if t == 5000 {
 			st5 = w.Stats()
+		}
+		if t == half {
+			r.genoHalf = genoHist(w, species)
 		}
 		r.series = append(r.series, int32(len(w.Bodies())))
 		r.valley = math.Min(r.valley, float64(len(w.Bodies())))
@@ -741,6 +761,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	if plantN > 0 {
 		r.plants, r.plantRegions = plantSum/plantN, plantRegionSum/plantN
 	}
+	r.genoEnd = genoHist(w, species)
 	r.displace, r.edge = dSum/math.Max(dN, 1), eSum/math.Max(eN, 1)
 	r.unknown = uSum / math.Max(uN, 1)
 	r.back = backs / math.Max(traced, 1)
@@ -1348,6 +1369,7 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 	if baseCfg, _ := variant.Config(base, o.seed0); baseCfg.Allot {
 		writeAllot(p, o, rs, every, rows)
 	}
+	writeGenotype(p, o, results)
 	if baseCfg, _ := variant.Config(base, o.seed0); baseCfg.AllotFertility {
 		p("### 補助の表: 繁殖能力の段ごとの交配と出生（%s）\n\n", base)
 		p("成立した交配と出生に親として入った身体を段ごとに数えたもの（1回の交配で両親それぞれ 1）。出生率はシードごとの出生 ÷ 交配。\n\n")
