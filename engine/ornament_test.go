@@ -169,7 +169,7 @@ func TestOrnamentsChangeHands(t *testing.T) {
 
 // With ornaments, the world is stage 11-4: its fingerprint is pinned here.
 func TestOrnamentFingerprint(t *testing.T) {
-	const want = uint64(0xd715585ee4f079c4)
+	const want = uint64(0xcd782bea564b49c)
 	w, err := NewWorld(ornamentConfig(1), ornamentMap())
 	if err != nil {
 		t.Fatal(err)
@@ -177,5 +177,36 @@ func TestOrnamentFingerprint(t *testing.T) {
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
 		t.Fatalf("fingerprint = %#x, want %#x (made %d)", got, want, w.Stats().OrnamentsMade)
+	}
+}
+
+// A maker for a shop draws among the kinds the shop pays alike for: every
+// kind gets made, the added ones too.
+func TestCraftDrawsAmongTies(t *testing.T) {
+	cfg := ornamentConfig(4)
+	cfg.Ornaments = SixOrnaments()
+	cfg.Bodies = 0
+	m := ornamentMap()
+	for _, o := range SixOrnaments()[3:] {
+		m.Shops[0].Goods = append(m.Shops[0].Goods, Good{Item: o.Name, Price: 3, Offer: 2, StockCap: 4})
+	}
+	w, err := NewWorld(cfg, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	made := map[int]bool{}
+	for i := 0; i < 60; i++ {
+		b := shopper(int64(i), 9.5, 5.5, 0)
+		b.Skill[SkillCraft] = 1
+		b.Taste = 1            // likes bead and feather
+		b.Ornaments = []int{0} // holds a bead: wants none, has room for one
+		w.rememberShop(&b, 0)
+		w.craft(&b, Action{Kind: ActSleep})
+		if len(b.Ornaments) == 2 {
+			made[b.Ornaments[1]] = true
+		}
+	}
+	if len(made) != 6 {
+		t.Fatalf("kinds made for the shop %v, want all six", made)
 	}
 }

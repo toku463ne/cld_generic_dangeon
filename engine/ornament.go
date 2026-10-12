@@ -134,24 +134,34 @@ func (w *World) ornamentOffer(b *Body, k int) float64 {
 // craft has body b, falling asleep (a is ActSleep), make an ornament if
 // it has the skill, the room and the energy, and the ornament is worth
 // more to it than CraftEnergy: the kind it wants, or else the kind a shop
-// it knows pays most for (the first such kind on a tie).
+// it knows pays most for - drawn among the kinds tied for the most, as a
+// decision draws among tied options (taking the first, a maker for a shop
+// made only the first kind, and kinds added alike were never made).
 func (w *World) craft(b *Body, a Action) {
 	if a.Kind != ActSleep || !w.ornaments() || b.Skill[SkillCraft] <= 0 || b.Mature > w.tick ||
 		len(b.Ornaments) >= w.cfg.OrnamentCarry || b.Energy <= w.cfg.CraftEnergy {
 		return
 	}
-	kind, worth := -1, 0.0
+	worth := 0.0
+	var best []int
 	for k := range w.cfg.Ornaments {
 		v := w.ornamentOffer(b, k)
 		if w.wants(b, k) {
 			v = math.Max(v, float64(w.wantGrains()))
 		}
-		if v > worth {
-			kind, worth = k, v
+		switch {
+		case v > worth:
+			worth, best = v, append(best[:0], k)
+		case v == worth && v > 0:
+			best = append(best, k)
 		}
 	}
-	if kind < 0 || worth <= float64(w.units(w.cfg.CraftEnergy)) {
+	if len(best) == 0 || worth <= float64(w.units(w.cfg.CraftEnergy)) {
 		return
+	}
+	kind := best[0]
+	if len(best) > 1 {
+		kind = best[w.rng.Intn(len(best))]
 	}
 	b.Energy -= w.cfg.CraftEnergy
 	b.Ornaments = append(b.Ornaments, kind)
