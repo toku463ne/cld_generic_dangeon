@@ -103,7 +103,9 @@ func shop(x, y int) engine.Shop {
 		{Item: "human food", Price: ShopPrice, Offer: ShopOffer, Stock: ShopStock, StockCap: ShopCap},
 		{Item: engine.TentGood, Price: TentPrice, Offer: TentOffer, StockCap: TentCap},
 	}}
-	for _, o := range engine.DefaultOrnaments() {
+	// Every kind a world may have (engine.SixOrnaments); a kind the world
+	// lacks is a good the shop keeps shut.
+	for _, o := range engine.SixOrnaments() {
 		s.Goods = append(s.Goods, engine.Good{Item: o.Name, Price: OrnamentPrice, Offer: OrnamentOffer, StockCap: OrnamentCap})
 	}
 	return s

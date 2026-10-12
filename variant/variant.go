@@ -148,6 +148,10 @@ const Nosale = "nosale"
 // Noornament is Warmed with no tastes and no ornaments (stage 11-4).
 const Noornament = "noornament"
 
+// Ornament6 is Warmed with six kinds of ornament, not three (stage 11-4:
+// VISION_CHECKS "more kinds, more trades").
+const Ornament6 = "ornament6"
+
 // Skilled is stage 9-7b-3: every species is born with skills as humans
 // are; Shallow is stage 9-7b-3 too: bodies block each other in water as
 // on land. Both are the controls of stage 9-7b-4 on Roomy's cap.
@@ -603,6 +607,11 @@ var rewrites = map[string]func(*engine.Config){
 		c.FoodCap *= 2
 		c.HuntFrom = 5000
 		c.Barter = false
+	},
+	Ornament6: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.HuntFrom = 5000
+		c.Ornaments = engine.SixOrnaments()
 	},
 	Noornament: func(c *engine.Config) {
 		c.FoodCap *= 2

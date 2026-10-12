@@ -884,3 +884,9 @@ func DefaultConfig() Config {
 func DefaultOrnaments() []OrnamentSpec {
 	return []OrnamentSpec{{Name: "bead", Tastes: []int{0, 1}}, {Name: "shell", Tastes: []int{1, 2}}, {Name: "feather", Tastes: []int{2, 0}}}
 }
+
+// SixOrnaments is DefaultOrnaments and three kinds more, each answering
+// to one taste (the sweep of stage 11-4: do more kinds make more trades?).
+func SixOrnaments() []OrnamentSpec {
+	return append(DefaultOrnaments(), OrnamentSpec{Name: "stone", Tastes: []int{0}}, OrnamentSpec{Name: "ring", Tastes: []int{1}}, OrnamentSpec{Name: "comb", Tastes: []int{2}})
+}
