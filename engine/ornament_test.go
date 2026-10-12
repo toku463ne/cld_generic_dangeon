@@ -145,7 +145,7 @@ func TestOrnamentsChangeHands(t *testing.T) {
 		t.Fatalf("feather sent: stock %d coins %d count %d of %d", w.shops[0].goods[g].stock, s.Coins, w.OrnamentCount(), n)
 	}
 	// A body that wants a feather, at the shop, buys it there.
-	fan := shopper(2, 2.5, 3.5, 4)
+	fan := shopper(2, 2.5, 5.5, 4) // at the west door
 	fan.Taste = 3
 	w.bodies = append(w.bodies, fan)
 	f := &w.bodies[2]
@@ -160,7 +160,7 @@ func TestOrnamentsChangeHands(t *testing.T) {
 		t.Fatalf("on the ground %v, count %d", w.groundOrnaments, w.OrnamentCount())
 	}
 	p = &w.bodies[1]
-	p.X, p.Y = 2.5, 3.5
+	p.X, p.Y = 2.5, 5.5
 	w.pickOrnaments(p)
 	if len(w.groundOrnaments) != 0 || len(p.Ornaments) != 2 {
 		t.Fatalf("picked: %v", p.Ornaments)
@@ -169,7 +169,7 @@ func TestOrnamentsChangeHands(t *testing.T) {
 
 // With ornaments, the world is stage 11-4: its fingerprint is pinned here.
 func TestOrnamentFingerprint(t *testing.T) {
-	const want = uint64(0xb01bc9424f48024c)
+	const want = uint64(0xd715585ee4f079c4)
 	w, err := NewWorld(ornamentConfig(1), ornamentMap())
 	if err != nil {
 		t.Fatal(err)

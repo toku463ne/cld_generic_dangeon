@@ -60,6 +60,8 @@ type World struct {
 	coins coinState
 	// shops are the map's shops as they stand (stage 11-2b).
 	shops []shopState
+	// shopAt marks, per tile, a shop's walls and doors (nil: no shops).
+	shopAt []int8
 	// parcels are the things on their way to the shops (stage 11-2c).
 	parcels []Parcel
 	// groundOrnaments are the ornaments lying on the ground (stage 11-4).
@@ -184,6 +186,7 @@ func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 		}
 	}
 	w.rng, w.draws = newCountingRand(cfg.Seed)
+	w.initShopTiles()
 	w.initFood()
 	w.initCoins()
 	w.initShops()

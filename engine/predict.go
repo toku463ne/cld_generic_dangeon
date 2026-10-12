@@ -400,7 +400,8 @@ type Valuation struct {
 	// Shop is the nearest shop the body knows and could pay at (stage
 	// 11-2b), if any, and Coin the coin tiles in sight that would make up
 	// its price, CoinRest the ticks from each on to the shop; a Plan past
-	// Shelter points to them; CoinShop is that shop's tile. BuyP is the chance a buy goes through, from
+	// Shelter points to them; CoinShop is the door of that shop nearest the
+	// coins (the last read). BuyP is the chance a buy goes through, from
 	// the buy row.
 	Shop     []Food
 	Coin     []Food
@@ -506,7 +507,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 	}
 	w.coinsAhead(b, func(x, y, rest, shop int) {
 		v.Coin, v.CoinRest = append(v.Coin, Food{X: x, Y: y}), append(v.CoinRest, rest)
-		v.CoinShop = Food{X: w.m.Shops[shop].X, Y: w.m.Shops[shop].Y}
+		v.CoinShop = w.nearestDoor(shop, float64(x)+0.5, float64(y)+0.5)
 	})
 	if len(v.Shop) > 0 || len(v.Coin) > 0 {
 		v.BuyP = w.buyRate(b)

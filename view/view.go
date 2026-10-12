@@ -431,11 +431,14 @@ func (v *View) Render(dst *image.RGBA) {
 		s := max(v.scale/3, 1)
 		fillRect(dst, (g.Tile%m.Width)*v.scale+v.scale/2-s/2, (g.Tile/m.Width)*v.scale+v.scale/2-s/2, s, s, tentColor)
 	}
-	// The map's shops: the tile filled purple, and the tiles a body buys
-	// from (the shop's and those next to it) outlined.
+	// The map's shops: the building (three tiles square, walls no body
+	// walks through) filled purple, and its four doors, where a body
+	// stands to buy, outlined.
 	for _, s := range m.Shops {
-		fillRect(dst, s.X*v.scale, s.Y*v.scale, v.scale, v.scale, shopColor)
-		strokeRect(dst, (s.X-1)*v.scale, (s.Y-1)*v.scale, 3*v.scale, 3*v.scale, shopColor)
+		fillRect(dst, (s.X-1)*v.scale, (s.Y-1)*v.scale, 3*v.scale, 3*v.scale, shopColor)
+		for _, d := range [4][2]int{{s.X, s.Y - 2}, {s.X + 2, s.Y}, {s.X, s.Y + 2}, {s.X - 2, s.Y}} {
+			strokeRect(dst, d[0]*v.scale, d[1]*v.scale, v.scale, v.scale, shopColor)
+		}
 	}
 	// Ornaments lying on the ground: a purple dot in the tile's other
 	// corner (stage 11-4).

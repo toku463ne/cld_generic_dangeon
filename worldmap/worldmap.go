@@ -89,6 +89,15 @@ const (
 	ShopFund      = 500
 )
 
+// addShop sets the map's shop centred on (x, y), where its building and
+// doors fit (a small map may have no room between its places to rest).
+func addShop(m *engine.Map, x, y int) {
+	m.Shops = []engine.Shop{shop(x, y)}
+	if m.Validate() != nil {
+		m.Shops = nil
+	}
+}
+
 func shop(x, y int) engine.Shop {
 	s := engine.Shop{X: x, Y: y, FundCap: ShopFund, Goods: []engine.Good{
 		{Item: "human food", Price: ShopPrice, Offer: ShopOffer, Stock: ShopStock, StockCap: ShopCap},
@@ -174,10 +183,10 @@ func Constrained(width, height int) engine.Map {
 	// Coins are issued on the humans' ground, as their food is (stage
 	// 11-2a): beasts have nothing to buy.
 	m.RegionCoin = append([]float64(nil), m.PoolFood["human food"]...)
+	shelters(&m)
 	// One shop (stage 11-2b), in the middle of the richer human region,
 	// between its two places to rest.
-	m.Shops = []engine.Shop{shop(width/4, (height-beastRows(height))/2)}
-	shelters(&m)
+	addShop(&m, width/4, (height-beastRows(height))/2)
 	return m
 }
 
@@ -274,7 +283,7 @@ func Patches(width, height int) engine.Map {
 		"beast food": {0, 0, 0, 0, 1},
 	}
 	m.RegionCoin = append([]float64(nil), m.PoolFood["human food"]...) // as on the constrained map
-	m.Shops = []engine.Shop{shop(width/2, height/2)}                   // in the middle, between the patches
 	shelters(&m)
+	addShop(&m, width/2, height/2) // in the middle, between the patches
 	return m
 }

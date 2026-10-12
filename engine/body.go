@@ -376,7 +376,7 @@ func (w *World) placeBodies(genomes []Genome) {
 	// or anywhere on land where it comes back nowhere.
 	var land []int
 	for i, t := range w.m.Terrain {
-		if t.Ground() {
+		if t.Ground() && !w.walled(i) {
 			land = append(land, i)
 		}
 	}
@@ -387,7 +387,7 @@ func (w *World) placeBodies(genomes []Genome) {
 	for s := range homes {
 		var can []int
 		for i, t := range w.m.Terrain {
-			if w.specOf(s).enters(t) { // its own terrains, not wading
+			if w.specOf(s).enters(t) && !w.walled(i) { // its own terrains, not wading
 				can = append(can, i)
 			}
 		}

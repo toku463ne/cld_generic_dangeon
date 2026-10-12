@@ -109,9 +109,24 @@ type Parcel struct {
 
 // validShops checks the map's shops.
 func (m Map) validShops() error {
+	used := map[int]bool{}
 	for i, s := range m.Shops {
-		if !m.InBounds(s.X, s.Y) || !m.Terrain[m.index(s.X, s.Y)].Ground() {
-			return fmt.Errorf("shop %d at (%d,%d) is not on ground", i, s.X, s.Y)
+		// The building, its walls and its doors, on ground, clear of the
+		// places to rest and of every other shop.
+		var tiles [][2]int
+		for y := s.Y - 1; y <= s.Y+1; y++ {
+			for x := s.X - 1; x <= s.X+1; x++ {
+				tiles = append(tiles, [2]int{x, y})
+			}
+		}
+		for _, d := range shopDoors(s.X, s.Y) {
+			tiles = append(tiles, d)
+		}
+		for _, c := range tiles {
+			if !m.InBounds(c[0], c[1]) || !m.Terrain[m.index(c[0], c[1])].Ground() || m.ShelterAt(c[0], c[1]) || used[m.index(c[0], c[1])] {
+				return fmt.Errorf("shop %d at (%d,%d): tile (%d,%d) is off the map, not ground, a place to rest or another shop's", i, s.X, s.Y, c[0], c[1])
+			}
+			used[m.index(c[0], c[1])] = true
 		}
 		if s.FundCap < 0 {
 			return fmt.Errorf("shop %d: fund cap %d", i, s.FundCap)
@@ -220,10 +235,10 @@ func (w *World) mayBuyAt(b *Body, i, g int) bool {
 	return false
 }
 
-// inReach reports whether body b stands on shop i's tile or next to it.
+// inReach reports whether body b stands at one of shop i's doors.
 func (w *World) inReach(b *Body, i int) bool {
-	s := w.m.Shops[i]
-	return math.Abs(math.Floor(b.X)-float64(s.X)) <= 1 && math.Abs(math.Floor(b.Y)-float64(s.Y)) <= 1
+	t := w.tileOf(b.X, b.Y)
+	return t >= 0 && w.atDoor(i, t)
 }
 
 // onSale reports whether good g of shop i can be sold now: the shop
@@ -489,7 +504,7 @@ func (w *World) noteShops(b *Body) {
 	}
 	if w.cfg.ShopSight && b.Goal >= 0 {
 		for i := range w.shops {
-			if b.Goal != w.shopTile(i) || !w.inReach(b, i) {
+			if !w.atDoor(i, b.Goal) || !w.inReach(b, i) {
 				continue
 			}
 			if g := w.foodGood(b, i); g >= 0 && w.mayBuyAt(b, i, g) && !w.onSale(i, g) {
@@ -534,9 +549,9 @@ func (w *World) shopAhead(b *Body) (f Food, ok bool) {
 		if g := w.foodGood(b, k); g < 0 || !w.mayBuyAt(b, k, g) {
 			continue
 		}
-		s := w.m.Shops[k]
-		if d := octile(gapTo(b.X, s.X), gapTo(b.Y, s.Y)); d < best {
-			best, f, ok = d, Food{X: s.X, Y: s.Y}, true
+		door := w.nearestDoor(k, b.X, b.Y)
+		if d := octile(gapTo(b.X, door.X), gapTo(b.Y, door.Y)); d < best {
+			best, f, ok = d, door, true
 		}
 	}
 	return f, ok
@@ -574,7 +589,6 @@ func (w *World) coinsAhead(b *Body, f func(x, y, rest, shop int)) {
 	if k < 0 {
 		return
 	}
-	s := w.m.Shops[k]
 	speed := w.speedOf(b)
 	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
 	for y := by - sight; y <= by+sight; y++ {
@@ -583,7 +597,8 @@ func (w *World) coinsAhead(b *Body, f func(x, y, rest, shop int)) {
 				continue
 			}
 			if n := int(w.coins.at[w.m.index(x, y)]); n > 0 && b.Coins+n >= price && w.seesFrom(b, bx, by, x, y) {
-				f(x, y, walkTicks(gapTo(float64(x)+0.5, s.X), gapTo(float64(y)+0.5, s.Y), speed), k)
+				door := w.nearestDoor(k, float64(x)+0.5, float64(y)+0.5)
+				f(x, y, walkTicks(gapTo(float64(x)+0.5, door.X), gapTo(float64(y)+0.5, door.Y), speed), k)
 			}
 		}
 	}
@@ -665,4 +680,71 @@ func (w *World) sellLoss(b *Body, a Action) int {
 		return w.itemLoss(b, ornamentItem+goodOrnament-p)
 	}
 	return w.itemLoss(b, saleTent)
+}
+
+// A shop is a building (the user's design 2026-10-12): its tile and the
+// eight round it are walls no body walks through, nothing is put on, and
+// no settlement is built over; the tile just outside the middle of each
+// side is a door, where a body stands to buy. Doors are ground like any
+// other, except that no settlement covers them.
+const (
+	shopWall = 1
+	shopDoor = 2
+)
+
+// shopDoors is the doors of a shop centred on (x, y): north, east, south,
+// west.
+func shopDoors(x, y int) [4][2]int {
+	return [4][2]int{{x, y - 2}, {x + 2, y}, {x, y + 2}, {x - 2, y}}
+}
+
+// initShopTiles marks the map's shops' walls and doors. It reads the map
+// only, so a world with the shops shut still has the buildings.
+func (w *World) initShopTiles() {
+	w.shopAt = nil
+	if len(w.m.Shops) == 0 {
+		return
+	}
+	w.shopAt = make([]int8, w.m.Width*w.m.Height)
+	for _, s := range w.m.Shops {
+		for y := s.Y - 1; y <= s.Y+1; y++ {
+			for x := s.X - 1; x <= s.X+1; x++ {
+				w.shopAt[w.m.index(x, y)] = shopWall
+			}
+		}
+		for _, d := range shopDoors(s.X, s.Y) {
+			w.shopAt[w.m.index(d[0], d[1])] = shopDoor
+		}
+	}
+}
+
+// walled reports whether tile t is a shop's wall.
+func (w *World) walled(t int) bool { return w.shopAt != nil && w.shopAt[t] == shopWall }
+
+// shopGround reports whether tile t is a shop's wall or door: no
+// settlement is built on it.
+func (w *World) shopGround(t int) bool { return w.shopAt != nil && w.shopAt[t] != 0 }
+
+// nearestDoor is the door of shop i nearest to (x, y), as a tile to walk
+// to.
+func (w *World) nearestDoor(i int, x, y float64) Food {
+	s := w.m.Shops[i]
+	best, f := math.Inf(1), Food{}
+	for _, d := range shopDoors(s.X, s.Y) {
+		if g := octile(gapTo(x, d[0]), gapTo(y, d[1])); g < best {
+			best, f = g, Food{X: d[0], Y: d[1]}
+		}
+	}
+	return f
+}
+
+// atDoor reports whether tile t is a door of shop i.
+func (w *World) atDoor(i, t int) bool {
+	s := w.m.Shops[i]
+	for _, d := range shopDoors(s.X, s.Y) {
+		if w.m.index(d[0], d[1]) == t {
+			return true
+		}
+	}
+	return false
 }

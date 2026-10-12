@@ -128,6 +128,7 @@ func Load(in io.Reader) (*World, error) {
 	if err := validFood(s.Config.FoodKinds, s.Config.Foods); err != nil {
 		return nil, err
 	}
+	w.initShopTiles()
 	w.initFood()
 	if len(s.Pools) != len(w.food.pools) {
 		return nil, fmt.Errorf("snapshot has %d food pools, config has %d", len(s.Pools), len(w.food.pools))

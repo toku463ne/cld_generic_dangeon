@@ -96,7 +96,7 @@ func (s SpeciesSpec) enters(t Terrain) bool {
 // mayEnter reports whether body b may step onto tile t: its species' own
 // terrains, or water by wading (Wade).
 func (w *World) mayEnter(b *Body, t int) bool {
-	return w.canStand(b.Species, w.m.Terrain[t])
+	return w.canStand(b.Species, w.m.Terrain[t]) && !w.walled(t)
 }
 
 // canStand reports whether a body of species s may stand on terrain t.

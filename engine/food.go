@@ -277,6 +277,9 @@ func (w *World) initFood() {
 		f.regionTiles[t] = make([][]int, len(w.m.RegionFood))
 	}
 	for i, t := range w.m.Terrain {
+		if w.walled(i) {
+			continue // a shop's walls hold nothing (shop.go)
+		}
 		r := w.m.Region[i]
 		f.regionTiles[t][r] = append(f.regionTiles[t][r], i)
 	}
@@ -494,7 +497,7 @@ func (w *World) spreadFood(p int, vacant int) {
 			continue
 		}
 		t := w.m.index(x, y)
-		if f.foodAt[t] != 0 || w.m.Terrain[t] != pl.terrain || shares[w.m.Region[t]] == 0 {
+		if f.foodAt[t] != 0 || w.m.Terrain[t] != pl.terrain || shares[w.m.Region[t]] == 0 || w.walled(t) {
 			continue // the seed is lost
 		}
 		w.putFood(t, p)
