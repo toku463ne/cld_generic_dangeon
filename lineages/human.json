@@ -1,0 +1,4022 @@
+{
+ "Map": "trainhuman",
+ "Width": 64,
+ "Height": 48,
+ "Variant": "warmed",
+ "Seed": 1,
+ "Ticks": 40000,
+ "Commit": "3ce88be",
+ "Species": {
+  "human": [
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 3,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 1,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 9,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 0,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 2,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 0,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 3,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 9,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 2,
+     "Defense": 2,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 4,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 3,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 0,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 2,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 0,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 0,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 2,
+     "Defense": 0,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 9,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 2,
+     "Attack": 0,
+     "Defense": 0,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 0,
+     "Defense": 0,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 9,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 2,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 0,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 0,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 3,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 1,
+     "Bold": 2,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 3,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 4,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 9,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 2,
+     "Defense": 2,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 0,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 0,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 2,
+     "Attack": 0,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 2,
+     "Fert": 1,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 2,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 2,
+     "Fert": 1,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 2,
+     "Defense": 0,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 2,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 2,
+     "Fert": 2,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 3,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 0,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 1,
+     "Bold": 2,
+     "Attack": 2,
+     "Defense": 0,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 2,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 4,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 2,
+     "Defense": 2,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 4,
+     "Bold": 2,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 4,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 0,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 1,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 2,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 0,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 4,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 2,
+     "Defense": 0,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 0,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 2,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 2,
+     "Fert": 1,
+     "Size": 4,
+     "Bold": 0,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 4,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 1,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 1,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 2,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 0,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 0,
+     "Defense": 2,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 0,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 3,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 4,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 0,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 0,
+     "Attack": 0,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 4,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 2,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 4,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 2,
+     "Fert": 1,
+     "Size": 4,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 2,
+     "Defense": 2,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 0,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 3,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 1,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 2,
+     "Defense": 0,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 4,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 0,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 2,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 2,
+     "Defense": 0,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 2,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 2,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 2,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 2,
+     "Attack": 2,
+     "Defense": 2,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 9,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 1,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 2,
+     "Fert": 1,
+     "Size": 2,
+     "Bold": 0,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 4,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 9,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 2,
+     "Defense": 2,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 0,
+     "Attack": 2,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 4,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 0,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     0,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 0,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     1,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 2,
+     "Attack": 0,
+     "Defense": 0,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 1,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 0,
+     "Defense": 2,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 6,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 1
+    },
+    "Skill": [
+     0,
+     0,
+     1
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 1,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 7,
+     "Sight": 1,
+     "Fert": 0,
+     "Size": 4,
+     "Bold": 1,
+     "Attack": 2,
+     "Defense": 2,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 4,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     0,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 5,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 2,
+     "Bold": 1,
+     "Attack": 1,
+     "Defense": 1,
+     "Fierce": 2,
+     "Species": 0,
+     "Taste": 2
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   },
+   {
+    "Genome": {
+     "Level": 8,
+     "Sight": 2,
+     "Fert": 0,
+     "Size": 3,
+     "Bold": 2,
+     "Attack": 1,
+     "Defense": 2,
+     "Fierce": 0,
+     "Species": 0,
+     "Taste": 0
+    },
+    "Skill": [
+     1,
+     1,
+     0
+    ]
+   }
+  ]
+ }
+}
