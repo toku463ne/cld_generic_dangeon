@@ -431,9 +431,11 @@ func (v *View) Render(dst *image.RGBA) {
 		s := max(v.scale/3, 1)
 		fillRect(dst, (g.Tile%m.Width)*v.scale+v.scale/2-s/2, (g.Tile/m.Width)*v.scale+v.scale/2-s/2, s, s, tentColor)
 	}
-	// The map's shops: a purple outline.
+	// The map's shops: the tile filled purple, and the tiles a body buys
+	// from (the shop's and those next to it) outlined.
 	for _, s := range m.Shops {
-		strokeRect(dst, s.X*v.scale, s.Y*v.scale, v.scale, v.scale, shopColor)
+		fillRect(dst, s.X*v.scale, s.Y*v.scale, v.scale, v.scale, shopColor)
+		strokeRect(dst, (s.X-1)*v.scale, (s.Y-1)*v.scale, 3*v.scale, 3*v.scale, shopColor)
 	}
 	// Coins lying on the ground: a white dot in the tile's corner.
 	for _, g := range v.W.GroundCoins() {
@@ -676,6 +678,37 @@ func (v *View) Status() string {
 	}
 	return fmt.Sprintf("tick %d%s  bodies %d  food %d%s  history: %d ticks (%d/px, grid %s)",
 		v.W.Tick(), night, h.bodies, h.food, culture, v.mapW*tpp, tpp, map[bool]string{true: "10000", false: "1000"}[tpp > 16])
+}
+
+// ShopStatus is a line on each of the map's shops as it stands (stage
+// 11-2): each good's stock over its cap, the coins it holds over its cap,
+// and the things on their way to it. Empty without shops.
+func (v *View) ShopStatus() string {
+	m := v.W.Map()
+	shops := v.W.Shops()
+	if len(shops) == 0 {
+		return ""
+	}
+	coming := make([]int, len(shops))
+	for _, p := range v.W.Parcels() {
+		coming[p.Shop]++
+	}
+	var sb strings.Builder
+	for i, s := range shops {
+		if i > 0 {
+			sb.WriteString("  ")
+		}
+		fmt.Fprintf(&sb, "shop %d:", i)
+		for g, gs := range s.Goods {
+			name := m.Shops[i].Goods[g].Item
+			if strings.HasSuffix(name, " food") {
+				name = "food"
+			}
+			fmt.Fprintf(&sb, " %s %d/%d", name, gs.Stock, m.Shops[i].Goods[g].StockCap)
+		}
+		fmt.Fprintf(&sb, "  fund %d/%d  on the way %d", s.Fund, m.Shops[i].FundCap, coming[i])
+	}
+	return sb.String()
 }
 
 // temps is the lowest and highest temperature over the regions now, and ok

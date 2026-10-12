@@ -138,7 +138,11 @@ func (g *game) Draw(screen *ebiten.Image) {
 	if g.paused {
 		state = "paused"
 	}
-	text := g.v.Status() + "  " + state + "\n" + keyHelp
+	text := g.v.Status() + "  " + state + "\n"
+	if s := g.v.ShopStatus(); s != "" {
+		text += s + "\n"
+	}
+	text += keyHelp
 	if t := g.v.FollowText(); t != "" {
 		text += "\n" + t
 	}

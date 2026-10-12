@@ -85,6 +85,9 @@ func write(v *view.View, dir, prefix string, n, every int) error {
 		}
 		fmt.Println(path)
 		fmt.Println(v.Status())
+		if s := v.ShopStatus(); s != "" {
+			fmt.Println(s)
+		}
 		if t := v.FollowText(); t != "" {
 			fmt.Println(t)
 		}
