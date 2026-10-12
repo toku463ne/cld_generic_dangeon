@@ -636,6 +636,11 @@ type Config struct {
 	// TellLiked has a body tell a body it likes what it tells its child
 	// (stage 12-4, tell.go).
 	TellLiked bool
+	// Help lets a body that hears one of its kind struck walk to it and
+	// fight the hunter with it, while the call is HelpTicks old at most
+	// (stage 12-5, help.go).
+	Help      bool
+	HelpTicks int
 	// Ornaments are the kinds of ornament and Tastes the number of tastes
 	// (stage 11-4, ornament.go): a body is born with a taste, wants an
 	// ornament its taste answers to while it holds none, at WantEnergy;
@@ -885,6 +890,8 @@ func DefaultConfig() Config {
 		Ties:               true,
 		TieMemory:          8,
 		TellLiked:          true,
+		Help:               true,
+		HelpTicks:          20,
 		Ornaments:          DefaultOrnaments(),
 		Tastes:             3,
 		CraftBorn:          0.25,

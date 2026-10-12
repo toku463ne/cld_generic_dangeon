@@ -33,6 +33,7 @@ func testConfig(seed int64) Config {
 	cfg.Coins = false   // no coins until 11-2a; coin_test.go turns them on
 	cfg.Ornaments = nil // no ornaments until 11-4; ornament_test.go turns them on
 	cfg.Ties = false    // no ties until 12-3; tie_test.go turns them on
+	cfg.Help = false    // no helping until 12-5; help_test.go turns it on
 	return cfg
 }
 

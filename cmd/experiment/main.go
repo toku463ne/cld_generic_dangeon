@@ -143,7 +143,11 @@ type result struct {
 	tiesNoted, tied float64
 	// friendsTold counts the times a body told a body it likes, not its
 	// child (stage 12-4).
-	friendsTold              float64
+	friendsTold float64
+	// helpSteps and jointBlows count the steps taken to help a body
+	// struck and the blows struck at a hunter another of the band had
+	// struck within FightTicks (stage 12-5).
+	helpSteps, jointBlows    float64
 	killedAsleep, killedAway float64
 	// callsAttacked, callsDefeated and callsHeard count the calls of a
 	// body struck, of a hunter struck down, and the hearers (stage 10-4).
@@ -845,6 +849,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.saleCalls, r.callSales, r.buyFromTicks = float64(st.SaleCalls), float64(st.CallSales), float64(st.Actions[engine.ActBuyFrom])
 	r.listed, r.listedSales = float64(st.Listed), float64(st.ListedSales)
 	r.tiesNoted, r.friendsTold = float64(st.TiesNoted), float64(st.FriendsTold)
+	r.helpSteps, r.jointBlows = float64(st.HelpSteps), float64(st.JointBlows)
 	if cfg := w.Config(); cfg.Ties {
 		n, liked := 0, 0
 		for _, b := range w.Bodies() {
@@ -1272,6 +1277,8 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 			{"好感度に記された得", 2, func(r result) float64 { return r.tiesNoted }},
 			{"好きな相手のいる身体の割合", 4, func(r result) float64 { return r.tied }},
 			{"好きな相手に伝えた", 2, func(r result) float64 { return r.friendsTold }},
+			{"助けに向かった歩数", 2, func(r result) float64 { return r.helpSteps }},
+			{"群れで打った回数", 2, func(r result) float64 { return r.jointBlows }},
 			{"作った飾り物", 2, func(r result) float64 { return r.ornamentsMade }},
 			{"拾われた飾り物", 2, func(r result) float64 { return r.ornamentsPicked }},
 			{"店で買った飾り物", 2, func(r result) float64 { return r.ornamentsBought }},
@@ -1578,6 +1585,8 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"好感度に記された得", 2, func(r result) float64 { return r.tiesNoted }},
 		{"好きな相手のいる身体の割合", 4, func(r result) float64 { return r.tied }},
 		{"好きな相手に伝えた", 2, func(r result) float64 { return r.friendsTold }},
+		{"助けに向かった歩数", 2, func(r result) float64 { return r.helpSteps }},
+		{"群れで打った回数", 2, func(r result) float64 { return r.jointBlows }},
 		{"作った飾り物", 2, func(r result) float64 { return r.ornamentsMade }},
 		{"拾われた飾り物", 2, func(r result) float64 { return r.ornamentsPicked }},
 		{"店で買った飾り物", 2, func(r result) float64 { return r.ornamentsBought }},

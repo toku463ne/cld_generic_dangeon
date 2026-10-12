@@ -929,6 +929,8 @@ func actionName(a engine.Action) string {
 		return fmt.Sprintf("trade #%d", a.Mate)
 	case engine.ActBuy:
 		return fmt.Sprintf("buy good %d at shop %d", a.Dir, a.Mate)
+	case engine.ActHelp:
+		return fmt.Sprintf("help against #%d", a.Mate)
 	case engine.ActList:
 		return fmt.Sprintf("list item %d at shop %d", a.Dir, a.Mate)
 	case engine.ActBuyListed:

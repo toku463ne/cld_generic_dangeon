@@ -185,6 +185,12 @@ func (w *World) attack(i int, b *Body, id int64) {
 	w.stats.Blows++
 	if back {
 		w.stats.BlowsBack++
+		// Struck by two of a band in a fight: the measure of fighting
+		// together (VISION_CHECKS "協力").
+		if o.HitBy.ID != 0 && o.HitBy.ID != b.ID+1 && w.tick-o.HitBy.At <= int64(w.cfg.FightTicks) {
+			w.stats.JointBlows++
+		}
+		o.HitBy = SeenHunter{ID: b.ID + 1, At: w.tick}
 	}
 	if !back {
 		w.call(o, CallAttacked, b.ID) // the prey calls out (stage 10-4)
@@ -467,6 +473,7 @@ func (w *World) call(b *Body, k CallKind, about int64) {
 				case CallAttacked:
 					w.noteBlow(o, r, true)
 					o.Called = true
+					w.heardStruck(o, b.ID, about) // it may come to help (stage 12-5)
 				case CallDefeated:
 					// One blow saved, to a hearer the hunter was a
 					// threat to (stage 12-3).

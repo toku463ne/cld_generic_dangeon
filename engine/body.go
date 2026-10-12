@@ -111,6 +111,10 @@ type Body struct {
 	// Taste is its taste plus one (zero: none), and Ornaments the kinds
 	// of the ornaments it holds (stage 11-4).
 	Taste int `json:",omitempty"`
+	// Help is the call to help it last heard (Help, stage 12-5), and
+	// HitBy the last body of a band to strike it, a hunter, and when.
+	Help  HelpCall   `json:",omitempty"`
+	HitBy SeenHunter `json:",omitempty"`
 	// Selling is its open call to sell (SaleCalls, stage 12-1).
 	Selling   SaleCall `json:",omitempty"`
 	Ornaments []int    `json:",omitempty"`
@@ -205,6 +209,10 @@ const (
 	// market.go); Mate is the shop, or the listing's index, Dir the item.
 	ActList
 	ActBuyListed
+	// ActHelp walks to a body of its kind that called it was struck, to
+	// fight the hunter with it (Help, stage 12-5, help.go); Mate is the
+	// hunter.
+	ActHelp
 	NumActionKinds
 )
 
@@ -361,6 +369,10 @@ type Stats struct {
 	// FriendsTold counts the times a body told a body it likes, not its
 	// child, its evidence (stage 12-4).
 	FriendsTold int64 `json:",omitempty"`
+	// HelpSteps counts the steps taken to help a body struck, and
+	// JointBlows the blows struck back at a hunter that another of the
+	// striker's kind had struck within FightTicks (stage 12-5).
+	HelpSteps, JointBlows int64 `json:",omitempty"`
 	// TentsDropped and TentsPicked count the tents left by the dead and
 	// those taken up (stage 8-2a3).
 	TentsDropped, TentsPicked int64 `json:",omitempty"`
@@ -483,7 +495,7 @@ func (w *World) possibleActions(dst []Action, b *Body) []Action {
 			dst = append(dst, Action{Kind: ActMove, Dir: d})
 		}
 	}
-	return w.boardOptions(w.listOptions(w.callOptions(w.saleOptions(w.sellOptions(w.buyOptions(w.tradeOptions(w.huntOptions(w.mateOptions(dst, b), b), b), b), b), b), b), b), b)
+	return w.helpOptions(w.boardOptions(w.listOptions(w.callOptions(w.saleOptions(w.sellOptions(w.buyOptions(w.tradeOptions(w.huntOptions(w.mateOptions(dst, b), b), b), b), b), b), b), b), b), b)
 }
 
 // act carries out action a of body b, the i-th of the world's bodies; i is
@@ -534,6 +546,8 @@ func (w *World) act(i int, b *Body, a Action) {
 		w.buyFrom(i, b, a.Mate)
 	case ActList:
 		w.list(b, int(a.Mate), a.Dir)
+	case ActHelp:
+		w.help(i, b)
 	case ActBuyListed:
 		w.buyListed(b, int(a.Mate))
 	}

@@ -658,6 +658,7 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 		return risk, plan, arrive
 	}
 	for _, a := range v.Options {
+		helpKid := false
 		// Where the option leaves the body, and with how much energy.
 		x, y, after := b.X, b.Y, n-1
 		eaten := -1
@@ -705,6 +706,16 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 				after = n + meal - 1 - k
 				top, room = most+meal, b.Held+1 < w.cfg.Carry
 			}
+		case ActHelp:
+			// Going to help a body struck (stage 12-5): the walk and the
+			// blows taken off, the caller's worth on if it lives; down
+			// first, death.
+			walk, loss, down, gain, kid := w.helpRead(b)
+			after = n - 1 - grainsOf(walk) - w.units(loss) + w.units(gain)
+			if down {
+				after = 0
+			}
+			helpKid = kid
 		case ActList:
 			// A thing left on a shop's board (stage 12-2), read as one
 			// sent: its worth gone, the price read at what coins buy.
@@ -746,6 +757,9 @@ func (w *World) valueInto(v *Valuation, meal, full int, windows []int, alive fun
 		c := 0.0
 		if a.Kind == ActMate {
 			c = child
+		}
+		if a.Kind == ActHelp && helpKid {
+			c = 1 // its child lives through it: the second currency (stage 12-5)
 		}
 		v.Child = append(v.Child, c)
 		for i, win := range windows {
