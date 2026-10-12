@@ -151,6 +151,9 @@ func newWorld(cfg Config, m Map, genomes []Genome) (*World, error) {
 	if err := validOrnaments(cfg); err != nil {
 		return nil, err
 	}
+	if cfg.Wade && !(cfg.WaterSpeed > 0 && cfg.WaterSpeed <= 1) {
+		return nil, fmt.Errorf("WaterSpeed must be within (0, 1], got %v", cfg.WaterSpeed)
+	}
 	if cfg.Learn && !(cfg.Steady > 0) {
 		return nil, fmt.Errorf("Steady must be above zero, got %v", cfg.Steady)
 	}

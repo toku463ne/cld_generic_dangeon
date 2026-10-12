@@ -130,7 +130,7 @@ func TestCoinsSaveLoad(t *testing.T) {
 // With coins issued, the world is stage 11-2a: its fingerprint is
 // pinned here (testConfig leaves coins off, so the older pins hold).
 func TestCoinsFingerprint(t *testing.T) {
-	const want = uint64(0x487666385afbb52f)
+	const want = uint64(0xea699bf5c665fea4)
 	w, err := NewWorld(coinConfig(1), tempMap())
 	if err != nil {
 		t.Fatal(err)

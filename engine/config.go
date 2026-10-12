@@ -34,6 +34,11 @@ type Config struct {
 	// wall to it, as before the stage.
 	Wade      bool
 	WaterBurn float64
+	// WaterSpeed is what water puts on the speed of a body that does not
+	// swim (VISION "水に住む生物以外は、水での移動速度が低下すること",
+	// 2026-10-12): it moves at this share of its speed while it stands in
+	// water. One for no slowing.
+	WaterSpeed float64
 	// TerrainBurn and AvoidBurn are what a ground a species does not like
 	// puts on its burn, and a ground it dislikes (stage 10-2h, VISION:
 	// a species burns more off its terrain, more still on one it
@@ -698,6 +703,7 @@ func DefaultConfig() Config {
 		PoolPlaces:         true,
 		Wade:               true,
 		WaterBurn:          4,
+		WaterSpeed:         0.5,
 		DeepWater:          true,
 		TerrainBurn:        1.5,
 		AvoidBurn:          3,

@@ -982,3 +982,26 @@ func TestWary(t *testing.T) {
 		t.Fatal("a species nothing hunts keeps rows")
 	}
 }
+
+// A body that does not swim moves at WaterSpeed of its speed while it
+// stands in water (VISION "水に住む生物以外は、水での移動速度が低下する
+// こと"); a swimmer does not, and on land nothing changes.
+func TestWaterSlows(t *testing.T) {
+	cfg := testConfig(1)
+	cfg.Bodies = 0
+	w, err := NewWorld(cfg, testMap()) // water on column 7
+	if err != nil {
+		t.Fatal(err)
+	}
+	land := Body{X: 5.5, Y: 2.5}
+	wade := Body{X: 7.5, Y: 2.5}
+	if got, want := w.speedOf(&wade), w.speedOf(&land)*cfg.WaterSpeed; got != want {
+		t.Fatalf("speed in water %v, want %v", got, want)
+	}
+	cfg.Species = append([]SpeciesSpec(nil), cfg.Species...)
+	cfg.Species[0].Terrains, cfg.Species[0].Swims = []Terrain{TerrainLand, TerrainWater}, true
+	w, _ = NewWorld(cfg, testMap())
+	if w.speedOf(&wade) != w.speedOf(&land) {
+		t.Fatal("a swimmer slowed by water")
+	}
+}

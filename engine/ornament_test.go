@@ -169,7 +169,7 @@ func TestOrnamentsChangeHands(t *testing.T) {
 
 // With ornaments, the world is stage 11-4: its fingerprint is pinned here.
 func TestOrnamentFingerprint(t *testing.T) {
-	const want = uint64(0xb9eed03a9b257d26)
+	const want = uint64(0x70b1f4d9ec0af070)
 	w, err := NewWorld(ornamentConfig(1), ornamentMap())
 	if err != nil {
 		t.Fatal(err)

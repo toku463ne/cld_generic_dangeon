@@ -545,8 +545,9 @@ func (w *World) fallAsleep(b *Body) {
 func (w *World) step(i int, b *Body, d int) {
 	from := w.tileOf(b.X, b.Y)
 	v := moveDirs[d]
-	b.X += v[0] * w.speedOf(b)
-	b.Y += v[1] * w.speedOf(b)
+	speed := w.speedOf(b) // read once: it depends on where the body stands
+	b.X += v[0] * speed
+	b.Y += v[1] * speed
 	b.Heading = d
 	to := w.tileOf(b.X, b.Y)
 	w.moved(i, from, to)

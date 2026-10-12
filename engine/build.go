@@ -48,6 +48,9 @@ func (w *World) speedOf(b *Body) float64 {
 	if b.Build.Speed > 0 {
 		speed = b.Build.Speed
 	}
+	if w.cfg.WaterSpeed > 0 && w.cfg.WaterSpeed != 1 && w.wading(b) {
+		speed *= w.cfg.WaterSpeed // wading is slow
+	}
 	return speed * w.ageFactor(b)
 }
 
