@@ -289,10 +289,18 @@ func (w *World) initFood() {
 		kinds = []FoodKind{{Name: "food"}}
 		specs = []FoodSpec{{Name: "food", Share: 1}}
 	}
+	// The map may set a pool's share of the cap (Map.PoolCap): the ratio
+	// between the species is the map's to say (2026-10-12).
+	share := func(s FoodSpec) float64 {
+		if v, ok := w.m.PoolCap[s.Name]; ok {
+			return v
+		}
+		return s.Share
+	}
 	sum := 0.0
 	for _, s := range specs {
 		if !s.Kill {
-			sum += s.Share
+			sum += share(s)
 		}
 	}
 	// Caps are the shares of FoodCap, rounded so that they add up to it;
@@ -302,7 +310,7 @@ func (w *World) initFood() {
 	for i, s := range specs {
 		cap := w.cfg.FoodCap
 		if !s.Kill {
-			cum += s.Share / sum
+			cum += share(s) / sum
 			cap = int(cum*float64(w.cfg.FoodCap)+0.5) - given
 			given += cap
 		}

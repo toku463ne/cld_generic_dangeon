@@ -12,7 +12,7 @@ import (
 )
 
 // Names lists the maps Build knows.
-var Names = []string{"flat", "constrained", "seasons", "patches", "waters"}
+var Names = []string{"flat", "constrained", "constrainedeven", "seasons", "patches", "waters"}
 
 // Build returns the named map at the given size.
 func Build(name string, width, height int) (engine.Map, error) {
@@ -21,6 +21,8 @@ func Build(name string, width, height int) (engine.Map, error) {
 		return Flat(width, height), nil
 	case "constrained":
 		return Constrained(width, height), nil
+	case "constrainedeven":
+		return ConstrainedEven(width, height), nil
 	case "seasons":
 		return Seasons(width, height), nil
 	case "waters":
@@ -123,13 +125,24 @@ func Flat(width, height int) engine.Map {
 // map, in region ID order: the humans' ground (engine.HumanShare of it)
 // five to one between left and right, the beasts' strip three to one.
 // Provisional; PARAMETERS.md records it.
-var ConstrainedFood = []float64{engine.HumanShare * 5 / 6, engine.HumanShare / 6, (1 - engine.HumanShare) * 3 / 4, (1 - engine.HumanShare) / 4}
+var ConstrainedFood = regionShares(engine.HumanShare)
+
+// regionShares is the constrained map's regions' shares of the food with
+// share of the ground the humans': theirs five to one between left and
+// right, the beasts' three to one.
+func regionShares(share float64) []float64 {
+	return []float64{share * 5 / 6, share / 6, (1 - share) * 3 / 4, (1 - share) / 4}
+}
 
 // beastRows is how many rows at the foot of a map of the given height
 // are the beasts' ground: one part in nine (engine.HumanShare), at
 // least one.
-func beastRows(height int) int {
-	return max(int(float64(height)*(1-engine.HumanShare)+0.5), 1)
+func beastRows(height int) int { return rowsFor(height, engine.HumanShare) }
+
+// rowsFor is how many rows at the foot of a map of the given height are
+// the beasts' ground with share of it the humans', at least one.
+func rowsFor(height int, share float64) int {
+	return max(int(float64(height)*(1-share)+0.5), 1)
 }
 
 // Constrained is the map where food is meant to bind the population. It
@@ -146,10 +159,35 @@ func beastRows(height int) int {
 // separate maps, and a layout where they coincide could not show a rule
 // confusing one for the other.
 func Constrained(width, height int) engine.Map {
+	return constrainedWith(width, height, engine.HumanShare)
+}
+
+// EvenShare is the humans' share of the ground, the food and the first
+// bodies on the constrainedeven map: one to one (the user's choice,
+// 2026-10-12: a map for the fights, where the 8:1 map is for the humans'
+// society).
+const EvenShare = 0.5
+
+// ConstrainedEven is the constrained map with the beasts holding as much
+// as the humans: the bottom half of the ground is theirs (forest), and
+// the map gives each species half the food (PoolCap) and half the first
+// bodies (SpeciesShare), where the 8:1 map leaves those to the config.
+// The shop stands in the humans' richer region below its place to rest.
+func ConstrainedEven(width, height int) engine.Map {
+	m := constrainedWith(width, height, EvenShare)
+	m.PoolCap = map[string]float64{"human food": EvenShare, "beast food": 1 - EvenShare}
+	m.SpeciesShare = map[string]float64{"human": EvenShare, "beast": 1 - EvenShare}
+	return m
+}
+
+// constrainedWith is the constrained map with share of the ground the
+// humans'.
+func constrainedWith(width, height int, share float64) engine.Map {
+	food := regionShares(share)
 	m := engine.NewMap(width, height)
-	m.RegionFood = append([]float64(nil), ConstrainedFood...)
-	m.RegionTemp = temps(len(ConstrainedFood))
-	split := height - beastRows(height)
+	m.RegionFood = append([]float64(nil), food...)
+	m.RegionTemp = temps(len(food))
+	split := height - rowsFor(height, share)
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			r := 0
@@ -179,16 +217,21 @@ func Constrained(width, height int) engine.Map {
 	// the humans' ground (regions 0 and 1), beast food in the strip (2
 	// and 3), each at the map's ratio between its two regions.
 	m.PoolFood = map[string][]float64{
-		"human food": {ConstrainedFood[0], ConstrainedFood[1], 0, 0},
-		"beast food": {0, 0, ConstrainedFood[2], ConstrainedFood[3]},
+		"human food": {food[0], food[1], 0, 0},
+		"beast food": {0, 0, food[2], food[3]},
 	}
 	// Coins are issued on the humans' ground, as their food is (stage
 	// 11-2a): beasts have nothing to buy.
 	m.RegionCoin = append([]float64(nil), m.PoolFood["human food"]...)
 	shelters(&m)
 	// One shop (stage 11-2b), in the middle of the richer human region,
-	// between its two places to rest.
-	addShop(&m, width/4, (height-beastRows(height))/2)
+	// between its two places to rest; where a place to rest stands there
+	// (the even map's human ground is the top half), a third of the way
+	// below it.
+	addShop(&m, width/4, split/2)
+	if len(m.Shops) == 0 {
+		addShop(&m, width/4, split*2/3)
+	}
 	return m
 }
 

@@ -176,13 +176,21 @@ func (w *World) drawSpecies() int {
 	if n <= 1 {
 		return 0
 	}
+	// The map may set a species' share of the first bodies
+	// (Map.SpeciesShare, 2026-10-12).
+	share := func(s SpeciesSpec) float64 {
+		if v, ok := w.m.SpeciesShare[s.Name]; ok {
+			return v
+		}
+		return s.Share
+	}
 	sum := 0.0
 	for _, s := range w.cfg.Species {
-		sum += s.Share
+		sum += share(s)
 	}
 	x := w.rng.Float64() * sum
 	for i, s := range w.cfg.Species {
-		x -= s.Share
+		x -= share(s)
 		if x < 0 {
 			return i
 		}

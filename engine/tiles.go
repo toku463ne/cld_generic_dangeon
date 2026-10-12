@@ -75,6 +75,14 @@ type Map struct {
 
 	// Shops are the shops the map sets (stage 11-2b, shop.go).
 	Shops []Shop `json:",omitempty"`
+
+	// PoolCap, if set, gives a pool of food (by name) its share of
+	// FoodCap in place of the config's, and SpeciesShare a species (by
+	// name) its share of the first bodies (2026-10-12: the ratio between
+	// the species is the map's - a map for the fights, a map for the
+	// humans' society).
+	PoolCap      map[string]float64 `json:",omitempty"`
+	SpeciesShare map[string]float64 `json:",omitempty"`
 }
 
 // TempRange is the range a region's temperature moves in over a day.
@@ -194,6 +202,13 @@ func (m Map) Validate() error {
 	if err := m.validShops(); err != nil {
 		return err
 	}
+	for _, shares := range []map[string]float64{m.PoolCap, m.SpeciesShare} {
+		for name, v := range shares {
+			if !(v >= 0) {
+				return fmt.Errorf("%s has share %v", name, v)
+			}
+		}
+	}
 	if len(m.RegionCoin) > 0 {
 		if len(m.RegionCoin) != len(m.RegionFood) {
 			return fmt.Errorf("%d regions have a coin share, want %d", len(m.RegionCoin), len(m.RegionFood))
@@ -268,6 +283,8 @@ func (m Map) Clone() Map {
 	c.Shelter = append([]bool(nil), m.Shelter...)
 	c.RegionCoin = append([]float64(nil), m.RegionCoin...)
 	c.Shops = append([]Shop(nil), m.Shops...)
+	c.PoolCap = cloneShares(m.PoolCap)
+	c.SpeciesShare = cloneShares(m.SpeciesShare)
 	c.SeasonFood = nil
 	for _, s := range m.SeasonFood {
 		c.SeasonFood = append(c.SeasonFood, append([]float64(nil), s...))
@@ -278,6 +295,18 @@ func (m Map) Clone() Map {
 		for name, s := range m.PoolFood {
 			c.PoolFood[name] = append([]float64(nil), s...)
 		}
+	}
+	return c
+}
+
+// cloneShares copies a map of shares by name; nil stays nil.
+func cloneShares(m map[string]float64) map[string]float64 {
+	if m == nil {
+		return nil
+	}
+	c := make(map[string]float64, len(m))
+	for k, v := range m {
+		c[k] = v
 	}
 	return c
 }
