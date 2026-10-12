@@ -42,7 +42,9 @@ func (w *World) tell(b *Body) {
 			for _, j := range w.grid[w.m.index(x, y)] {
 				o := &w.bodies[j]
 				if w.cfg.Kin {
-					w.tellChild(b, o)
+					if !w.tellChild(b, o) {
+						w.tellFriend(b, o)
+					}
 					continue
 				}
 				if o.ID == b.ID || b.Memory.Met[o.ID] {
@@ -66,14 +68,38 @@ func (w *World) tell(b *Body) {
 }
 
 // tellChild passes body b's evidence to body o if o is b's child and b
-// holds some it has not passed to it.
-func (w *World) tellChild(b, o *Body) {
+// holds some it has not passed to it; it reports whether o is b's child.
+func (w *World) tellChild(b, o *Body) bool {
 	if o.Parents[0] != b.ID && o.Parents[1] != b.ID {
+		return false
+	}
+	w.tellTo(b, o)
+	return true
+}
+
+// tellFriend passes body b's evidence to body o, not its child, if b
+// likes o (TellLiked, stage 12-4, VISION "好感度を上げたい相手には、自分に
+// とって点数が高い情報を優先的に伝えること"): what b tells a child it tells
+// a body it has gained by, as it would a child - once for each change to
+// its rows. Nothing yet limits what is told, so "first what scores highest"
+// has nothing to choose between: every row that passes passes. The order
+// matters once telling has a budget (memory capacity, NODE.md "記憶の粒度
+// の階段").
+func (w *World) tellFriend(b, o *Body) {
+	if !w.cfg.TellLiked || o.ID == b.ID || !sameSpecies(b, o) || w.Liking(*b, o.ID) <= 0 {
 		return
 	}
+	if w.tellTo(b, o) {
+		w.stats.FriendsTold++
+	}
+}
+
+// tellTo passes body b's evidence to body o if b holds some it has not
+// passed to it, and reports whether it did.
+func (w *World) tellTo(b, o *Body) bool {
 	m := &b.Memory
 	if m.Ver == 0 || m.Told[o.ID] == m.Ver {
-		return
+		return false
 	}
 	if m.Told == nil {
 		m.Told = map[int64]int64{}
@@ -83,6 +109,7 @@ func (w *World) tellChild(b, o *Body) {
 	if w.onMeet != nil {
 		w.onMeet(*b, *o)
 	}
+	return true
 }
 
 // pass gives body to what body from knows of the world, both brought to

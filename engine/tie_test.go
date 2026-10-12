@@ -50,9 +50,10 @@ func TestTies(t *testing.T) {
 	}
 }
 
-// With ties, the world is stage 12-3: its fingerprint is pinned here.
+// With ties, the world is stage 12-3 (re-pinned at 12-4: a body tells a
+// body it likes): its fingerprint is pinned here.
 func TestTieFingerprint(t *testing.T) {
-	const want = uint64(0xce8296eec3968d42)
+	const want = uint64(0x6c696bb954910382)
 	cfg := ornamentConfig(1)
 	cfg.Ties = true
 	w, err := NewWorld(cfg, ornamentMap())
@@ -62,5 +63,41 @@ func TestTieFingerprint(t *testing.T) {
 	run(w, 1000)
 	if got := w.Fingerprint(); got != want {
 		t.Fatalf("fingerprint = %#x, want %#x (ties noted %d)", got, want, w.Stats().TiesNoted)
+	}
+}
+
+// A body tells a body it likes, as it tells its child, what it knows of
+// the world - once for each change to its rows (stage 12-4); a stranger
+// in sight hears nothing, and without TellLiked a liked body does not.
+func TestTellFriend(t *testing.T) {
+	cfg := testConfig(18)
+	cfg.Ties, cfg.TellLiked = true, true
+	cfg.Bodies = 0
+	w, err := NewWorld(cfg, tempMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	mk := func(id int64, x float64) Body {
+		return Body{ID: id, X: x, Y: 5.5, Energy: 80, Heading: -1, Goal: -1, Decided: -1, Parents: [2]int64{-1, -1}, Sight: 3, Born: -1500, Mature: -700}
+	}
+	w.bodies = append(w.bodies, mk(0, 2.5), mk(1, 3.5), mk(2, 4.5))
+	w.nextID = 3
+	w.buildGrid()
+	b, friend, stranger := &w.bodies[0], &w.bodies[1], &w.bodies[2]
+	w.rememberShelter(b, w.m.index(1, 1))
+	w.tie(b, friend.ID, 30)
+	w.tell(b)
+	if !friend.Memory.Shelters[w.m.index(1, 1)] || stranger.Memory.Shelters[w.m.index(1, 1)] || w.Stats().FriendsTold != 1 {
+		t.Fatalf("friend knows %v, stranger %v, told %d", friend.Memory.Shelters, stranger.Memory.Shelters, w.Stats().FriendsTold)
+	}
+	w.tell(b)
+	if w.Stats().FriendsTold != 1 {
+		t.Fatal("told again with nothing new")
+	}
+	w.cfg.TellLiked = false
+	w.rememberShelter(b, w.m.index(2, 1))
+	w.tell(b)
+	if friend.Memory.Shelters[w.m.index(2, 1)] {
+		t.Fatal("told a friend without TellLiked")
 	}
 }

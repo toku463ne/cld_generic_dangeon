@@ -162,6 +162,10 @@ const Wadefast = "wadefast"
 // Nomarket is Warmed with no board at the shop (stage 12-2).
 const Nomarket = "nomarket"
 
+// Untoldfriend is Warmed with a body telling only its children, not the
+// bodies it likes (stage 12-4).
+const Untoldfriend = "untoldfriend"
+
 // Skilled is stage 9-7b-3: every species is born with skills as humans
 // are; Shallow is stage 9-7b-3 too: bodies block each other in water as
 // on land. Both are the controls of stage 9-7b-4 on Roomy's cap.
@@ -617,6 +621,11 @@ var rewrites = map[string]func(*engine.Config){
 		c.FoodCap *= 2
 		c.HuntFrom = 5000
 		c.Barter = false
+	},
+	Untoldfriend: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.HuntFrom = 5000
+		c.TellLiked = false
 	},
 	Nomarket: func(c *engine.Config) {
 		c.FoodCap *= 2

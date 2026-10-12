@@ -633,6 +633,9 @@ type Config struct {
 	// (stage 12-3, tie.go): liking is read off these rows.
 	Ties      bool
 	TieMemory int
+	// TellLiked has a body tell a body it likes what it tells its child
+	// (stage 12-4, tell.go).
+	TellLiked bool
 	// Ornaments are the kinds of ornament and Tastes the number of tastes
 	// (stage 11-4, ornament.go): a body is born with a taste, wants an
 	// ornament its taste answers to while it holds none, at WantEnergy;
@@ -881,6 +884,7 @@ func DefaultConfig() Config {
 		MarketCap:          20,
 		Ties:               true,
 		TieMemory:          8,
+		TellLiked:          true,
 		Ornaments:          DefaultOrnaments(),
 		Tastes:             3,
 		CraftBorn:          0.25,
