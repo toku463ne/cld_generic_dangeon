@@ -154,10 +154,11 @@ func TestShopSaveLoad(t *testing.T) {
 	}
 }
 
-// With a shop, the world is stage 11-2c: its fingerprint is pinned here
-// (re-pinned at 11-2c: things are sent to the shop, which deals in tents).
+// With a shop, the world is stage 11-2d: its fingerprint is pinned here
+// (re-pinned at 11-2c: things are sent to the shop, which deals in tents;
+// and 11-2d: a body at the shop sees its stock).
 func TestShopFingerprint(t *testing.T) {
-	const want = uint64(0xf636f16432e2d8b4)
+	const want = uint64(0x238c3ef4f738ac11)
 	w, err := NewWorld(shopConfig(1), shopMap(20, 100))
 	if err != nil {
 		t.Fatal(err)
@@ -274,5 +275,41 @@ func TestShopTent(t *testing.T) {
 	w.act(1, buyer, Action{Kind: ActBuy, Mate: 0, Dir: 1})
 	if !buyer.Tent.Has || buyer.Tent.Until != w.tick+1500-arrive || buyer.Coins != 2 || w.Stats().TentsBought != 1 {
 		t.Fatalf("bought tent %+v, coins %d", buyer.Tent, buyer.Coins)
+	}
+}
+
+// A body at a shop sees whether it has a good to sell (ShopSight, stage
+// 11-2d): an empty shop offers no buy, and a body that walked there for
+// food counts the walk as a failed buy, once. Without the sight it may
+// try, and learns only by being refused.
+func TestShopSight(t *testing.T) {
+	cfg := shopConfig(9)
+	cfg.Bodies = 0
+	w, err := NewWorld(cfg, shopMap(0, 100))
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.bodies = append(w.bodies, shopper(0, 2.5, 3.5, 4))
+	w.nextID = 1
+	w.buildGrid()
+	b := &w.bodies[0]
+	for _, a := range w.possibleActions(nil, b) {
+		if a.Kind == ActBuy {
+			t.Fatalf("an empty shop offers %+v", a)
+		}
+	}
+	b.Goal = w.shopTile(0)
+	w.noteShops(b)
+	if b.Memory.Buys != 1 || b.Memory.Bought != 0 || w.Stats().BuysFailed != 1 {
+		t.Fatalf("arriving at an empty shop: row %v/%v failed %d", b.Memory.Bought, b.Memory.Buys, w.Stats().BuysFailed)
+	}
+	b.Goal = -1
+	w.noteShops(b)
+	if b.Memory.Buys != 1 {
+		t.Fatal("standing at the shop counted again")
+	}
+	w.cfg.ShopSight = false
+	if !hasBuy(w, b) {
+		t.Fatal("without the sight, no buy is offered")
 	}
 }

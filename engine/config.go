@@ -604,6 +604,10 @@ type Config struct {
 	// CarrySpeed tiles a tick (stage 11-2c, shop.go).
 	Sell       bool
 	CarrySpeed float64
+	// ShopSight lets a body at a shop see whether it has a good to sell
+	// and room for the coins (stage 11-2d): it tries no buy that cannot
+	// go through, and counts a walk there for nothing as a failed buy.
+	ShopSight bool
 	// Hunt lets a body attack the species its row preys on (stage 10-2a,
 	// hunt.go): a blow a tick at HitEnergy times attack over attack plus
 	// defense, and MeatUnits units of the kill pool (Foods with Kill) left
@@ -831,6 +835,7 @@ func DefaultConfig() Config {
 		Shops:              true,
 		Sell:               true,
 		CarrySpeed:         0.5,
+		ShopSight:          true,
 		Hunt:               true,
 		HitEnergy:          50,
 		HuntHunger:         0.5,

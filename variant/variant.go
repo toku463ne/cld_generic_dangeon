@@ -138,6 +138,10 @@ const Noshop = "noshop"
 // shop sells what it starts with, as at 11-2b.
 const Nosell = "nosell"
 
+// Shopblind is Warmed with nothing seen of a shop's stock (stage 11-2d):
+// a body learns the shop is empty only by being refused.
+const Shopblind = "shopblind"
+
 // Skilled is stage 9-7b-3: every species is born with skills as humans
 // are; Shallow is stage 9-7b-3 too: bodies block each other in water as
 // on land. Both are the controls of stage 9-7b-4 on Roomy's cap.
@@ -593,6 +597,11 @@ var rewrites = map[string]func(*engine.Config){
 		c.FoodCap *= 2
 		c.HuntFrom = 5000
 		c.Barter = false
+	},
+	Shopblind: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.HuntFrom = 5000
+		c.ShopSight = false
 	},
 	Nosell: func(c *engine.Config) {
 		c.FoodCap *= 2

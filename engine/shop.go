@@ -221,15 +221,22 @@ func (w *World) inReach(b *Body, i int) bool {
 	return math.Abs(math.Floor(b.X)-float64(s.X)) <= 1 && math.Abs(math.Floor(b.Y)-float64(s.Y)) <= 1
 }
 
+// onSale reports whether good g of shop i can be sold now: the shop
+// holds one and has room for the price. A body at the shop sees it
+// (ShopSight, stage 11-2d).
+func (w *World) onSale(i, g int) bool {
+	return w.shops[i].goods[g].stock > 0 && w.shops[i].fund+w.m.Shops[i].Goods[g].Price <= w.m.Shops[i].FundCap
+}
+
 // buyOptions appends a buy of each good body b could pay for at each
-// shop it stands at.
+// shop it stands at - with ShopSight, of those it sees on sale.
 func (w *World) buyOptions(dst []Action, b *Body) []Action {
 	for i := range w.shops {
 		if !w.inReach(b, i) {
 			continue
 		}
 		for g := range w.shops[i].goods {
-			if w.mayBuyAt(b, i, g) {
+			if w.mayBuyAt(b, i, g) && (!w.cfg.ShopSight || w.onSale(i, g)) {
 				dst = append(dst, Action{Kind: ActBuy, Mate: int64(i), Dir: g})
 			}
 		}
@@ -463,10 +470,29 @@ func (w *World) bodyNamed(id int64) *Body {
 	return nil
 }
 
-// noteShops has body b remember the shops in its sight.
+// noteShops has body b remember the shops in its sight. A body that
+// walked to a shop for food and finds it has none to sell it (ShopSight,
+// stage 11-2d) counts the walk in its buy row as a buy that failed:
+// once, as it arrives, where without the sight it tried every tick.
 func (w *World) noteShops(b *Body) {
 	if !w.cfg.Shops {
 		return
+	}
+	if w.cfg.ShopSight && b.Goal >= 0 {
+		for i := range w.shops {
+			if b.Goal != w.shopTile(i) || !w.inReach(b, i) {
+				continue
+			}
+			if g := w.foodGood(b, i); g >= 0 && w.mayBuyAt(b, i, g) && !w.onSale(i, g) {
+				w.stats.BuysFailed++
+				if w.cfg.Learn {
+					b.Memory.Buys++
+					if w.cfg.AgeBand > 0 {
+						w.observe(&b.Memory.Buy, 1, 0)
+					}
+				}
+			}
+		}
 	}
 	bx, by := int(math.Floor(b.X)), int(math.Floor(b.Y))
 	s := max(w.sightOf(b), 0)
