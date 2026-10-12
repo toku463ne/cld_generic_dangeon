@@ -135,12 +135,14 @@ type Memory struct {
 	// against the ticks it spent awake there, and Blows the blows its
 	// kind took - on itself, or heard of (the alarms of stage 10-4) -
 	// against the ticks it had a hunter in sight (Wary, stages 10-6 and
-	// 10-6b, wary.go). Liking holds, per body, how well it thinks of it
-	// for the hunters it heard it strike down (stage 10-4, hunt.go); no
-	// rule reads it yet.
-	Threats []Tally           `json:",omitempty"`
-	Blows   Tally             `json:",omitempty"`
-	Liking  map[int64]float64 `json:",omitempty"`
+	// 10-6b, wary.go).
+	Threats []Tally `json:",omitempty"`
+	Blows   Tally   `json:",omitempty"`
+	// Ties are, per body, what it gained by its dealings with it, and
+	// Hunters the hunters that were lately a threat to it (Ties, stage
+	// 12-3, tie.go).
+	Ties    map[int64]Tie `json:",omitempty"`
+	Hunters []SeenHunter  `json:",omitempty"`
 	// Offers and Traded count the tents it offered and the offers taken
 	// (Barter, stage 11-1b); with AgeBand, Trade holds the same by when.
 	// The trade row: how likely an offer is to be taken.

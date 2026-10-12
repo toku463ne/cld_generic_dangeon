@@ -214,6 +214,7 @@ func (w *World) sellTo(b *Body, id int64, item int) {
 // the tick it appeared, eaten as held food is; a tent as it was; an
 // ornament.
 func (w *World) hand(b, p *Body, item, price int) {
+	w.tieTrade(b, p, item, price) // read before the thing moves (stage 12-3)
 	w.stats.Sales++
 	w.stats.SalesCoins += int64(price)
 	p.Coins -= price

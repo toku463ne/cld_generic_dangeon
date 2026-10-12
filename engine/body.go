@@ -356,6 +356,8 @@ type Stats struct {
 	// Listed counts the things left on the shops' boards and ListedSales
 	// those bought there (in Sales too; stage 12-2).
 	Listed, ListedSales int64 `json:",omitempty"`
+	// TiesNoted counts the gains noted in the rows of ties (stage 12-3).
+	TiesNoted int64 `json:",omitempty"`
 	// TentsDropped and TentsPicked count the tents left by the dead and
 	// those taken up (stage 8-2a3).
 	TentsDropped, TentsPicked int64 `json:",omitempty"`

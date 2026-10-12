@@ -85,6 +85,7 @@ func (w *World) turn(b *Body) Action {
 		mates := w.sawMates(b)
 		threats := w.sawThreats(b)
 		w.noteSightings(b) // where the hunters stand, for later (Wary)
+		w.noteHunters(b)   // which were a threat to it (Ties, stage 12-3)
 		why = w.trigger(b, under, saw, mates, threats)
 		b.Under, b.Saw, b.Mates, b.Threats = under, saw, mates, threats
 		if why == noTrigger && w.sleepDue(b) {

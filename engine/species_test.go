@@ -781,6 +781,7 @@ func TestCalls(t *testing.T) {
 	cfg.FoodKinds, cfg.Foods = DefaultConfig().FoodKinds, append([]FoodSpec(nil), DefaultConfig().Foods...)
 	cfg.Foods[1].Terrain = TerrainLand
 	cfg.Bodies, cfg.AllotCombat, cfg.HuntHunger, cfg.CallRange = 0, false, 1, 3
+	cfg.Ties = true
 	w, err := NewWorld(cfg, testMap())
 	if err != nil {
 		t.Fatal(err)
@@ -809,13 +810,15 @@ func TestCalls(t *testing.T) {
 		t.Fatalf("calls %v, heard %d", w.stats.Calls, w.stats.CallsHeard)
 	}
 	// The human strikes the beast of 40 down in two blows and calls out:
-	// the near human thinks better of it.
+	// the near human, who has the beast in sight, thinks better of it by
+	// a blow saved (stage 12-3); the far one, never threatened, does not.
+	w.sawHunter(n, 0) // the beast was in its sight
 	w.act(1, h, Action{Kind: ActAttack, Mate: 0})
 	w.act(1, h, Action{Kind: ActAttack, Mate: 0})
 	if !b.Slain {
 		t.Fatal("the beast is not down")
 	}
-	if w.Liking(*n, 1) != 1 || w.Liking(*f, 1) != 0 || w.stats.Calls[CallDefeated] != 1 {
+	if w.Liking(*n, 1) != cfg.HitEnergy || w.Liking(*f, 1) != 0 || w.stats.Calls[CallDefeated] != 1 {
 		t.Fatalf("liking near %v far %v, calls %v", w.Liking(*n, 1), w.Liking(*f, 1), w.stats.Calls)
 	}
 	// Without Calls nothing is heard.

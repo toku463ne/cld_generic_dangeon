@@ -628,6 +628,11 @@ type Config struct {
 	// things a shop at most, and a body at a door buys at the price listed.
 	Market    bool
 	MarketCap int
+	// Ties keeps, per body a body has dealt with, what it gained by it,
+	// TieMemory bodies at most, and the hunters lately a threat to it
+	// (stage 12-3, tie.go): liking is read off these rows.
+	Ties      bool
+	TieMemory int
 	// Ornaments are the kinds of ornament and Tastes the number of tastes
 	// (stage 11-4, ornament.go): a body is born with a taste, wants an
 	// ornament its taste answers to while it holds none, at WantEnergy;
@@ -874,6 +879,8 @@ func DefaultConfig() Config {
 		SaleCalls:          true,
 		Market:             true,
 		MarketCap:          20,
+		Ties:               true,
+		TieMemory:          8,
 		Ornaments:          DefaultOrnaments(),
 		Tastes:             3,
 		CraftBorn:          0.25,

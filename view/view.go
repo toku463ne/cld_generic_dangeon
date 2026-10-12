@@ -779,6 +779,18 @@ func (v *View) FollowText() string {
 	if b.Coins > 0 {
 		fmt.Fprintf(&sb, "  coins %d", b.Coins)
 	}
+	if len(b.Memory.Ties) > 0 {
+		// The body it likes best (stage 12-3).
+		best, bv := int64(-1), 0.0
+		for id := range b.Memory.Ties {
+			if l := v.W.Liking(b, id); l > bv || l == bv && id < best {
+				best, bv = id, l
+			}
+		}
+		if best >= 0 && bv > 0 {
+			fmt.Fprintf(&sb, "  likes #%d %.0f", best, bv)
+		}
+	}
 	if cfg := v.W.Config(); b.Taste > 0 {
 		fmt.Fprintf(&sb, "  taste %d", b.Taste-1)
 		for _, k := range b.Ornaments {

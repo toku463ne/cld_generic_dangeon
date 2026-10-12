@@ -175,6 +175,9 @@ func (w *World) attack(i int, b *Body, id int64) {
 	}
 	o.Energy -= w.damage(b, o)
 	o.Struck = true
+	if w.preysOn(b, o) {
+		w.sawHunter(o, b.ID) // struck by it: a threat (stage 12-3)
+	}
 	b.Striking = w.tick + 1
 	if t := w.tileOf(o.X, o.Y); t >= 0 {
 		w.noteBlow(o, w.m.Region[t], false) // a sighting became a blow (Wary)
@@ -425,9 +428,9 @@ func (w *World) safe(b *Body, t int) bool {
 // body struck counts a hunter in the region and a blow of its kind
 // (Memory.Threats and Blows, wary.go) and decides this tick (the call
 // trigger, intent.go); one who hears a
-// hunter struck down thinks better of the body that did it
-// (Memory.Liking), which is read off the knowledge, not acted on yet -
-// cooperation, trade and mating will read it. Nothing comes to help:
+// hunter struck down that was a threat to it thinks better of the body
+// that did it (Memory.Ties, tie.go), read off the knowledge, not acted on
+// yet - telling and helping will read it. Nothing comes to help:
 // a hearer within reach of the hunter fights it as its band anyway.
 
 // CallKind is what a call tells.
@@ -465,19 +468,16 @@ func (w *World) call(b *Body, k CallKind, about int64) {
 					w.noteBlow(o, r, true)
 					o.Called = true
 				case CallDefeated:
-					if o.Memory.Liking == nil {
-						o.Memory.Liking = map[int64]float64{}
+					// One blow saved, to a hearer the hunter was a
+					// threat to (stage 12-3).
+					if w.threatenedBy(o, about) {
+						w.tie(o, b.ID, w.cfg.HitEnergy)
 					}
-					o.Memory.Liking[b.ID]++
 				}
 			}
 		}
 	}
 }
-
-// Liking is how well body b thinks of the body id, read off what it
-// has heard: zero for a stranger.
-func (w *World) Liking(b Body, id int64) float64 { return b.Memory.Liking[id] }
 
 // threatened reports whether body b has a hunter in sight now.
 func (w *World) threatened(b *Body) bool {

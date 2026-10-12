@@ -140,6 +140,13 @@ func (w *World) buyListed(b *Body, k int) {
 		return
 	}
 	w.listings = append(w.listings[:k], w.listings[k+1:]...)
+	if s := w.bodyNamed(l.Seller); s != nil && w.cfg.Ties {
+		worth := float64(w.pred.meal)
+		if l.Item == saleTent {
+			worth = float64(w.tentCredit(b))
+		}
+		w.tie(b, s.ID, (worth-float64(l.Price)*w.coinWorth(b))*w.cfg.Grain) // the buyer's gain (stage 12-3)
+	}
 	b.Coins -= l.Price
 	w.stats.ListedSales++
 	w.stats.Sales++

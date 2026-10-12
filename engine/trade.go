@@ -112,6 +112,11 @@ func (w *World) trade(b *Body, id int64) {
 			w.observe(&b.Memory.Trade, 0, 1)
 		}
 	}
+	if w.cfg.Ties {
+		// Each side's gain as it read the trade (stage 12-3).
+		w.tie(b, p.ID, float64(w.pred.meal-w.tentCredit(b))*w.cfg.Grain)
+		w.tie(p, b.ID, float64(w.tentCredit(p)-w.pred.meal)*w.cfg.Grain)
+	}
 	p.Tent, b.Tent = Tent{Has: true, Until: b.Tent.Until, Uses: b.Tent.Uses}, Tent{}
 	born := p.HeldBorn[0]
 	pool := w.dropHeld(p)

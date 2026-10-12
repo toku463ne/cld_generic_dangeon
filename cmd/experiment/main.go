@@ -136,7 +136,11 @@ type result struct {
 	saleCalls, callSales, buyFromTicks float64
 	// listed and listedSales count the things left on the shops' boards
 	// and bought off them (stage 12-2).
-	listed, listedSales      float64
+	listed, listedSales float64
+	// tiesNoted counts the gains noted in the rows of ties, and tied the
+	// share of living bodies of a species that takes coins with a row
+	// it likes (above zero) at the end (stage 12-3).
+	tiesNoted, tied          float64
 	killedAsleep, killedAway float64
 	// callsAttacked, callsDefeated and callsHeard count the calls of a
 	// body struck, of a hunter struck down, and the hearers (stage 10-4).
@@ -837,6 +841,23 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	r.ornamentsBought, r.ornamentSales = float64(st.OrnamentsBought), float64(st.OrnamentSales)
 	r.saleCalls, r.callSales, r.buyFromTicks = float64(st.SaleCalls), float64(st.CallSales), float64(st.Actions[engine.ActBuyFrom])
 	r.listed, r.listedSales = float64(st.Listed), float64(st.ListedSales)
+	r.tiesNoted = float64(st.TiesNoted)
+	if cfg := w.Config(); cfg.Ties {
+		n, liked := 0, 0
+		for _, b := range w.Bodies() {
+			if int(b.Species) < len(cfg.Species) && cfg.Species[b.Species].NoCoins {
+				continue
+			}
+			n++
+			for id := range b.Memory.Ties {
+				if w.Liking(b, id) > 0 {
+					liked++
+					break
+				}
+			}
+		}
+		r.tied = float64(liked) / math.Max(float64(n), 1)
+	}
 	if cfg := w.Config(); len(cfg.Ornaments) > 0 {
 		tasted, pleased := 0, 0
 		for _, b := range w.Bodies() {
@@ -1245,6 +1266,8 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 			{"声の売り手へ向かった tick", 2, func(r result) float64 { return r.buyFromTicks }},
 			{"市場に出した", 2, func(r result) float64 { return r.listed }},
 			{"市場で買われた", 2, func(r result) float64 { return r.listedSales }},
+			{"好感度に記された得", 2, func(r result) float64 { return r.tiesNoted }},
+			{"好きな相手のいる身体の割合", 4, func(r result) float64 { return r.tied }},
 			{"作った飾り物", 2, func(r result) float64 { return r.ornamentsMade }},
 			{"拾われた飾り物", 2, func(r result) float64 { return r.ornamentsPicked }},
 			{"店で買った飾り物", 2, func(r result) float64 { return r.ornamentsBought }},
@@ -1548,6 +1571,8 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 		{"声の売り手へ向かった tick", 2, func(r result) float64 { return r.buyFromTicks }},
 		{"市場に出した", 2, func(r result) float64 { return r.listed }},
 		{"市場で買われた", 2, func(r result) float64 { return r.listedSales }},
+		{"好感度に記された得", 2, func(r result) float64 { return r.tiesNoted }},
+		{"好きな相手のいる身体の割合", 4, func(r result) float64 { return r.tied }},
 		{"作った飾り物", 2, func(r result) float64 { return r.ornamentsMade }},
 		{"拾われた飾り物", 2, func(r result) float64 { return r.ornamentsPicked }},
 		{"店で買った飾り物", 2, func(r result) float64 { return r.ornamentsBought }},

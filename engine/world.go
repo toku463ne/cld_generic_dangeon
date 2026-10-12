@@ -777,6 +777,21 @@ func (w *World) Fingerprint() uint64 {
 		put(uint64(l.Price))
 		put(uint64(l.Age))
 	}
+	// The ties (stage 12-3), summed over each body's rows so that the
+	// map's order does not matter.
+	if w.cfg.Ties && w.cfg.Learn {
+		for _, b := range w.bodies {
+			var s uint64
+			for id, t := range b.Memory.Ties {
+				s += mix(uint64(id)) ^ math.Float64bits(t.Gain) ^ uint64(t.At)
+			}
+			put(s)
+			for _, h := range b.Memory.Hunters {
+				put(uint64(h.ID))
+				put(uint64(h.At))
+			}
+		}
+	}
 	if w.cfg.SaleCalls && w.cfg.Coins {
 		for _, b := range w.bodies {
 			if b.Selling.Until > 0 {
