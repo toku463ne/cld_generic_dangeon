@@ -77,7 +77,8 @@ type Map struct {
 	Shops []Shop `json:",omitempty"`
 
 	// PoolCap, if set, gives a pool of food (by name) its share of
-	// FoodCap in place of the config's, and SpeciesShare a species (by
+	// FoodCap in place of the config's - as a part of FoodCap where it
+	// names every pool and the parts add up to one at most, and SpeciesShare a species (by
 	// name) its share of the first bodies (2026-10-12: the ratio between
 	// the species is the map's - a map for the fights, a map for the
 	// humans' society).

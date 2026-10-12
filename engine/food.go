@@ -297,11 +297,19 @@ func (w *World) initFood() {
 		}
 		return s.Share
 	}
-	sum := 0.0
+	sum, named := 0.0, true
 	for _, s := range specs {
 		if !s.Kill {
 			sum += share(s)
+			_, ok := w.m.PoolCap[s.Name]
+			named = named && ok
 		}
+	}
+	if named && sum <= 1 {
+		// The map sets every pool's share: each is its part of FoodCap
+		// as it stands, and what they leave is food the map holds back
+		// (a leaner map, 12-5c).
+		sum = 1
 	}
 	// Caps are the shares of FoodCap, rounded so that they add up to it;
 	// a kill pool stands outside the split with FoodCap as its cap.

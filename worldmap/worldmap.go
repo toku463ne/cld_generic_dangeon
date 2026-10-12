@@ -12,7 +12,7 @@ import (
 )
 
 // Names lists the maps Build knows.
-var Names = []string{"flat", "constrained", "constrainedeven", "seasons", "patches", "waters"}
+var Names = []string{"flat", "constrained", "constrainedeven", "constrainedeven75", "constrainedeven50", "seasons", "patches", "waters"}
 
 // Build returns the named map at the given size.
 func Build(name string, width, height int) (engine.Map, error) {
@@ -23,6 +23,10 @@ func Build(name string, width, height int) (engine.Map, error) {
 		return Constrained(width, height), nil
 	case "constrainedeven":
 		return ConstrainedEven(width, height), nil
+	case "constrainedeven75":
+		return ConstrainedLean(width, height, 0.75), nil
+	case "constrainedeven50":
+		return ConstrainedLean(width, height, 0.5), nil
 	case "seasons":
 		return Seasons(width, height), nil
 	case "waters":
@@ -177,6 +181,17 @@ func ConstrainedEven(width, height int) engine.Map {
 	m := constrainedWith(width, height, EvenShare)
 	m.PoolCap = map[string]float64{"human food": EvenShare, "beast food": 1 - EvenShare}
 	m.SpeciesShare = map[string]float64{"human": EvenShare, "beast": 1 - EvenShare}
+	return m
+}
+
+// ConstrainedLean is constrainedeven with the beasts' food cut to part of
+// the humans' (12-5c, the user's question 2026-10-12: do hungrier beasts
+// fight more?): the humans keep half of FoodCap, the beasts get part of
+// that, and the rest of the cap is held back. The ground and the first
+// bodies are as on constrainedeven.
+func ConstrainedLean(width, height int, part float64) engine.Map {
+	m := ConstrainedEven(width, height)
+	m.PoolCap = map[string]float64{"human food": EvenShare, "beast food": (1 - EvenShare) * part}
 	return m
 }
 
