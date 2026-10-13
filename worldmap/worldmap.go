@@ -251,7 +251,26 @@ func constrainedWith(width, height int, share float64) engine.Map {
 	if len(m.Shops) == 0 {
 		addShop(&m, width/4, split*2/3)
 	}
+	nests(&m, split)
 	return m
+}
+
+// nests puts two nests of each species on a constrained map (stage
+// 13-3): one in each of the species' two regions, at an eighth of the
+// width in from the side and halfway down its rows - clear of the places
+// to rest and the shop at a quarter of the width, and of the water.
+func nests(m *engine.Map, split int) {
+	for _, n := range []struct {
+		species string
+		y       int
+	}{{"human", split / 2}, {"beast", (split + m.Height) / 2}} {
+		for _, x := range []int{m.Width / 8, m.Width * 7 / 8} {
+			m.Nests = append(m.Nests, engine.Nest{Species: n.species, X: x, Y: n.y})
+		}
+	}
+	if m.Validate() != nil {
+		m.Nests = nil
+	}
 }
 
 // Train is the training stage of a species (stage 13-1, NODE.md

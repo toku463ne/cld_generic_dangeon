@@ -277,6 +277,11 @@ type Stats struct {
 	// BudgetIn and BudgetOut are the budgets brought in by the born and
 	// taken out by the dead (BudgetLedger).
 	BudgetIn, BudgetOut float64
+	// NestSent counts, by species, the bodies the nests sent out (stage
+	// 13-3), and BudgetNest the budgets they brought in (a part of
+	// BudgetIn: the budget that came from outside the world, O10).
+	NestSent   []int64 `json:",omitempty"`
+	BudgetNest float64 `json:",omitempty"`
 	// RegionRows (indexed by RegionID), PathRow and MateRow count, for
 	// each learned row, what bodies learned themselves and passed on.
 	RegionRows       []RowCount `json:",omitempty"`
@@ -450,35 +455,46 @@ func (w *World) placeBodies(stocks []Stock, skilled bool) {
 			species = w.drawSpecies()
 		}
 		t := homes[species][w.rng.Intn(len(homes[species]))]
-		b := Body{
-			ID:      w.nextID,
-			Species: species,
-			X:       float64(t%w.m.Width) + 0.5,
-			Y:       float64(t/w.m.Width) + 0.5,
-			Energy:  w.cfg.EnergyMax,
-			Born:    w.tick,
-			Heading: -1,
-			Goal:    -1,
-			Decided: -1,
-			Parents: [2]int64{-1, -1},
-			Sex:     w.drawSex(),
-			Partner: -1,
-		}
+		var st *Stock
 		if stocks != nil {
-			w.endow(&b, stocks[i].Genome)
-		} else {
-			w.allot(&b)
+			st = &stocks[i]
 		}
-		if skilled {
-			b.Skill = stocks[i].Skill
-		} else {
-			w.drawSkills(&b)
-		}
-		b.Energy = w.maxOf(&b)
-		w.noteGeneration(0, b.Budget)
-		w.bodies = append(w.bodies, b)
-		w.nextID++
+		w.bodies = append(w.bodies, w.firstBody(species, t, st, skilled))
 	}
+}
+
+// firstBody makes a body of species s with no parents on tile t, grown
+// and full of energy: the genome of stock st, and its skills where
+// skilled, or drawn ones where st is nil. It takes the next ID.
+func (w *World) firstBody(species, t int, st *Stock, skilled bool) Body {
+	b := Body{
+		ID:      w.nextID,
+		Species: species,
+		X:       float64(t%w.m.Width) + 0.5,
+		Y:       float64(t/w.m.Width) + 0.5,
+		Energy:  w.cfg.EnergyMax,
+		Born:    w.tick,
+		Heading: -1,
+		Goal:    -1,
+		Decided: -1,
+		Parents: [2]int64{-1, -1},
+		Sex:     w.drawSex(),
+		Partner: -1,
+	}
+	if st != nil {
+		w.endow(&b, st.Genome)
+	} else {
+		w.allot(&b)
+	}
+	if st != nil && skilled {
+		b.Skill = st.Skill
+	} else {
+		w.drawSkills(&b)
+	}
+	b.Energy = w.maxOf(&b)
+	w.noteGeneration(0, b.Budget)
+	w.nextID++
+	return b
 }
 
 // possibleActions appends every action body b can take now.

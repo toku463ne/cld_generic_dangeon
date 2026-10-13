@@ -16,7 +16,7 @@ import (
 func stepped(t *testing.T, ticks int) *engine.World {
 	t.Helper()
 	cfg, _ := variant.Config(variant.Base, 9)
-	w, err := engine.NewWorld(cfg, worldmap.Constrained(32, 24))
+	w, err := variant.World(variant.Base, cfg, worldmap.Constrained(32, 24))
 	if err != nil {
 		t.Fatal(err)
 	}

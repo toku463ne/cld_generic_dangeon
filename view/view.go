@@ -139,6 +139,10 @@ var (
 	coinColor = color.RGBA{0xff, 0xff, 0xff, 0xff}
 	// shopColor outlines the map's shops (stage 11-2b).
 	shopColor = color.RGBA{0xc0, 0x40, 0xff, 0xff}
+	// nestHumanColor marks a nest of humans, nestRangeColor the square a
+	// nest counts its species in (stage 13-3).
+	nestHumanColor = color.RGBA{0xff, 0xff, 0xff, 0xff}
+	nestRangeColor = color.RGBA{0x60, 0x60, 0x70, 0xff}
 	// Sight rings (stage 9-3): a body that drew sight 0 wears a dark
 	// ring, one at SightMost a white one; the neutral sight is bare.
 	sightLowColor  = color.RGBA{0x10, 0x10, 0x18, 0xff}
@@ -275,7 +279,7 @@ func (v *View) trace(b engine.Body, val engine.Valuation, a engine.Action) {
 		tick: v.W.Tick(), body: b, chosen: a, why: val.Why,
 		opts:   append([]engine.Action(nil), val.Options...),
 		seen:   append([]engine.Food(nil), val.Seen...),
-		units:  append(append(append([]engine.Food(nil), val.Seen...), val.Recalled...), val.Shelter...),
+		units:  planUnits(val),
 		kinds:  unitKinds(val),
 		plan:   append([]int(nil), val.Plan...),
 		arrive: append([]int(nil), val.Arrive...),
@@ -438,6 +442,21 @@ func (v *View) Render(dst *image.RGBA) {
 		fillRect(dst, (s.X-1)*v.scale, (s.Y-1)*v.scale, 3*v.scale, 3*v.scale, shopColor)
 		for _, d := range [4][2]int{{s.X, s.Y - 2}, {s.X + 2, s.Y}, {s.X, s.Y + 2}, {s.X - 2, s.Y}} {
 			strokeRect(dst, d[0]*v.scale, d[1]*v.scale, v.scale, v.scale, shopColor)
+		}
+	}
+	// The map's nests (stage 13-3): the nest's tile outlined twice in its
+	// species' colour (green for beasts, white for humans), and the square
+	// it counts its species in outlined once.
+	if cfg := v.W.Config(); cfg.Nests {
+		for _, n := range m.Nests {
+			c := nestHumanColor
+			if n.Species != "human" {
+				c = beastColor(1)
+			}
+			strokeRect(dst, n.X*v.scale, n.Y*v.scale, v.scale, v.scale, c)
+			strokeRect(dst, n.X*v.scale+1, n.Y*v.scale+1, v.scale-2, v.scale-2, c)
+			r := cfg.NestRadius
+			strokeRect(dst, (n.X-r)*v.scale, (n.Y-r)*v.scale, (2*r+1)*v.scale, (2*r+1)*v.scale, nestRangeColor)
 		}
 	}
 	// Ornaments lying on the ground: a purple dot in the tile's other
@@ -1063,14 +1082,25 @@ func (v *View) ZoomOut() { v.zoom = min(v.zoom+1, len(ticksPerPixel)-1) }
 // ZoomIn shows fewer ticks in the history panel.
 func (v *View) ZoomIn() { v.zoom = max(v.zoom-1, 0) }
 
+// planUnits is every unit a plan can point to, in the engine's order
+// (Valuation.unit): food seen, remembered, a place to sleep, a shop, a
+// coin on the way to it.
+func planUnits(v engine.Valuation) []engine.Food {
+	var us []engine.Food
+	for _, s := range [][]engine.Food{v.Seen, v.Recalled, v.Shelter, v.Shop, v.Coin} {
+		us = append(us, s...)
+	}
+	return us
+}
+
 // unitKinds names what each unit a plan can point to is, in the order of
-// units: food seen, remembered, a place to sleep.
+// planUnits.
 func unitKinds(v engine.Valuation) []string {
 	var ks []string
 	for _, n := range []struct {
 		k string
 		n int
-	}{{"food", len(v.Seen)}, {"remembered food", len(v.Recalled)}, {"a place to sleep", len(v.Shelter)}} {
+	}{{"food", len(v.Seen)}, {"remembered food", len(v.Recalled)}, {"a place to sleep", len(v.Shelter)}, {"a shop", len(v.Shop)}, {"a coin", len(v.Coin)}} {
 		for i := 0; i < n.n; i++ {
 			ks = append(ks, n.k)
 		}

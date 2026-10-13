@@ -104,12 +104,16 @@ type World struct {
 	// listings are the things on the shops' boards (stage 12-2).
 	listings []Listing
 	toCaller map[int64]int
+	// nestSpecies is each nest's species, nestStocks the save each
+	// species' nests draw from (stage 13-3, nest.go).
+	nestSpecies []int
+	nestStocks  [][]Stock
 }
 
 // NewWorld builds a world on the given map: the food cap laid out by region
 // share, then Config.Bodies bodies with drawn genomes. The map is copied,
 // so the caller may reuse it.
-func NewWorld(cfg Config, m Map) (*World, error) { return newWorld(cfg, m, nil, false) }
+func NewWorld(cfg Config, m Map) (*World, error) { return newWorld(cfg, m, nil, false, false) }
 
 // NewWorldFrom builds a world like NewWorld, but its first bodies are one
 // per genome given, in that order, in place of Config.Bodies drawn ones
@@ -120,19 +124,21 @@ func NewWorldFrom(cfg Config, m Map, genomes []Genome) (*World, error) {
 	for i, g := range genomes {
 		stocks[i].Genome = g
 	}
-	return newWorld(cfg, m, stocks, false)
+	return newWorld(cfg, m, stocks, false, false)
 }
 
 // NewWorldFromStocks builds a world like NewWorldFrom, but each first body
 // has the skills its stock gives in place of drawn ones (stock.go): the
 // world begins from a save of bodies bred elsewhere.
 func NewWorldFromStocks(cfg Config, m Map, stocks []Stock) (*World, error) {
-	return newWorld(cfg, m, append([]Stock{}, stocks...), true)
+	return newWorld(cfg, m, append([]Stock{}, stocks...), true, false)
 }
 
 // newWorld builds a world whose first bodies are drawn (stocks nil) or one
-// per stock, with the stock's skills where skilled, else drawn ones.
-func newWorld(cfg Config, m Map, stocks []Stock, skilled bool) (*World, error) {
+// per stock, with the stock's skills where skilled, else drawn ones; or,
+// nested, a world whose nests draw from the stocks (nest.go). On a map
+// with nests (and Nests on) the nests send out the first bodies.
+func newWorld(cfg Config, m Map, stocks []Stock, skilled, nested bool) (*World, error) {
 	if err := m.Validate(); err != nil {
 		return nil, err
 	}
@@ -214,7 +220,17 @@ func newWorld(cfg Config, m Map, stocks []Stock, skilled bool) (*World, error) {
 	w.initOwners()
 	w.initPredict()
 	w.fillFood()
-	w.placeBodies(stocks, skilled)
+	if w.nesting() {
+		if !nested && stocks != nil {
+			return nil, fmt.Errorf("the map's nests send out the first bodies: give a save with NewWorldNested")
+		}
+		if err := w.initNests(stocks); err != nil {
+			return nil, err
+		}
+		w.refill()
+	} else {
+		w.placeBodies(stocks, skilled)
+	}
 	w.buildGrid()
 	return w, nil
 }
@@ -267,6 +283,7 @@ func (w *World) Step() {
 	w.removeDead()
 	w.bodies = append(w.bodies, w.born...)
 	w.born = w.born[:0]
+	w.refill()
 	w.buildGrid()
 	w.forget()
 }

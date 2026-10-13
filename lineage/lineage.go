@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/toku463ne/cld_generic_dangeon/engine"
 )
@@ -68,15 +69,54 @@ func (f File) Write(path string) error {
 
 // Read reads a save written by Write.
 func Read(path string) (File, error) {
-	var f File
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return f, err
+		return File{}, err
 	}
-	if err := json.Unmarshal(b, &f); err != nil {
+	f, err := Parse(b)
+	if err != nil {
 		return f, fmt.Errorf("%s: %w", path, err)
 	}
 	return f, nil
+}
+
+// Parse reads a save from the bytes Write wrote.
+func Parse(b []byte) (File, error) {
+	var f File
+	err := json.Unmarshal(b, &f)
+	return f, err
+}
+
+// Stocks returns the stocks of every species of the config that the
+// saves hold, each stock's species set by name to the config's index
+// (the save's index is the training world's), in the order of the saves
+// and of the species' names. A species of a save that the config lacks is
+// an error.
+func Stocks(cfg engine.Config, saves ...File) ([]engine.Stock, error) {
+	var out []engine.Stock
+	for _, f := range saves {
+		names := make([]string, 0, len(f.Species))
+		for name := range f.Species {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			s := -1
+			for k, spec := range cfg.Species {
+				if spec.Name == name {
+					s = k
+				}
+			}
+			if s < 0 {
+				return nil, fmt.Errorf("the save of %s (%s) has species %q, which the config does not", f.Map, f.Commit, name)
+			}
+			for _, st := range f.Species[name] {
+				st.Genome.Species = s
+				out = append(out, st)
+			}
+		}
+	}
+	return out, nil
 }
 
 // Stocks returns the stocks of the species named, in the order saved.

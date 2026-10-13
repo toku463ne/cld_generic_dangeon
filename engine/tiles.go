@@ -75,6 +75,9 @@ type Map struct {
 
 	// Shops are the shops the map sets (stage 11-2b, shop.go).
 	Shops []Shop `json:",omitempty"`
+	// Nests are the points bodies come into the world from (stage 13-3,
+	// nest.go): a species and a tile each, several to a species.
+	Nests []Nest `json:",omitempty"`
 
 	// PoolCap, if set, gives a pool of food (by name) its share of
 	// FoodCap in place of the config's - as a part of FoodCap where it
@@ -203,6 +206,9 @@ func (m Map) Validate() error {
 	if err := m.validShops(); err != nil {
 		return err
 	}
+	if err := m.validNests(); err != nil {
+		return err
+	}
 	for _, shares := range []map[string]float64{m.PoolCap, m.SpeciesShare} {
 		for name, v := range shares {
 			if !(v >= 0) {
@@ -284,6 +290,7 @@ func (m Map) Clone() Map {
 	c.Shelter = append([]bool(nil), m.Shelter...)
 	c.RegionCoin = append([]float64(nil), m.RegionCoin...)
 	c.Shops = append([]Shop(nil), m.Shops...)
+	c.Nests = append([]Nest(nil), m.Nests...)
 	c.PoolCap = cloneShares(m.PoolCap)
 	c.SpeciesShare = cloneShares(m.SpeciesShare)
 	c.SeasonFood = nil

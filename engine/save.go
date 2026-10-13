@@ -20,7 +20,7 @@ import (
 // saved, so that a loaded world can build them before play (World.Warm).
 
 // snapshotVersion changes whenever the format does.
-const snapshotVersion = 68
+const snapshotVersion = 69
 
 type snapshot struct {
 	Version int    `json:"version"`
@@ -60,6 +60,9 @@ type snapshot struct {
 	// Listings are the things on the shops' boards (stage 12-2).
 	Listings []Listing `json:"listings,omitempty"`
 	Stats    Stats     `json:"stats"`
+	// NestStocks are the save each species' nests draw from (stage
+	// 13-3), by species.
+	NestStocks [][]Stock `json:"nestStocks,omitempty"`
 
 	// Tables are the survival tables the world was reading, for a loaded
 	// world to build ahead (World.Warm). They are the only part of the
@@ -110,6 +113,7 @@ func (w *World) Save(out io.Writer) error {
 		GroundOrnaments: w.groundOrnaments,
 		Listings:        w.listings,
 		Stats:           w.stats,
+		NestStocks:      w.nestStocks,
 		Tables:          w.Tables(),
 	})
 }
@@ -191,6 +195,13 @@ func Load(in io.Reader) (*World, error) {
 	w.loadPlaces()
 	w.initPrey()
 	w.initOwners()
+	var stocks []Stock
+	for _, st := range s.NestStocks {
+		stocks = append(stocks, st...)
+	}
+	if err := w.initNests(stocks); err != nil {
+		return nil, err
+	}
 	w.initPredict()
 	w.pred.pending = s.Tables
 	w.buildGrid()

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/toku463ne/cld_generic_dangeon/engine"
 	"github.com/toku463ne/cld_generic_dangeon/variant"
 	"github.com/toku463ne/cld_generic_dangeon/worldmap"
 )
@@ -48,7 +47,7 @@ func Prepare(o Options) (*View, error) {
 	if err != nil {
 		return nil, err
 	}
-	w, err := engine.NewWorld(cfg, m)
+	w, err := variant.World(o.Variant, cfg, m)
 	if err != nil {
 		return nil, err
 	}

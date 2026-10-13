@@ -354,6 +354,9 @@ func (w *World) mutate(k, n int) int {
 type BudgetLedger struct {
 	Living  float64 // the budgets of the living, summed
 	In, Out float64
+	// Nest is the part of In the nests sent out (stage 13-3): the budget
+	// that came from outside the world rather than from parents.
+	Nest float64
 }
 
 // Balanced reports whether the account closes: the living hold what came
@@ -364,7 +367,7 @@ func (l BudgetLedger) Balanced() bool {
 
 // BudgetLedger returns the budget account.
 func (w *World) BudgetLedger() BudgetLedger {
-	l := BudgetLedger{In: w.stats.BudgetIn, Out: w.stats.BudgetOut}
+	l := BudgetLedger{In: w.stats.BudgetIn, Out: w.stats.BudgetOut, Nest: w.stats.BudgetNest}
 	for i := range w.bodies {
 		l.Living += w.bodies[i].Budget
 	}

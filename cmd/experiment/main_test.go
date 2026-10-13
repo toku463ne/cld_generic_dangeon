@@ -65,7 +65,7 @@ func TestRunOneStopsAtFloor(t *testing.T) {
 	cfg.Allot = false       // or holds more than the rest
 	m := worldmap.Flat(16, 12)
 	const ticks = 2000
-	r, err := runOne(cfg, m, ticks, 0)
+	r, err := runOne("base", cfg, m, ticks, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

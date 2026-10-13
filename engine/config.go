@@ -694,6 +694,16 @@ type Config struct {
 	// (trigger blocked). Bodies already on one tile - a child and the
 	// parent it was born beside - may stay. Off: stage 1-4.
 	Collide bool
+
+	// Nests has the map's nests send out the bodies (stage 13-3,
+	// nest.go): every NestGap ticks a nest with fewer than NestLow bodies
+	// of its species within NestRadius tiles sends one out. A world on a
+	// map with nests begins empty. Off, or on a map without nests, the
+	// world begins with Config.Bodies and none come in.
+	Nests      bool
+	NestRadius int
+	NestLow    int
+	NestGap    int
 }
 
 // HumanShare is the share of the world's ground that is the first
@@ -905,6 +915,10 @@ func DefaultConfig() Config {
 		Fear:               true,
 		Fight:              true,
 		FightTicks:         5,
+		Nests:              true,
+		NestRadius:         6,
+		NestLow:            4,
+		NestGap:            20,
 		Refuge:             true,
 		Homing:             true,
 		AllotCombat:        true,

@@ -188,6 +188,13 @@ type result struct {
 	actions                   [engine.NumActionKinds]float64
 	decided                   float64 // decisions over actions (body-ticks)
 	births                    float64
+	// nestEarly and nestLate count, by species, the bodies the nests
+	// sent out in the first and the second half of the run, birthsLate
+	// the births of the second half, and genoNest the levels of every
+	// body sent out (stage 13-3).
+	nestEarly, nestLate []float64
+	birthsLate          float64
+	genoNest            [][]map[int]float64
 	// provisioned is the food that went straight to resting mothers.
 	provisioned float64
 	// requests are the requests to mate sent, and requestBirths the
@@ -319,7 +326,7 @@ func run(out, log io.Writer, o options, command string) error {
 			for j := range jobs {
 				cfg, _ := variant.Config(j.v, o.seed0+int64(j.s))
 				start := time.Now()
-				r, err := runOne(cfg, m, o.ticks, o.floor)
+				r, err := runOne(j.v, cfg, m, o.ticks, o.floor)
 				if err != nil {
 					errs <- fmt.Errorf("%s seed %d: %w", j.v, cfg.Seed, err)
 					continue
@@ -384,8 +391,8 @@ func run(out, log io.Writer, o options, command string) error {
 	return nil
 }
 
-func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
-	w, err := engine.NewWorld(cfg, m)
+func runOne(name string, cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
+	w, err := variant.World(name, cfg, m)
 	if err != nil {
 		return result{}, err
 	}
@@ -422,6 +429,9 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 	}
 	record()
 	r.genoStart = genoHist(w, species)
+	if cfg.Nests && len(m.Nests) > 0 {
+		noteNest(&r, w, species, false, 0)
+	}
 	r.series = append(r.series, int32(len(w.Bodies())))
 	r.valley = math.Inf(1)
 	r.lives, r.lifeKids = map[float64]float64{}, map[float64]float64{}
@@ -485,6 +495,10 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		}
 		if t == half {
 			r.genoHalf = genoHist(w, species)
+			r.birthsLate = -float64(w.Stats().Births)
+		}
+		if cfg.Nests && len(m.Nests) > 0 && t%cfg.NestGap == 0 {
+			noteNest(&r, w, species, t > half, int64(t))
 		}
 		r.series = append(r.series, int32(len(w.Bodies())))
 		r.valley = math.Min(r.valley, float64(len(w.Bodies())))
@@ -955,6 +969,7 @@ func runOne(cfg engine.Config, m engine.Map, ticks, floor int) (result, error) {
 		r.decided = decisions / total
 	}
 	r.births = float64(st.Births)
+	r.birthsLate += float64(st.Births)
 	r.matings = float64(st.Matings)
 	r.fertMatings, r.fertBirths = append([]int64(nil), st.FertMatings...), append([]int64(nil), st.FertBirths...)
 	r.fertSlope = math.NaN()
@@ -1678,6 +1693,8 @@ func writeReport(out io.Writer, o options, m engine.Map, command string, results
 			p("| %s（%s） | %s | %s | %s |\n", mt.name, v, fmtMeanSE(known(b), mt.prec), fmtMeanSE(known(x), mt.prec), fmtMeanSE(d, mt.prec))
 		}
 	}
+
+	nestTables(p, o, results, m)
 
 	// After §9 so that the brief report keeps it (brief prints from §9 on):
 	// for every condition that has the slot, since the base often does not.

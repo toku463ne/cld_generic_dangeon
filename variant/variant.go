@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/toku463ne/cld_generic_dangeon/engine"
+	"github.com/toku463ne/cld_generic_dangeon/lineages"
 )
 
 // Base is the name of the variant that leaves the default config as it is.
@@ -129,6 +130,18 @@ const (
 	Nobarter = "nobarter"
 	Reuse4   = "reuse4"
 )
+
+// Nonest is Warmed with the map's nests shut (stage 13-3): the world
+// begins with Config.Bodies drawn at once, as before nests. Drawnnest is
+// Warmed with the nests sending out drawn bodies, not the training
+// stages' saves (lineages): what training adds.
+const (
+	Nonest    = "nonest"
+	Drawnnest = "drawnnest"
+)
+
+// drawsNests names the variants whose nests send out drawn bodies.
+var drawsNests = map[string]bool{Drawnnest: true}
 
 // Noshop is Warmed with the map's shop shut (stage 11-2b): coins are
 // issued and picked up but buy nothing.
@@ -580,6 +593,15 @@ var rewrites = map[string]func(*engine.Config){
 		c.HuntFrom = 5000
 		c.CombatTrade = 0.2
 	},
+	Nonest: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.HuntFrom = 5000
+		c.Nests = false
+	},
+	Drawnnest: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.HuntFrom = 5000
+	},
 	Commons: func(c *engine.Config) {
 		c.FoodCap *= 2
 		c.HuntFrom = 5000
@@ -802,6 +824,30 @@ func Config(name string, seed int64) (engine.Config, error) {
 	f(&cfg)
 	cfg.Seed = seed
 	return cfg, nil
+}
+
+// Stocks returns the save the nests of map m send out under config cfg
+// of the named variant (stage 13-3): the training stages' (lineages),
+// or nil where the map has no nests, Nests is off or the variant has its
+// nests draw.
+func Stocks(name string, cfg engine.Config, m engine.Map) ([]engine.Stock, error) {
+	if !cfg.Nests || len(m.Nests) == 0 || drawsNests[name] {
+		return nil, nil
+	}
+	return lineages.Stocks(cfg)
+}
+
+// World builds the world of config cfg of the named variant on map m:
+// with the save its nests send out (Stocks), if any.
+func World(name string, cfg engine.Config, m engine.Map) (*engine.World, error) {
+	stocks, err := Stocks(name, cfg, m)
+	if err != nil {
+		return nil, err
+	}
+	if stocks != nil {
+		return engine.NewWorldNested(cfg, m, stocks)
+	}
+	return engine.NewWorld(cfg, m)
 }
 
 // Names lists the known variants in order.
