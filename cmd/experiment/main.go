@@ -413,6 +413,7 @@ func runOne(name string, cfg engine.Config, m engine.Map, ticks, floor int) (res
 	for k := 0; k < species; k++ {
 		r.speciesNames = append(r.speciesNames, w.SpeciesName(k))
 	}
+	risen := false // above the floor once (stage 13-3)
 	record := func() {
 		n := len(w.Bodies())
 		r.pop = append(r.pop, float64(n))
@@ -425,7 +426,10 @@ func runOne(name string, cfg engine.Config, m engine.Map, ticks, floor int) (res
 		}
 		r.regions = append(r.regions, occupied())
 		r.food = append(r.food, float64(w.FoodLedger().OnGround))
-		r.surviving = append(r.surviving, n > floor)
+		// A world that begins below the floor (its nests send its first
+		// bodies, stage 13-3) has not fallen until it rose above it.
+		risen = risen || n > floor
+		r.surviving = append(r.surviving, n > floor || !risen)
 	}
 	record()
 	r.genoStart = genoHist(w, species)
@@ -714,7 +718,8 @@ func runOne(name string, cfg engine.Config, m engine.Map, ticks, floor int) (res
 			}
 			was = now
 		}
-		if len(w.Bodies()) <= floor {
+		risen = risen || len(w.Bodies()) > floor
+		if len(w.Bodies()) <= floor && risen {
 			// Early termination: this seed stops, the run goes on for
 			// the others. The remaining checkpoints are not surviving.
 			r.fellAt = t
