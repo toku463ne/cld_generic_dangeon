@@ -49,7 +49,7 @@ go run ./cmd/experiment -map flat -w 64 -h 48
 go run ./cmd/train -map trainhuman -w 64 -h 48 -seed 1 -ticks 40000 -out lineages/human.json
 ```
 
-訓練ステージを `-ticks`（既定 40000 ＝ 10 年）進め、生きている身体ごとに遺伝子とスキルを JSON に書く（記憶は書かない）。`-variant` の既定は `warmed`。終わりまでにいなくなった種族があると失敗する。本番の地図の巣がこのセーブから身体を出す（13-3）。セーブは `lineages` パッケージに埋め込まれ（`go:embed`）、巣のある地図（constrained・constrainedeven とその派生）では `cmd/experiment` と `cmd/client` がどの条件でもこれを使う（`drawnnest` は引いた身体、`nonest` は巣を閉じて最初に `Config.Bodies` を置く）。セーブを作り直したら `lineages/` の JSON を差し替えるだけでよい。画面では巣のタイルを二重の枠（人間は白、獣は緑）、数える範囲を灰色の枠で描く。
+訓練ステージを `-ticks`（既定 40000 ＝ 10 年）進め、生きている身体ごとに遺伝子とスキルを JSON に書く（記憶は書かない）。`-variant` の既定は `warmed`。終わりまでにいなくなった種族があると失敗する。本番の地図の巣がこのセーブから身体を出す（13-3）。セーブは `lineages` パッケージに埋め込まれ（`go:embed`）、巣のある地図（constrained・constrainedeven とその派生）で巣を開ける条件 `nested` では、`cmd/experiment` と `cmd/client` がこれを使う（`drawnnest` は巣を開けて引いた身体を出す）。巣は既定では閉じていて、ほかの条件は最初に `Config.Bodies` を一度に置く。セーブを作り直したら `lineages/` の JSON を差し替えるだけでよい。画面では巣のタイルを二重の枠（人間は白、獣は緑）、数える範囲を灰色の枠で描く。
 
 ## クライアント（見る）
 

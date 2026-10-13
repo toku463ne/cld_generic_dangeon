@@ -131,12 +131,12 @@ const (
 	Reuse4   = "reuse4"
 )
 
-// Nonest is Warmed with the map's nests shut (stage 13-3): the world
-// begins with Config.Bodies drawn at once, as before nests. Drawnnest is
-// Warmed with the nests sending out drawn bodies, not the training
-// stages' saves (lineages): what training adds.
+// Nested is Warmed with the map's nests open (stage 13-3), sending out
+// the training stages' saves (lineages): the world a chapter closes on
+// (Nests is off by default). Drawnnest is Nested with the nests sending
+// out drawn bodies: what training adds.
 const (
-	Nonest    = "nonest"
+	Nested    = "nested"
 	Drawnnest = "drawnnest"
 )
 
@@ -593,14 +593,15 @@ var rewrites = map[string]func(*engine.Config){
 		c.HuntFrom = 5000
 		c.CombatTrade = 0.2
 	},
-	Nonest: func(c *engine.Config) {
+	Nested: func(c *engine.Config) {
 		c.FoodCap *= 2
 		c.HuntFrom = 5000
-		c.Nests = false
+		c.Nests = true
 	},
 	Drawnnest: func(c *engine.Config) {
 		c.FoodCap *= 2
 		c.HuntFrom = 5000
+		c.Nests = true
 	},
 	Commons: func(c *engine.Config) {
 		c.FoodCap *= 2

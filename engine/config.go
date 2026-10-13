@@ -699,7 +699,10 @@ type Config struct {
 	// nest.go): every NestGap ticks a nest with fewer than NestLow bodies
 	// of its species within NestRadius tiles sends one out. A world on a
 	// map with nests begins empty. Off, or on a map without nests, the
-	// world begins with Config.Bodies and none come in.
+	// world begins with Config.Bodies and none come in. Off by default
+	// (the user's choice, 2026-10-13): a nest props up a species and hides
+	// what a rule does to it, so nest worlds are measured only in the
+	// stages about nests and at the close of a chapter (variant nested).
 	Nests      bool
 	NestRadius int
 	NestLow    int
@@ -915,7 +918,7 @@ func DefaultConfig() Config {
 		Fear:               true,
 		Fight:              true,
 		FightTicks:         5,
-		Nests:              true,
+		Nests:              false,
 		NestRadius:         6,
 		NestLow:            4,
 		NestGap:            20,

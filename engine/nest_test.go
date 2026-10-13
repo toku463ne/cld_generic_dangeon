@@ -14,6 +14,7 @@ func nestMap() Map {
 
 func nestConfig(seed int64) Config {
 	cfg := testConfig(seed)
+	cfg.Nests = true
 	cfg.NestGap, cfg.NestLow, cfg.NestRadius = 10, 3, 2
 	return cfg
 }
