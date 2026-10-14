@@ -85,6 +85,43 @@ func TestNestsRefillOnlyWhenScarce(t *testing.T) {
 	}
 }
 
+// A nest sends at most NestQuota bodies in the world's life, its first
+// body among them, and then sends no more however few stand near it; with
+// no quota it goes on (stage 13-3, the user's choice 2026-10-14).
+func TestNestsStopAtTheQuota(t *testing.T) {
+	cfg := nestConfig(3)
+	cfg.NestRadius = 0 // the nest sees only its own tile: it keeps sending
+	cfg.NestQuota = 5
+	w, err := NewWorld(cfg, nestMap())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(w, 300)
+	out := w.Stats().NestOut
+	if len(out) != len(w.Map().Nests) {
+		t.Fatalf("NestOut %v, want one count a nest", out)
+	}
+	sent := w.Stats().NestSent
+	for i, k := range out {
+		if k != int64(cfg.NestQuota) {
+			t.Fatalf("nest %d sent %d in 300 ticks, want its quota %d", i, k, cfg.NestQuota)
+		}
+		if sent[w.nestSpecies[i]] != k { // one nest a species on this map
+			t.Fatalf("nest %d sent %d, its species' count says %d", i, k, sent[w.nestSpecies[i]])
+		}
+	}
+	cfg.NestQuota = 0
+	v, _ := NewWorld(cfg, nestMap())
+	run(v, 300)
+	if v.Stats().NestOut[0] <= 5 {
+		t.Fatalf("a nest with no quota sent %d in 300 ticks", v.Stats().NestOut[0])
+	}
+	cfg.NestQuota = -1
+	if _, err := NewWorld(cfg, nestMap()); err == nil {
+		t.Fatal("a negative quota was taken")
+	}
+}
+
 // Given a save, a nest sends out only its stocks of the nest's species,
 // each with its genome and its skills; the budgets it brings in are the
 // ledger's own row, and the ledger closes.

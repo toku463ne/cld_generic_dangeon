@@ -134,10 +134,12 @@ const (
 // Nested is Warmed with the map's nests open (stage 13-3), sending out
 // the training stages' saves (lineages): the world a chapter closes on
 // (Nests is off by default). Drawnnest is Nested with the nests sending
-// out drawn bodies: what training adds.
+// out drawn bodies: what training adds. Endless is Nested with no quota
+// on the nests (stage 13-3, NestQuota): what the quota takes away.
 const (
 	Nested    = "nested"
 	Drawnnest = "drawnnest"
+	Endless   = "endless"
 )
 
 // drawsNests names the variants whose nests send out drawn bodies.
@@ -602,6 +604,12 @@ var rewrites = map[string]func(*engine.Config){
 		c.FoodCap *= 2
 		c.HuntFrom = 5000
 		c.Nests = true
+	},
+	Endless: func(c *engine.Config) {
+		c.FoodCap *= 2
+		c.HuntFrom = 5000
+		c.Nests = true
+		c.NestQuota = 0
 	},
 	Commons: func(c *engine.Config) {
 		c.FoodCap *= 2

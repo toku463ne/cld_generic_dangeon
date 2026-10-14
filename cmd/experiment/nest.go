@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/toku463ne/cld_generic_dangeon/engine"
@@ -42,6 +43,14 @@ func noteNest(r *result, w *engine.World, species int, late bool, t int64) {
 	}
 }
 
+// quotaText is a nest quota as the table states it.
+func quotaText(q int) string {
+	if q <= 0 {
+		return "なし"
+	}
+	return fmt.Sprintf("1 巣 %d 体", q)
+}
+
 // nestTables prints, for each variant whose world has nests, the bodies
 // sent out by species and half, the births of the second half, and each
 // slot's mean level among the bodies sent out beside the save's.
@@ -60,6 +69,24 @@ func nestTables(p func(string, ...any), o options, results map[string][]result, 
 				fmtMeanSE(collect(rs, func(r result) float64 { return r.nestLate[k] }), 2),
 				fmtMeanSE(collect(rs, func(r result) float64 { return r.birthsLate }), 2),
 				fmtMeanSE(collectWhere(rs, func(r result) bool { return r.birthsLate > 0 }, func(r result) float64 { return r.nestLate[k] / r.birthsLate }), 4))
+		}
+		p("\n")
+		p("巣ごとに出した身体（1シードあたり、地図の順）と、終わりに空だった（上限まで出した）シードの割合。上限: %s。\n\n", quotaText(rs[0].nestQuota))
+		p("| 巣 | 種族 | 出した | 空だった |\n| --- | --- | --- | --- |\n")
+		for i, n := range m.Nests {
+			out := func(r result) float64 {
+				if i < len(r.nestOut) {
+					return float64(r.nestOut[i])
+				}
+				return 0
+			}
+			p("| %d（%d,%d） | %s | %s | %s |\n", i, n.X, n.Y, n.Species, fmtMeanSE(collect(rs, out), 2),
+				fmtMeanSE(collect(rs, func(r result) float64 {
+					if r.nestQuota > 0 && out(r) >= float64(r.nestQuota) {
+						return 1
+					}
+					return 0
+				}), 2))
 		}
 		p("\n")
 		cfg, _ := variant.Config(v, o.seed0)

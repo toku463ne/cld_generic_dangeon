@@ -707,6 +707,12 @@ type Config struct {
 	NestRadius int
 	NestLow    int
 	NestGap    int
+	// NestQuota is the most bodies one nest sends out in the world's
+	// life, its first bodies among them; 0 sets no limit. A nest that has
+	// sent its quota is empty, and a species whose nests are all empty can
+	// die out (the user's choice, 2026-10-14: dying out is part of the
+	// game).
+	NestQuota int
 }
 
 // HumanShare is the share of the world's ground that is the first
@@ -922,6 +928,7 @@ func DefaultConfig() Config {
 		NestRadius:         6,
 		NestLow:            4,
 		NestGap:            20,
+		NestQuota:          50,
 		Refuge:             true,
 		Homing:             true,
 		AllotCombat:        true,

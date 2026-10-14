@@ -18,6 +18,10 @@ import "fmt"
 // memory. Where the world was given a save (NewWorldNested), it is one of
 // the save's stocks of its species, drawn uniformly, with that stock's
 // skills; else its genome and skills are drawn as a first body's are.
+//
+// A nest sends at most NestQuota bodies in the world's life (the user's
+// choice, 2026-10-14): it props a species up only so far, and a species
+// can die out once its nests are empty.
 
 // Nest is one nest: the species (by name) it sends out, and its tile.
 type Nest struct {
@@ -59,8 +63,8 @@ func (w *World) initNests(stocks []Stock) error {
 	if !w.nesting() {
 		return nil
 	}
-	if w.cfg.NestGap < 1 || w.cfg.NestRadius < 0 || w.cfg.NestLow < 1 {
-		return fmt.Errorf("Nests needs NestGap and NestLow at least one and NestRadius at least zero, got %d %d %d", w.cfg.NestGap, w.cfg.NestLow, w.cfg.NestRadius)
+	if w.cfg.NestGap < 1 || w.cfg.NestRadius < 0 || w.cfg.NestLow < 1 || w.cfg.NestQuota < 0 {
+		return fmt.Errorf("Nests needs NestGap and NestLow at least one and NestRadius and NestQuota at least zero, got %d %d %d %d", w.cfg.NestGap, w.cfg.NestLow, w.cfg.NestRadius, w.cfg.NestQuota)
 	}
 	w.nestSpecies = make([]int, len(w.m.Nests))
 	for i, n := range w.m.Nests {
@@ -87,13 +91,17 @@ func (w *World) initNests(stocks []Stock) error {
 }
 
 // refill has each nest, on the ticks it looks, send out a body if fewer
-// than NestLow of its species stand within NestRadius of it.
+// than NestLow of its species stand within NestRadius of it and it has
+// not sent its NestQuota.
 func (w *World) refill() {
 	if !w.nesting() || w.tick%int64(w.cfg.NestGap) != 0 {
 		return
 	}
 	r := w.cfg.NestRadius
 	for i, n := range w.m.Nests {
+		if w.nestEmpty(i) {
+			continue
+		}
 		s := w.nestSpecies[i]
 		near := 0
 		for k := range w.bodies {
@@ -110,6 +118,11 @@ func (w *World) refill() {
 	}
 }
 
+// nestEmpty reports whether nest i has sent its NestQuota.
+func (w *World) nestEmpty(i int) bool {
+	return w.cfg.NestQuota > 0 && i < len(w.stats.NestOut) && w.stats.NestOut[i] >= int64(w.cfg.NestQuota)
+}
+
 // send puts a body out of nest i onto its tile: one of the save's stocks
 // of its species, or a drawn one.
 func (w *World) send(i int) {
@@ -123,6 +136,10 @@ func (w *World) send(i int) {
 		w.stats.NestSent = append(w.stats.NestSent, 0)
 	}
 	w.stats.NestSent[s]++
+	for len(w.stats.NestOut) <= i {
+		w.stats.NestOut = append(w.stats.NestOut, 0)
+	}
+	w.stats.NestOut[i]++
 	w.stats.BudgetNest += b.Budget
 	w.bodies = append(w.bodies, b)
 }

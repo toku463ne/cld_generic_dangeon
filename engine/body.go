@@ -282,6 +282,9 @@ type Stats struct {
 	// BudgetIn: the budget that came from outside the world, O10).
 	NestSent   []int64 `json:",omitempty"`
 	BudgetNest float64 `json:",omitempty"`
+	// NestOut counts, by nest (the map's order), the bodies each sent out:
+	// what NestQuota is read against.
+	NestOut []int64 `json:",omitempty"`
 	// RegionRows (indexed by RegionID), PathRow and MateRow count, for
 	// each learned row, what bodies learned themselves and passed on.
 	RegionRows       []RowCount `json:",omitempty"`
@@ -667,6 +670,8 @@ func (w *World) Stats() Stats {
 	s.FertBirths = append([]int64(nil), s.FertBirths...)
 	s.BoldSteps = append([]int64(nil), s.BoldSteps...)
 	s.BoldNewSteps = append([]int64(nil), s.BoldNewSteps...)
+	s.NestSent = append([]int64(nil), s.NestSent...)
+	s.NestOut = append([]int64(nil), s.NestOut...)
 	return s
 }
 

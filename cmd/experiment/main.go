@@ -194,7 +194,11 @@ type result struct {
 	// body sent out (stage 13-3).
 	nestEarly, nestLate []float64
 	birthsLate          float64
-	genoNest            [][]map[int]float64
+	// nestOut is what each nest sent out over the run (the map's order),
+	// nestQuota the quota it was read against (0: none).
+	nestOut   []int64
+	nestQuota int
+	genoNest  [][]map[int]float64
 	// provisioned is the food that went straight to resting mothers.
 	provisioned float64
 	// requests are the requests to mate sent, and requestBirths the
@@ -975,6 +979,7 @@ func runOne(name string, cfg engine.Config, m engine.Map, ticks, floor int) (res
 	}
 	r.births = float64(st.Births)
 	r.birthsLate += float64(st.Births)
+	r.nestOut, r.nestQuota = st.NestOut, w.Config().NestQuota
 	r.matings = float64(st.Matings)
 	r.fertMatings, r.fertBirths = append([]int64(nil), st.FertMatings...), append([]int64(nil), st.FertBirths...)
 	r.fertSlope = math.NaN()
