@@ -29,16 +29,18 @@ func stepped(t *testing.T, ticks int) *engine.World {
 // The world the client starts drawing from is the one the experiment passed
 // through at that tick: same seed, run again from tick 0.
 func TestPrepareMatchesExperimentRun(t *testing.T) {
+	// One world at a time: each holds its survival tables (some 0.6 GB
+	// here), and two at once kept the race detector from finishing.
+	want := stepped(t, 800).Fingerprint()
 	o := Options{Map: "constrained", Width: 32, Height: 24, Variant: variant.Base, Seed: 9, FromTick: 800}
 	got, err := Prepare(o)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := stepped(t, 800)
 	if got.W.Tick() != 800 {
 		t.Fatalf("prepared world is at tick %d, want 800", got.W.Tick())
 	}
-	if got.W.Fingerprint() != want.Fingerprint() {
+	if got.W.Fingerprint() != want {
 		t.Fatal("prepared world differs from the world run step by step")
 	}
 	if len(got.hist) != 801 {
@@ -52,7 +54,8 @@ func TestViewChangesNothing(t *testing.T) {
 	// Follow a body alive from tick 400 to 900, so that it decides at
 	// least once (Recheck) while followed. (The hungriest body at tick 400
 	// can die following its intent before it decides again.)
-	end := stepped(t, 900).Bodies()
+	ref := stepped(t, 900)
+	end, want := ref.Bodies(), ref.Fingerprint() // one world at a time (TestPrepareMatchesExperimentRun)
 	var id int64 = -1
 	for _, b := range end {
 		if b.Born <= 400 {
@@ -78,7 +81,7 @@ func TestViewChangesNothing(t *testing.T) {
 			_ = v.FollowText()
 		}
 	}
-	if v.W.Fingerprint() != stepped(t, 900).Fingerprint() {
+	if v.W.Fingerprint() != want {
 		t.Fatal("the world shown by the client differs from the world run alone")
 	}
 	if v.last == nil {

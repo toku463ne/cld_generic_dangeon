@@ -267,12 +267,7 @@ func (s Survival) build(want []bool) {
 	cur := make([]float64, top+1)
 	next := make([]float64, top+1)
 	cur[0] = 1
-	keep := func(step int) {
-		if step+1 <= longest && want[step+1] && dead[step+1] == nil {
-			dead[step+1] = append([]float64(nil), cur...)
-		}
-	}
-	keep(0)
+	keep(dead, want, cur, 0)
 	miss := 1 - meet
 	for step := 1; step < longest; step++ {
 		next[0] = 1
@@ -284,8 +279,29 @@ func (s Survival) build(want []bool) {
 			next[n] = meet*cur[fed] + miss*cur[n-1]
 		}
 		cur, next = next, cur
-		keep(step)
+		keep(dead, want, cur, step)
 	}
+}
+
+// keep keeps cur as the row after step if it is wanted and not kept yet.
+func keep(dead [][]float64, want []bool, cur []float64, step int) {
+	if step+1 < len(want) && want[step+1] && dead[step+1] == nil {
+		dead[step+1] = append([]float64(nil), cur[:keptLen(cur)]...)
+	}
+}
+
+// keptLen is how much of a row is kept: up to its last chance that is not
+// 0, and one 0 after it if there is one. deadIn reads an amount of energy
+// past a row's end as its last entry, so the zeros left off read as they
+// were. A body with more grains than the grains so far cannot be dead (the
+// entries build leaves 0), so a short window's row is mostly zeros: keeping
+// them made the tables of one world some 1 GB.
+func keptLen(row []float64) int {
+	n := len(row)
+	for n > 1 && row[n-1] == 0 && row[n-2] == 0 {
+		n--
+	}
+	return n
 }
 
 // row is the row for a window of length l, built with its neighbours
@@ -998,10 +1014,12 @@ type TableKey struct {
 const (
 	// forgetEvery is how often, in ticks, the tables not read for
 	// forgetAfter ticks are dropped. Without it the cache keeps every food
-	// count a region ever had - some 2600 tables and 200 MB after 20000
-	// ticks, most of them from the full map of the first ticks.
-	forgetEvery = 1000
-	forgetAfter = 10000
+	// level and most a body ever read, most of them from the first ticks.
+	// Dropping them sooner costs no time measured: a table not read for
+	// 2000 ticks is seldom read again (stage 13-3, 2026-10-14: a world of
+	// 140 bodies held 2400 tables and 0.8 GB at 10000; 1500 and 0.53 GB).
+	forgetEvery = 500
+	forgetAfter = 2000
 	// warmAfter is how lately a table must have been read for a saved
 	// world to name it for warming.
 	warmAfter = 1000
